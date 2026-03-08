@@ -2,15 +2,12 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Finalproj.Models
 {
-    /// <summary>
-    /// Tutorial Class 8: "Add other information to the User. If we need to store any other information
-    /// of the user profile, we can create another model with the new data. Create a new model Perfil.cs"
-    /// </summary>
+    // Dados extra do utilizador quando não está associado a um funcionário (nome, telefone, data registo)
     public class Perfil
     {
         public int Id { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "O identificador do utilizador é obrigatório.")]
         public string UserId { get; set; } = string.Empty;
 
         [StringLength(200)]

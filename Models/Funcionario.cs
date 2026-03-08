@@ -2,11 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Finalproj.Models;
 
-/// <summary>
-/// Ficha de funcionário. Campos alinhados a gestão de pessoal e RGPD.
-/// Pode estar associado a um utilizador (UserId) quando tem acesso ao sistema.
-/// Documentos: cartão de cidadão e ADDR (se aplicável) guardados em ficheiro.
-/// </summary>
+// Ficha de funcionário; pode ter UserId (conta) para acesso; documentos CC, ADR, licença em ficheiro
 public class Funcionario
 {
     public int Id { get; set; }
@@ -51,7 +47,7 @@ public class Funcionario
     [Display(Name = "Notas")]
     public string? Notas { get; set; }
 
-    /// <summary> Associado a um utilizador do sistema (tem conta de acesso). </summary>
+    // Conta Identity associada (acesso ao sistema)
     [StringLength(450)]
     public string? UserId { get; set; }
 
@@ -77,6 +73,6 @@ public class Funcionario
     [Display(Name = "Outros")]
     public string? OutrosCaminho { get; set; }
 
-    /// <summary> Documentos adicionais com nome personalizado (substitui o uso de um único "Outros"). </summary>
+    // Documentos extra com nome personalizado
     public ICollection<FuncionarioDocumentoExtra> DocumentosExtras { get; set; } = new List<FuncionarioDocumentoExtra>();
 }

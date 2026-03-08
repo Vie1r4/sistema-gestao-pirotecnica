@@ -1,0 +1,24 @@
+@model Finalproj.Models.Servico
+@using Finalproj.Models
+@{
+    ViewData["Title"] = "Eliminar serviço";
+}
+<div class="alert alert-warning" role="alert">
+    <strong>Eliminar serviço #@Model.Id?</strong> Esta ação não pode ser desfeita. A encomenda associada (#@Model.EncomendaId) não é afetada.
+</div>
+<dl class="row">
+    <dt class="col-sm-3">Cliente</dt>
+    <dd class="col-sm-9">@Model.Cliente?.Nome</dd>
+    <dt class="col-sm-3">Data do serviço</dt>
+    <dd class="col-sm-9">@Model.DataServico.ToString("dd/MM/yyyy")</dd>
+    <dt class="col-sm-3">Encomenda associada</dt>
+    <dd class="col-sm-9"><a asp-controller="Encomendas" asp-action="Details" asp-route-id="@Model.EncomendaId">#@Model.EncomendaId</a></dd>
+</dl>
+<form asp-action="Delete" method="post">
+    <input type="hidden" asp-for="Id" />
+    @Html.AntiForgeryToken()
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-danger">Sim, eliminar</button>
+        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+</form>

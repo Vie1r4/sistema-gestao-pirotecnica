@@ -1,0 +1,272 @@
+@model Finalproj.Models.Servico
+@using Finalproj.Models
+@{
+    ViewData["Title"] = "Novo serviço";
+    var responsaveis = ViewData["ResponsaveisTecnicos"] as List<Funcionario> ?? new List<Funcionario>();
+    var funcionariosEquipa = ViewData["FuncionariosEquipa"] as List<Funcionario> ?? new List<Funcionario>();
+}
+<h1 class="mb-3">Novo serviço</h1>
+<p class="text-muted mb-4">Registe uma operação no terreno. O serviço fica ligado a uma encomenda concluída (material utilizado). Os campos marcados com <span class="text-danger">*</span> são obrigatórios.</p>
+
+<form asp-action="Create" method="post" enctype="multipart/form-data">
+    <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Encomenda e dados do evento</h5>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label asp-for="EncomendaId" class="form-label">Encomenda concluída (material utilizado)</label> <span class="text-danger">*</span>
+                <select asp-for="EncomendaId" class="form-select" asp-items="@(ViewData["EncomendaId"] as SelectList)"></select>
+                <span asp-validation-for="EncomendaId" class="text-danger small"></span>
+                <small class="text-muted d-block">Só aparecem encomendas já concluídas. O cliente é preenchido automaticamente.</small>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="DataServico" class="form-label"></label> <span class="text-danger">*</span>
+                    <input asp-for="DataServico" class="form-control" type="date" />
+                    <span asp-validation-for="DataServico" class="text-danger small"></span>
+                </div>
+            </div>
+            <h6 class="mt-3 mb-2">Localização (distrito, cidade, concelho e coordenadas)</h6>
+            <p class="small text-muted mb-2">Preencha distrito, cidade e concelho e introduza as coordenadas manualmente, ou use o mapa para indicar o local.</p>
+            <div class="mb-3" id="container-mapa-create" style="display:none;">
+                <div id="mapa-escolha-create" style="width:100%; height:360px; border:1px solid #ddd; border-radius:6px;"></div>
+            </div>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Distrito" class="form-label">Distrito</label>
+                    <input asp-for="Distrito" class="form-control" id="input-distrito-create" placeholder="Opcional" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Cidade" class="form-label">Cidade</label>
+                    <input asp-for="Cidade" class="form-control" id="input-cidade-create" placeholder="Opcional" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Municipio" class="form-label">Concelho</label>
+                    <input asp-for="Municipio" class="form-control" id="input-municipio-create" placeholder="Opcional" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label asp-for="CoordenadasLat" class="form-label">Latitude</label>
+                    <input asp-for="CoordenadasLat" class="form-control" type="number" step="any" id="input-lat-create" placeholder="Opcional" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label asp-for="CoordenadasLng" class="form-label">Longitude</label>
+                    <input asp-for="CoordenadasLng" class="form-control" type="number" step="any" id="input-lng-create" placeholder="Opcional" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label asp-for="RaioPublico" class="form-label">Raio público (m)</label>
+                    <input asp-for="RaioPublico" class="form-control" type="number" min="0" id="input-raio-create" placeholder="Metros" />
+                </div>
+            </div>
+            <hr class="my-3" />
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="PublicoPrivado" class="form-label">Público / Privado</label>
+                    <select asp-for="PublicoPrivado" class="form-select" asp-items="@(ViewData["TiposAcesso"] as SelectList)"></select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="ResponsavelTecnicoId" class="form-label">Responsável técnico</label>
+                    <select asp-for="ResponsavelTecnicoId" class="form-select" asp-items="@(new SelectList(responsaveis, "Id", "NomeCompleto"))"></select>
+                    <small class="text-muted d-block">Apenas funcionários com ADR e licença de operador.</small>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Equipa (funcionários no terreno)</label>
+                <p class="text-muted small mb-2">Selecione os membros da equipa. Apenas funcionários com licença de operador podem fazer parte da equipa.</p>
+                <div class="border rounded p-2 bg-light" style="max-height: 200px; overflow-y: auto;">
+                    @foreach (var f in funcionariosEquipa)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="EquipaIds" value="@f.Id" id="equipa_@f.Id" />
+                            <label class="form-check-label" for="equipa_@f.Id">@f.NomeCompleto</label>
+                        </div>
+                    }
+                    @if (!funcionariosEquipa.Any())
+                    {
+                        <p class="text-muted small mb-0">Não há funcionários com licença de operador. Registe o documento em Funcionários para poder incluí-los na equipa.</p>
+                    }
+                </div>
+            </div>
+            <div class="mb-0">
+                <label asp-for="Observacoes" class="form-label"></label>
+                <textarea asp-for="Observacoes" class="form-control" rows="2" placeholder="Observações sobre o serviço"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Documentação do evento</h5>
+        </div>
+        <div class="card-body">
+            <p class="small text-muted mb-3">Ex.: carta de lançador dos membros da equipa. PDF, JPG ou PNG.</p>
+            <div class="d-flex align-items-center">
+                <button type="button" id="btn-mais-documento" class="btn btn-outline-secondary btn-sm me-2" aria-label="Adicionar documento">+ Adicionar documento</button>
+            </div>
+            <div id="documentos-extras-container" class="mt-3 pt-2 border-top" style="display:none;">
+                <div id="documentos-extras-lista"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Criar serviço</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function() {
+            var containerExtras = document.getElementById('documentos-extras-container');
+            var listaExtras = document.getElementById('documentos-extras-lista');
+            var btnMais = document.getElementById('btn-mais-documento');
+            var contadorExtras = 0;
+            function renumerar() {
+                if (!listaExtras) return;
+                var rows = listaExtras.querySelectorAll('.documento-extra-row');
+                rows.forEach(function(r, idx) {
+                    r.querySelector('input[name*=".Nome"]').setAttribute('name', 'documentosExtras[' + idx + '].Nome');
+                    r.querySelector('input[type="file"]').setAttribute('name', 'documentosExtras[' + idx + '].Ficheiro');
+                });
+                if (listaExtras.children.length === 0) containerExtras.style.display = 'none';
+            }
+            if (btnMais && listaExtras) {
+                btnMais.addEventListener('click', function() {
+                    containerExtras.style.display = 'block';
+                    var i = contadorExtras++;
+                    var row = document.createElement('div');
+                    row.className = 'documento-extra-row mb-3 p-2 bg-light rounded';
+                    row.innerHTML = '<div class="row g-2 align-items-end"><div class="col-md-4"><label class="form-label small mb-0">Nome</label><input type="text" name="documentosExtras[' + i + '].Nome" class="form-control form-control-sm" placeholder="Ex: Carta lançador" maxlength="100" /></div><div class="col-md-5"><label class="form-label small mb-0">Ficheiro</label><input type="file" name="documentosExtras[' + i + '].Ficheiro" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png" /></div><div class="col-md-3"><button type="button" class="btn btn-outline-danger btn-sm remover-extra">Remover</button></div></div>';
+                    listaExtras.appendChild(row);
+                    row.querySelector('.remover-extra').addEventListener('click', function() { row.remove(); renumerar(); });
+                });
+            }
+        })();
+        (function() {
+            var sel = document.querySelector('select[name="ResponsavelTecnicoId"]');
+            if (!sel) return;
+            function checkEquipaFromResponsavel() {
+                var id = sel.value;
+                if (!id) return;
+                var cb = document.getElementById('equipa_' + id) || document.querySelector('input[name="EquipaIds"][value="' + id + '"]');
+                if (cb) { cb.checked = true; }
+                document.querySelectorAll('input[name="EquipaIds"]').forEach(function(c) {
+                    if (c.value === id) c.setAttribute('data-responsavel', '1'); else c.removeAttribute('data-responsavel');
+                });
+            }
+            sel.addEventListener('change', function() {
+                document.querySelectorAll('input[name="EquipaIds"]').forEach(function(c) { c.removeAttribute('data-responsavel'); c.disabled = false; });
+                checkEquipaFromResponsavel();
+            });
+            document.querySelectorAll('input[name="EquipaIds"]').forEach(function(cb) {
+                cb.addEventListener('click', function() {
+                    if (this.getAttribute('data-responsavel') === '1') this.checked = true;
+                });
+            });
+            checkEquipaFromResponsavel();
+        })();
+    </script>
+    @{
+        var apiKeyCreate = ViewData["GoogleMapsApiKey"] as string ?? "";
+    }
+    @if (!string.IsNullOrWhiteSpace(apiKeyCreate))
+    {
+        <script src="https://maps.googleapis.com/maps/api/js?key=@(apiKeyCreate)" async defer></script>
+        <script>
+            (function() {
+                var mapCreate = null, markerCreate = null, circleCreate = null;
+                function updateCircleCreate(center, radiusM) {
+                    if (circleCreate) { circleCreate.setMap(null); circleCreate = null; }
+                    if (!mapCreate || !center || !radiusM || radiusM <= 0) return;
+                    circleCreate = new google.maps.Circle({
+                        map: mapCreate,
+                        center: center,
+                        radius: parseInt(radiusM, 10),
+                        fillColor: '#1a73e8',
+                        fillOpacity: 0.15,
+                        strokeColor: '#1a73e8',
+                        strokeWeight: 2
+                    });
+                }
+                function setMapPosition(lat, lng) {
+                    if (!mapCreate) return;
+                    var pos = { lat: lat, lng: lng };
+                    mapCreate.setCenter(pos);
+                    mapCreate.setZoom(14);
+                    if (markerCreate) markerCreate.setMap(null);
+                    markerCreate = new google.maps.Marker({ position: pos, map: mapCreate });
+                    var latInp = document.getElementById('input-lat-create');
+                    var lngInp = document.getElementById('input-lng-create');
+                    if (latInp) latInp.value = lat;
+                    if (lngInp) lngInp.value = lng;
+                    var raioInp = document.getElementById('input-raio-create');
+                    if (raioInp && raioInp.value) { var r = parseFloat(raioInp.value); if (!isNaN(r) && r > 0) updateCircleCreate(pos, r); }
+                }
+                function initMapaClick() {
+                    var latInp = document.getElementById('input-lat-create');
+                    var lngInp = document.getElementById('input-lng-create');
+                    var cidade = document.getElementById('input-cidade-create');
+                    var municipio = document.getElementById('input-municipio-create');
+                    var distrito = document.getElementById('input-distrito-create');
+                    var container = document.getElementById('container-mapa-create');
+                    var divMap = document.getElementById('mapa-escolha-create');
+                    if (!divMap || typeof google === 'undefined' || !google.maps) return;
+                    container.style.display = 'block';
+                    var centerPortugal = { lat: 39.5, lng: -8.0 };
+                    mapCreate = new google.maps.Map(divMap, {
+                        center: centerPortugal,
+                        zoom: 6,
+                        restriction: { latLngBounds: { north: 42.2, south: 36.9, west: -9.5, east: -6.2 }, strictBounds: false },
+                        mapTypeControl: true,
+                        fullscreenControl: true,
+                        streetViewControl: false
+                    });
+                    if (latInp && lngInp && latInp.value && lngInp.value) {
+                        var latVal = parseFloat(latInp.value), lngVal = parseFloat(lngInp.value);
+                        if (!isNaN(latVal) && !isNaN(lngVal)) setMapPosition(latVal, lngVal);
+                    }
+                    var raioInp = document.getElementById('input-raio-create');
+                    if (raioInp) raioInp.addEventListener('input', function() {
+                        if (!markerCreate) return;
+                        var r = parseFloat(this.value);
+                        updateCircleCreate(markerCreate.getPosition(), isNaN(r) ? 0 : r);
+                    });
+                    mapCreate.addListener('click', function(e) {
+                        var latVal = e.latLng.lat(), lngVal = e.latLng.lng();
+                        if (latInp) latInp.value = latVal;
+                        if (lngInp) lngInp.value = lngVal;
+                        if (markerCreate) markerCreate.setMap(null);
+                        markerCreate = new google.maps.Marker({ position: e.latLng, map: mapCreate });
+                        var r = raioInp ? parseFloat(raioInp.value) : 0;
+                        if (!isNaN(r) && r > 0) updateCircleCreate(e.latLng, r);
+                        var geocoder = new google.maps.Geocoder();
+                        geocoder.geocode({ location: { lat: latVal, lng: lngVal } }, function(results, status) {
+                            if (status === 'OK' && results && results[0]) {
+                                var r0 = results[0];
+                                if (r0.address_components) {
+                                    var loc = '', adm2 = '', adm1 = '';
+                                    for (var i = 0; i < r0.address_components.length; i++) {
+                                        var comp = r0.address_components[i];
+                                        if (comp.types.indexOf('administrative_area_level_2') >= 0) adm2 = comp.long_name;
+                                        if (comp.types.indexOf('administrative_area_level_1') >= 0) adm1 = comp.long_name;
+                                        if (comp.types.indexOf('locality') >= 0) loc = comp.long_name;
+                                    }
+                                    if (cidade) cidade.value = loc || '';
+                                    if (municipio) municipio.value = adm2 || loc || '';
+                                    if (distrito) distrito.value = adm1 || '';
+                                }
+                            }
+                        });
+                    });
+                }
+                if (typeof google !== 'undefined' && google.maps) { initMapaClick(); } else { window.addEventListener('load', function() { setTimeout(function() { initMapaClick(); }, 500); }); }
+            })();
+        </script>
+    }
+}

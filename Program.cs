@@ -5,8 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Exigir autenticação em todo o site por defeito; Login/Register com [AllowAnonymous].
+// Toda a app exige login; só Login/Registo são públicos
 builder.Services.AddControllersWithViews(options =>
 {
     options.Filters.Add(new AuthorizeFilter());
@@ -18,7 +17,7 @@ builder.Services.AddDbContext<FinalprojContext>(options =>
 
 builder.Services.AddDefaultIdentity<IdentityUser>(options =>
 {
-    // [CONFIRMAÇÃO EMAIL] Para testes: comentado para não exigir confirmação por email. Para reativar, descomentar a linha abaixo.
+    // Confirmação de email desligada por agora; reativar em produção
     // options.SignIn.RequireConfirmedAccount = true;
     options.Password.RequireDigit = true;
     options.Password.RequireLowercase = true;
@@ -30,9 +29,16 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options =>
     .AddEntityFrameworkStores<FinalprojContext>()
     .AddDefaultTokenProviders();
 
+// Erros do Identity em português
+builder.Services.AddScoped<Microsoft.AspNetCore.Identity.IdentityErrorDescriber, Finalproj.Services.IdentityErrorDescriberPt>();
+
+// Serviços da aplicação
 builder.Services.AddSingleton<Microsoft.AspNetCore.Identity.UI.Services.IEmailSender, Finalproj.Services.EmailSender>();
 builder.Services.AddScoped<Finalproj.Services.ILogSistemaService, Finalproj.Services.LogSistemaService>();
+builder.Services.AddScoped<Finalproj.Services.IStockDisponivelService, Finalproj.Services.StockDisponivelService>();
+builder.Services.AddScoped<Finalproj.Services.IEncomendaService, Finalproj.Services.EncomendaService>();
 
+// Sessão (para rascunho de encomenda) e cookies de autenticação
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -50,10 +56,12 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 var app = builder.Build();
 
+// Aplica migrações e garante roles/admin no arranque
 await InicializarAsync(app);
 
 static async Task InicializarAsync(WebApplication app)
 {
+    // Migrações + seed de dados + roles (Admin, Armazém, etc.)
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<FinalprojContext>();
     await context.Database.MigrateAsync();
@@ -61,7 +69,7 @@ static async Task InicializarAsync(WebApplication app)
     await SeedRoles.InitializeAsync(scope.ServiceProvider);
 }
 
-// Configure the HTTP request pipeline.
+// Pipeline: erros, HTTPS, estáticos, sessão, auth
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");

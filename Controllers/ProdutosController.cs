@@ -7,9 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Finalproj.Controllers
 {
-    /// <summary>
-    /// Tutorial Class 3: CRUD de Produto (NEM por unidade, família de risco). Class 8: [Authorize].
-    /// </summary>
+    // Catálogo e gestão de produtos: NEM por unidade, família de risco, grupo compatibilidade, calibre
     [Authorize]
     public class ProdutosController : Controller
     {
@@ -20,7 +18,7 @@ namespace Finalproj.Controllers
             _context = context;
         }
 
-        /// <summary> Catálogo com barra de pesquisa e filtros (classificação, grupo, filtro técnico, calibre). </summary>
+        // Catálogo com pesquisa e filtros (classificação, grupo, filtro técnico, calibre)
         public async Task<IActionResult> Index(string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre)
         {
             ViewData["Pesquisa"] = pesquisa;
@@ -45,7 +43,7 @@ namespace Finalproj.Controllers
             return View(lista);
         }
 
-        /// <summary> Gerir produtos com o mesmo sistema de subdivisão do catálogo. </summary>
+        // Gestão com os mesmos filtros do catálogo
         public async Task<IActionResult> Gerir(string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre)
         {
             ViewData["Pesquisa"] = pesquisa ?? "";
@@ -70,6 +68,7 @@ namespace Finalproj.Controllers
             return View(lista);
         }
 
+        // Detalhe do produto
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null) return NotFound();
@@ -79,6 +78,7 @@ namespace Finalproj.Controllers
         }
 
         [Authorize(Roles = "Admin")]
+        // GET: formulário novo produto; dropdowns família, grupo, filtro, calibre
         public IActionResult Create()
         {
             ViewData["FamiliaRisco"] = new SelectList(ConstantesPaiol.FamiliasParaDropdown(), "Value", "Text");
@@ -91,6 +91,7 @@ namespace Finalproj.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
+        // Grava novo produto
         public async Task<IActionResult> Create([Bind("Nome,NEMPorUnidade,FamiliaRisco,GrupoCompatibilidade,FiltroTecnico,Calibre")] Produto produto)
         {
             if (ModelState.IsValid)
@@ -106,6 +107,7 @@ namespace Finalproj.Controllers
             return View(produto);
         }
 
+        // GET: formulário edição com dropdowns
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null) return NotFound();
@@ -120,6 +122,7 @@ namespace Finalproj.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        // Actualiza produto
         public async Task<IActionResult> Edit(int id, [Bind("Id,Nome,NEMPorUnidade,FamiliaRisco,Unidade,GrupoCompatibilidade,FiltroTecnico,Calibre")] Produto produto)
         {
             if (id != produto.Id) return NotFound();
@@ -145,6 +148,7 @@ namespace Finalproj.Controllers
             return View(produto);
         }
 
+        // GET: confirmação antes de apagar
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null) return NotFound();
@@ -155,6 +159,7 @@ namespace Finalproj.Controllers
 
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        // Apaga produto
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var produto = await _context.Produtos.FindAsync(id);

@@ -1,0 +1,290 @@
+@model Finalproj.Models.Servico
+@using Finalproj.Models
+@{
+    ViewData["Title"] = "Editar serviço";
+    var responsaveis = ViewData["ResponsaveisTecnicos"] as List<Funcionario> ?? new List<Funcionario>();
+    var funcionariosEquipa = ViewData["FuncionariosEquipa"] as List<Funcionario> ?? new List<Funcionario>();
+    var equipaIds = ViewData["EquipaIds"] as List<int> ?? new List<int>();
+}
+<h1 class="mb-3">Editar serviço #@Model.Id</h1>
+
+<form asp-action="Edit" method="post" enctype="multipart/form-data">
+    <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="ClienteId" />
+
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Encomenda e dados do evento</h5>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label asp-for="EncomendaId" class="form-label">Encomenda concluída</label> <span class="text-danger">*</span>
+                <select asp-for="EncomendaId" class="form-select" asp-items="@(ViewData["EncomendaId"] as SelectList)"></select>
+                <span asp-validation-for="EncomendaId" class="text-danger small"></span>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="DataServico" class="form-label"></label> <span class="text-danger">*</span>
+                    <input asp-for="DataServico" class="form-control" type="date" />
+                    <span asp-validation-for="DataServico" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Local" class="form-label"></label>
+                    <input asp-for="Local" class="form-control" placeholder="Ex: Largo do Município" />
+                </div>
+            </div>
+            <h6 class="mt-3 mb-2">Localização (distrito, cidade, concelho e coordenadas)</h6>
+            <p class="small text-muted mb-2">Preencha distrito, cidade e concelho e introduza as coordenadas manualmente, ou use o mapa para indicar o local.</p>
+            <div class="mb-3" id="container-mapa-edit" style="display:none;">
+                <div id="mapa-escolha-edit" style="width:100%; height:360px; border:1px solid #ddd; border-radius:6px;"></div>
+            </div>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Distrito" class="form-label">Distrito</label>
+                    <input asp-for="Distrito" class="form-control" id="input-distrito-edit" placeholder="Preenchido ao clicar no mapa" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Cidade" class="form-label">Cidade</label>
+                    <input asp-for="Cidade" class="form-control" id="input-cidade-edit" placeholder="Preenchido ao clicar no mapa" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Municipio" class="form-label">Concelho</label>
+                    <input asp-for="Municipio" class="form-control" id="input-municipio-edit" placeholder="Preenchido ao clicar no mapa" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label asp-for="CoordenadasLat" class="form-label">Latitude</label>
+                    <input asp-for="CoordenadasLat" class="form-control" type="number" step="any" id="input-lat-edit" placeholder="Preenchido ao clicar no mapa" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label asp-for="CoordenadasLng" class="form-label">Longitude</label>
+                    <input asp-for="CoordenadasLng" class="form-control" type="number" step="any" id="input-lng-edit" placeholder="Preenchido ao clicar no mapa" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label asp-for="RaioPublico" class="form-label">Raio público (m)</label>
+                    <input asp-for="RaioPublico" class="form-control" type="number" min="0" id="input-raio-edit" placeholder="Metros" />
+                </div>
+            </div>
+            <hr class="my-3" />
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="PublicoPrivado" class="form-label">Público / Privado</label>
+                    <select asp-for="PublicoPrivado" class="form-select" asp-items="@(ViewData["TiposAcesso"] as SelectList)"></select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="ResponsavelTecnicoId" class="form-label">Responsável técnico</label>
+                    <select asp-for="ResponsavelTecnicoId" class="form-select" asp-items="@(new SelectList(responsaveis, "Id", "NomeCompleto"))"></select>
+                    <small class="text-muted d-block">Apenas funcionários com ADR e licença de operador.</small>
+                </div>
+            </div>
+            <hr class="my-3" />
+            <div class="mb-3">
+                <label asp-for="Observacoes" class="form-label"></label>
+                <textarea asp-for="Observacoes" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="mb-0">
+                <label class="form-label">Equipa</label>
+                <p class="text-muted small mb-2">Apenas funcionários com licença de operador podem fazer parte da equipa.</p>
+                <div class="border rounded p-2 bg-light" style="max-height: 200px; overflow-y: auto;">
+                    @foreach (var f in funcionariosEquipa)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="EquipaIds" value="@f.Id" id="equipa_@f.Id" @(equipaIds.Contains(f.Id) ? " checked" : "") />
+                            <label class="form-check-label" for="equipa_@f.Id">@f.NomeCompleto</label>
+                        </div>
+                    }
+                    @if (!funcionariosEquipa.Any())
+                    {
+                        <p class="text-muted small mb-0">Não há funcionários com licença de operador.</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Documentação do evento</h5>
+        </div>
+        <div class="card-body">
+            @if (Model.DocumentosExtras?.Any() == true)
+            {
+                <p class="small text-muted mb-2">Documentos já carregados (pode marcar para remover):</p>
+                <ul class="list-unstyled mb-3">
+                    @foreach (var doc in Model.DocumentosExtras)
+                    {
+                        <li class="mb-1 d-flex align-items-center gap-2">
+                            <a asp-action="Download" asp-route-id="@Model.Id" asp-route-extraId="@doc.Id" target="_blank" class="btn btn-sm btn-outline-success">@(string.IsNullOrWhiteSpace(doc.Nome) ? "Ver" : doc.Nome)</a>
+                            <label class="mb-0 small text-danger"><input type="checkbox" name="RemoverDocumentoExtraIds" value="@doc.Id" class="form-check-input" /> Remover</label>
+                        </li>
+                    }
+                </ul>
+                <hr />
+            }
+            <p class="small text-muted mb-2">Adicionar mais documentos:</p>
+            <button type="button" id="btn-mais-documento" class="btn btn-outline-secondary btn-sm">+ Adicionar documento</button>
+            <div id="documentos-extras-container" class="mt-3 pt-2 border-top" style="display:none;">
+                <div id="documentos-extras-lista"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Guardar</button>
+        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function() {
+            var containerExtras = document.getElementById('documentos-extras-container');
+            var listaExtras = document.getElementById('documentos-extras-lista');
+            var btnMais = document.getElementById('btn-mais-documento');
+            var contadorExtras = 0;
+            function renumerar() {
+                if (!listaExtras) return;
+                var rows = listaExtras.querySelectorAll('.documento-extra-row');
+                rows.forEach(function(r, idx) {
+                    r.querySelector('input[name*=".Nome"]').setAttribute('name', 'documentosExtras[' + idx + '].Nome');
+                    r.querySelector('input[type="file"]').setAttribute('name', 'documentosExtras[' + idx + '].Ficheiro');
+                });
+                if (listaExtras.children.length === 0) containerExtras.style.display = 'none';
+            }
+            if (btnMais && listaExtras) {
+                btnMais.addEventListener('click', function() {
+                    containerExtras.style.display = 'block';
+                    var i = contadorExtras++;
+                    var row = document.createElement('div');
+                    row.className = 'documento-extra-row mb-3 p-2 bg-light rounded';
+                    row.innerHTML = '<div class="row g-2 align-items-end"><div class="col-md-4"><label class="form-label small mb-0">Nome</label><input type="text" name="documentosExtras[' + i + '].Nome" class="form-control form-control-sm" maxlength="100" /></div><div class="col-md-5"><label class="form-label small mb-0">Ficheiro</label><input type="file" name="documentosExtras[' + i + '].Ficheiro" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png" /></div><div class="col-md-3"><button type="button" class="btn btn-outline-danger btn-sm remover-extra">Remover</button></div></div>';
+                    listaExtras.appendChild(row);
+                    row.querySelector('.remover-extra').addEventListener('click', function() { row.remove(); renumerar(); });
+                });
+            }
+        })();
+        (function() {
+            var sel = document.querySelector('select[name="ResponsavelTecnicoId"]');
+            if (!sel) return;
+            function checkEquipaFromResponsavel() {
+                var id = sel.value;
+                if (!id) return;
+                var cb = document.getElementById('equipa_' + id) || document.querySelector('input[name="EquipaIds"][value="' + id + '"]');
+                if (cb) { cb.checked = true; }
+                document.querySelectorAll('input[name="EquipaIds"]').forEach(function(c) {
+                    if (c.value === id) c.setAttribute('data-responsavel', '1'); else c.removeAttribute('data-responsavel');
+                });
+            }
+            sel.addEventListener('change', function() {
+                document.querySelectorAll('input[name="EquipaIds"]').forEach(function(c) { c.removeAttribute('data-responsavel'); });
+                checkEquipaFromResponsavel();
+            });
+            document.querySelectorAll('input[name="EquipaIds"]').forEach(function(cb) {
+                cb.addEventListener('click', function() {
+                    if (this.getAttribute('data-responsavel') === '1') this.checked = true;
+                });
+            });
+            checkEquipaFromResponsavel();
+        })();
+    </script>
+    @{
+        var apiKey = ViewData["GoogleMapsApiKey"] as string ?? "";
+    }
+    @if (!string.IsNullOrWhiteSpace(apiKey))
+    {
+        <script src="https://maps.googleapis.com/maps/api/js?key=@(apiKey)" async defer></script>
+        <script>
+            (function() {
+                var mapEdit = null, markerEdit = null, circleEdit = null;
+                function updateCircleEdit(center, radiusM) {
+                    if (circleEdit) { circleEdit.setMap(null); circleEdit = null; }
+                    if (!mapEdit || !center || !radiusM || radiusM <= 0) return;
+                    circleEdit = new google.maps.Circle({
+                        map: mapEdit,
+                        center: center,
+                        radius: parseInt(radiusM, 10),
+                        fillColor: '#1a73e8',
+                        fillOpacity: 0.15,
+                        strokeColor: '#1a73e8',
+                        strokeWeight: 2
+                    });
+                }
+                function setMapPositionEdit(lat, lng) {
+                    if (!mapEdit) return;
+                    var pos = { lat: lat, lng: lng };
+                    mapEdit.setCenter(pos);
+                    mapEdit.setZoom(14);
+                    if (markerEdit) markerEdit.setMap(null);
+                    markerEdit = new google.maps.Marker({ position: pos, map: mapEdit });
+                    var latInp = document.getElementById('input-lat-edit');
+                    var lngInp = document.getElementById('input-lng-edit');
+                    if (latInp) latInp.value = lat;
+                    if (lngInp) lngInp.value = lng;
+                    var raioInp = document.getElementById('input-raio-edit');
+                    if (raioInp && raioInp.value) { var r = parseFloat(raioInp.value); if (!isNaN(r) && r > 0) updateCircleEdit(pos, r); }
+                }
+                function initMapaClick() {
+                    var latInp = document.getElementById('input-lat-edit');
+                    var lngInp = document.getElementById('input-lng-edit');
+                    var cidade = document.getElementById('input-cidade-edit');
+                    var municipio = document.getElementById('input-municipio-edit');
+                    var distrito = document.getElementById('input-distrito-edit');
+                    var container = document.getElementById('container-mapa-edit');
+                    var divMap = document.getElementById('mapa-escolha-edit');
+                    if (!divMap || typeof google === 'undefined' || !google.maps) return;
+                    container.style.display = 'block';
+                    var centerPortugal = { lat: 39.5, lng: -8.0 };
+                    mapEdit = new google.maps.Map(divMap, {
+                        center: centerPortugal,
+                        zoom: 6,
+                        restriction: { latLngBounds: { north: 42.2, south: 36.9, west: -9.5, east: -6.2 }, strictBounds: false },
+                        mapTypeControl: true,
+                        fullscreenControl: true,
+                        streetViewControl: false
+                    });
+                    if (latInp && lngInp && latInp.value && lngInp.value) {
+                        var latVal = parseFloat(latInp.value), lngVal = parseFloat(lngInp.value);
+                        if (!isNaN(latVal) && !isNaN(lngVal)) setMapPositionEdit(latVal, lngVal);
+                    }
+                    var raioInp = document.getElementById('input-raio-edit');
+                    if (raioInp) raioInp.addEventListener('input', function() {
+                        if (!markerEdit) return;
+                        var r = parseFloat(this.value);
+                        updateCircleEdit(markerEdit.getPosition(), isNaN(r) ? 0 : r);
+                    });
+                    mapEdit.addListener('click', function(e) {
+                        var latVal = e.latLng.lat(), lngVal = e.latLng.lng();
+                        if (latInp) latInp.value = latVal;
+                        if (lngInp) lngInp.value = lngVal;
+                        if (markerEdit) markerEdit.setMap(null);
+                        markerEdit = new google.maps.Marker({ position: e.latLng, map: mapEdit });
+                        var r = raioInp ? parseFloat(raioInp.value) : 0;
+                        if (!isNaN(r) && r > 0) updateCircleEdit(e.latLng, r);
+                        var geocoder = new google.maps.Geocoder();
+                        geocoder.geocode({ location: e.latLng }, function(results, status) {
+                            if (status === 'OK' && results && results[0]) {
+                                var r0 = results[0];
+                                if (r0.address_components) {
+                                    var loc = '', adm2 = '', adm1 = '';
+                                    for (var i = 0; i < r0.address_components.length; i++) {
+                                        var c = r0.address_components[i];
+                                        if (c.types.indexOf('administrative_area_level_2') >= 0) adm2 = c.long_name;
+                                        if (c.types.indexOf('administrative_area_level_1') >= 0) adm1 = c.long_name;
+                                        if (c.types.indexOf('locality') >= 0) loc = c.long_name;
+                                    }
+                                    if (cidade) cidade.value = loc || '';
+                                    if (municipio) municipio.value = adm2 || loc || '';
+                                    if (distrito) distrito.value = adm1 || '';
+                                }
+                            }
+                        });
+                    });
+                }
+                if (typeof google !== 'undefined' && google.maps) { initMapaClick(); } else { window.addEventListener('load', function() { setTimeout(function() { initMapaClick(); }, 500); }); }
+            })();
+        </script>
+    }
+}

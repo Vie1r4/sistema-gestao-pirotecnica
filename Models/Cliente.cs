@@ -2,9 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Finalproj.Models;
 
-/// <summary>
-/// Ficha de cliente (empresa ou particular). Campos adequados a gestão comercial e RGPD.
-/// </summary>
+// Ficha de cliente (empresa ou particular); dados comerciais e contacto
 public class Cliente
 {
     public int Id { get; set; }
@@ -53,10 +51,10 @@ public class Cliente
     [DataType(DataType.DateTime)]
     public DateTime? DataRegisto { get; set; }
 
-    /// <summary> Utilizador Identity associado (para cliente que acede ao sistema e faz encomendas). </summary>
+    // Conta Identity se o cliente aceder ao sistema
     [StringLength(450)]
     public string? UserId { get; set; }
 
-    /// <summary> Documentos do cliente com nome à escolha (sistema «+»). </summary>
+    // Documentos com nome à escolha
     public ICollection<ClienteDocumentoExtra> DocumentosExtras { get; set; } = new List<ClienteDocumentoExtra>();
 }

@@ -2,16 +2,13 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Finalproj.Models;
 
-/// <summary>
-/// Registo imutável de auditoria do sistema (fluxo ERP).
-/// Todas as ações relevantes (entrada/saída de stock, aceite/rejeição/conclusão de encomenda) geram um log.
-/// </summary>
+// Uma linha de auditoria por acção (entrada/saída stock, encomenda aceite/rejeitada/concluída)
 public class LogSistema
 {
     public long Id { get; set; }
 
-    [Required]
-    [StringLength(80)]
+    [Required(ErrorMessage = "A ação do log é obrigatória.")]
+    [StringLength(80, ErrorMessage = "A ação não pode exceder 80 caracteres.")]
     public string Acao { get; set; } = string.Empty;
 
     [StringLength(450)]
@@ -20,7 +17,7 @@ public class LogSistema
     [StringLength(200)]
     public string? UserName { get; set; }
 
-    /// <summary> Dados estruturados em JSON (IDs, quantidades, códigos). </summary>
+    // Dados extra em JSON (IDs, quantidades, etc.)
     public string? JsonDados { get; set; }
 
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;

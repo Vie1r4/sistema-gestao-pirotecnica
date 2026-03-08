@@ -108,6 +108,8 @@
                         <thead class="table-light">
                             <tr>
                                 <th class="ps-4">Produto</th>
+                                <th>Calibre</th>
+                                <th>Grupo de risco</th>
                                 <th class="text-end">Quantidade pedida</th>
                                 <th class="text-end pe-4">Em stock</th>
                             </tr>
@@ -119,6 +121,8 @@
                                 var suficiente = emStock >= item.QuantidadePedida;
                                 <tr>
                                     <td class="ps-4">@item.Produto?.Nome</td>
+                                    <td>@ConstantesCatalogo.TextoCalibre(item.Produto?.Calibre)</td>
+                                    <td>@ConstantesCatalogo.TextoClassificacao(item.Produto?.FamiliaRisco ?? "")</td>
                                     <td class="text-end">@item.QuantidadePedida.ToString("N2")</td>
                                     <td class="text-end pe-4">
                                         <span class="@(suficiente ? "text-success fw-medium" : "text-danger fw-medium")" title="@(suficiente ? "Stock suficiente" : "Stock insuficiente")">
@@ -165,3 +169,31 @@
         </div>
     </div>
 </div>
+
+@if (Model.Estado == ConstantesEncomenda.CONCLUIDA)
+{
+    <div class="card shadow-sm border-0 mt-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Serviços no terreno</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-2">Serviços realizados com o material desta encomenda. Para consultar o material, use os detalhes da encomenda acima.</p>
+            @if (Model.Servicos?.Any() == true)
+            {
+                <ul class="list-group list-group-flush">
+                    @foreach (var svc in Model.Servicos.OrderByDescending(s => s.DataServico))
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0 border-bottom">
+                            <span>Serviço #@svc.Id — @svc.DataServico.ToString("dd/MM/yyyy") @(string.IsNullOrWhiteSpace(svc.Local) ? "" : " · " + svc.Local)</span>
+                            <a asp-controller="Servicos" asp-action="Details" asp-route-id="@svc.Id" class="btn btn-sm btn-outline-primary">Detalhes</a>
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <p class="text-muted small mb-0">Ainda não foi registado nenhum serviço com esta encomenda.</p>
+            }
+        </div>
+    </div>
+}

@@ -8,6 +8,10 @@
     var totaisPorEstado = ViewData["TotaisPorEstado"] as Dictionary<string, int> ?? new Dictionary<string, int>();
     var totalGeral = (int)(ViewData["TotalGeral"] ?? 0);
     var pendentes = totaisPorEstado.GetValueOrDefault(ConstantesEncomenda.PENDENTE, 0);
+    var paginaAtual = (int)(ViewData["PaginaAtual"] ?? 1);
+    var totalRegistos = (int)(ViewData["TotalRegistos"] ?? 0);
+    var itensPorPagina = (int)(ViewData["ItensPorPagina"] ?? 20);
+    var totalPaginas = itensPorPagina > 0 ? (int)Math.Ceiling(totalRegistos / (double)itensPorPagina) : 1;
     var nomesEstados = new Dictionary<string, string>
     {
         [ConstantesEncomenda.PENDENTE] = "Pendentes",
@@ -41,11 +45,11 @@
     <select class="form-select form-select-sm" style="width: auto; min-width: 180px;" onchange="window.location.href = this.value">
         @if (string.IsNullOrEmpty(estado))
         {
-            <option value="@Url.Action("Index")" selected>Todos (@totalGeral)</option>
+            <option value="@Url.Action("Index", new { pagina = 1 })" selected>Todos (@totalGeral)</option>
         }
         else
         {
-            <option value="@Url.Action("Index")">Todos (@totalGeral)</option>
+            <option value="@Url.Action("Index", new { pagina = 1 })">Todos (@totalGeral)</option>
         }
         @foreach (var e in estados)
         {
@@ -53,11 +57,11 @@
             var label = nomesEstados.GetValueOrDefault(e, e);
             if (estado == e)
             {
-                <option value="@Url.Action("Index", new { estado = e })" selected>@label (@countEstado)</option>
+                <option value="@Url.Action("Index", new { estado = e, pagina = 1 })" selected>@label (@countEstado)</option>
             }
             else
             {
-                <option value="@Url.Action("Index", new { estado = e })">@label (@countEstado)</option>
+                <option value="@Url.Action("Index", new { estado = e, pagina = 1 })">@label (@countEstado)</option>
             }
         }
     </select>
@@ -105,6 +109,32 @@
             </table>
         </div>
     </div>
+    @if (totalPaginas > 1)
+    {
+        <nav class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+            <p class="text-muted small mb-0">A mostrar @((paginaAtual - 1) * itensPorPagina + 1)–@(Math.Min(paginaAtual * itensPorPagina, totalRegistos)) de @totalRegistos</p>
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item @(paginaAtual <= 1 ? "disabled" : "")">
+                    <a class="page-link" href="@(paginaAtual <= 1 ? "#" : Url.Action("Index", new { estado = string.IsNullOrEmpty(estado) ? null : estado, pagina = paginaAtual - 1, itensPorPagina }))">Anterior</a>
+                </li>
+                @for (var p = 1; p <= Math.Min(totalPaginas, 10); p++)
+                {
+                    var pg = p;
+                    <li class="page-item @(pg == paginaAtual ? "active" : "")">
+                        <a class="page-link" href="@Url.Action("Index", new { estado = string.IsNullOrEmpty(estado) ? null : estado, pagina = pg, itensPorPagina })">@pg</a>
+                    </li>
+                }
+                @if (totalPaginas > 10)
+                {
+                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                    <li class="page-item"><a class="page-link" href="@Url.Action("Index", new { estado = string.IsNullOrEmpty(estado) ? null : estado, pagina = totalPaginas, itensPorPagina })">@totalPaginas</a></li>
+                }
+                <li class="page-item @(paginaAtual >= totalPaginas ? "disabled" : "")">
+                    <a class="page-link" href="@(paginaAtual >= totalPaginas ? "#" : Url.Action("Index", new { estado = string.IsNullOrEmpty(estado) ? null : estado, pagina = paginaAtual + 1, itensPorPagina }))">Próximo</a>
+                </li>
+            </ul>
+        </nav>
+    }
 }
 else
 {

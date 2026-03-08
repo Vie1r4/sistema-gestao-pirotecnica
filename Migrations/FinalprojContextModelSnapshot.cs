@@ -368,6 +368,14 @@ namespace Finalproj.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<decimal?>("CoordenadasLat")
+                        .HasPrecision(18, 9)
+                        .HasColumnType("decimal(18,9)");
+
+                    b.Property<decimal?>("CoordenadasLng")
+                        .HasPrecision(18, 9)
+                        .HasColumnType("decimal(18,9)");
+
                     b.Property<DateTime?>("DataValidadeLicenca")
                         .HasColumnType("datetime2");
 
@@ -597,6 +605,207 @@ namespace Finalproj.Migrations
                     b.HasIndex("ProdutoId");
 
                     b.ToTable("SaidasPaiol");
+                });
+
+            modelBuilder.Entity("Finalproj.Models.Servico", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Cidade")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("ClienteId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("CoordenadasLat")
+                        .HasPrecision(18, 9)
+                        .HasColumnType("decimal(18,9)");
+
+                    b.Property<decimal?>("CoordenadasLng")
+                        .HasPrecision(18, 9)
+                        .HasColumnType("decimal(18,9)");
+
+                    b.Property<DateTime>("DataServico")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Distrito")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("EncomendaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Local")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("MoradaCompleta")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Municipio")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Observacoes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("PublicoPrivado")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int?>("RaioPublico")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ResponsavelTecnicoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClienteId");
+
+                    b.HasIndex("EncomendaId")
+                        .IsUnique();
+
+                    b.HasIndex("ResponsavelTecnicoId");
+
+                    b.ToTable("Servicos");
+                });
+
+            modelBuilder.Entity("Finalproj.Models.ServicoDistanciaSeguranca", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DescricaoReferencia")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("DistanciaMedida_m")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DistanciaMinima_m")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Observacoes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("ServicoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TipoReferencia")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServicoId");
+
+                    b.ToTable("ServicoDistanciasSeguranca");
+                });
+
+            modelBuilder.Entity("Finalproj.Models.ServicoDocumentoExtra", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Caminho")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("ServicoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServicoId");
+
+                    b.ToTable("ServicoDocumentoExtras");
+                });
+
+            modelBuilder.Entity("Finalproj.Models.ServicoEquipa", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("FuncionarioId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ServicoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FuncionarioId");
+
+                    b.HasIndex("ServicoId", "FuncionarioId")
+                        .IsUnique();
+
+                    b.ToTable("ServicoEquipas");
+                });
+
+            modelBuilder.Entity("Finalproj.Models.ServicoLicenca", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("DataEmissao")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DataValidade")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FicheiroPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("NomePersonalizado")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("NumeroDocumento")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Observacoes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("ServicoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TipoLicenca")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServicoId");
+
+                    b.ToTable("ServicoLicencas");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -939,6 +1148,84 @@ namespace Finalproj.Migrations
                     b.Navigation("Produto");
                 });
 
+            modelBuilder.Entity("Finalproj.Models.Servico", b =>
+                {
+                    b.HasOne("Finalproj.Models.Cliente", "Cliente")
+                        .WithMany()
+                        .HasForeignKey("ClienteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Finalproj.Models.Encomenda", "Encomenda")
+                        .WithMany("Servicos")
+                        .HasForeignKey("EncomendaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Finalproj.Models.Funcionario", "ResponsavelTecnico")
+                        .WithMany()
+                        .HasForeignKey("ResponsavelTecnicoId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Cliente");
+
+                    b.Navigation("Encomenda");
+
+                    b.Navigation("ResponsavelTecnico");
+                });
+
+            modelBuilder.Entity("Finalproj.Models.ServicoDistanciaSeguranca", b =>
+                {
+                    b.HasOne("Finalproj.Models.Servico", "Servico")
+                        .WithMany("DistanciasSeguranca")
+                        .HasForeignKey("ServicoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Servico");
+                });
+
+            modelBuilder.Entity("Finalproj.Models.ServicoDocumentoExtra", b =>
+                {
+                    b.HasOne("Finalproj.Models.Servico", "Servico")
+                        .WithMany("DocumentosExtras")
+                        .HasForeignKey("ServicoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Servico");
+                });
+
+            modelBuilder.Entity("Finalproj.Models.ServicoEquipa", b =>
+                {
+                    b.HasOne("Finalproj.Models.Funcionario", "Funcionario")
+                        .WithMany()
+                        .HasForeignKey("FuncionarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Finalproj.Models.Servico", "Servico")
+                        .WithMany("Equipa")
+                        .HasForeignKey("ServicoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Funcionario");
+
+                    b.Navigation("Servico");
+                });
+
+            modelBuilder.Entity("Finalproj.Models.ServicoLicenca", b =>
+                {
+                    b.HasOne("Finalproj.Models.Servico", "Servico")
+                        .WithMany("Licencas")
+                        .HasForeignKey("ServicoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Servico");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -998,6 +1285,8 @@ namespace Finalproj.Migrations
             modelBuilder.Entity("Finalproj.Models.Encomenda", b =>
                 {
                     b.Navigation("Itens");
+
+                    b.Navigation("Servicos");
                 });
 
             modelBuilder.Entity("Finalproj.Models.Funcionario", b =>
@@ -1008,6 +1297,17 @@ namespace Finalproj.Migrations
             modelBuilder.Entity("Finalproj.Models.Paiol", b =>
                 {
                     b.Navigation("DocumentosExtras");
+                });
+
+            modelBuilder.Entity("Finalproj.Models.Servico", b =>
+                {
+                    b.Navigation("DistanciasSeguranca");
+
+                    b.Navigation("DocumentosExtras");
+
+                    b.Navigation("Equipa");
+
+                    b.Navigation("Licencas");
                 });
 #pragma warning restore 612, 618
         }

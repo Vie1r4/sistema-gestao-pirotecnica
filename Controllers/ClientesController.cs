@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Finalproj.Controllers
 {
+    // Clientes: CRUD, documentos extras; detalhe com encomendas activas e histórico
     [Authorize]
     public class ClientesController : Controller
     {
@@ -21,6 +22,7 @@ namespace Finalproj.Controllers
             _env = env;
         }
 
+        // Lista com pesquisa (nome, email, telefone, NIF) e ordenação
         public async Task<IActionResult> Index(string? pesquisa, string? ordenar, CancellationToken cancellationToken = default)
         {
             var query = _context.Clientes.AsNoTracking();
@@ -51,6 +53,7 @@ namespace Finalproj.Controllers
 
         private const int HistoricoEncomendasPageSize = 15;
 
+        // Detalhe do cliente + encomendas com reserva + histórico (concluídas/rejeitadas) paginado
         public async Task<IActionResult> Details(int? id, int historicoPagina = 1, CancellationToken cancellationToken = default)
         {
             if (id == null)
@@ -89,6 +92,7 @@ namespace Finalproj.Controllers
             return View(cliente);
         }
 
+        // GET: formulário novo cliente; dropdown tipo
         public IActionResult Create()
         {
             ViewData["TiposCliente"] = ConstantesFuncionariosClientes.TiposClienteParaDropdown();
@@ -97,6 +101,7 @@ namespace Finalproj.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        // Grava cliente e documentos extras na pasta do cliente
         public async Task<IActionResult> Create(
             [Bind("Nome,TipoCliente,NIF,Email,Telefone,Morada,Notas")] Cliente cliente,
             List<DocumentoExtraInput>? documentosExtras,
@@ -134,6 +139,7 @@ namespace Finalproj.Controllers
             return View(cliente);
         }
 
+        // GET: formulário de edição com documentos
         public async Task<IActionResult> Edit(int? id, CancellationToken cancellationToken = default)
         {
             if (id == null)
@@ -147,6 +153,7 @@ namespace Finalproj.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        // Actualiza dados, remove/apaga documentos marcados e adiciona novos
         public async Task<IActionResult> Edit(
             int id,
             [Bind("Id,Nome,TipoCliente,NIF,Email,Telefone,Morada,Notas,DataRegisto")] Cliente cliente,
@@ -220,6 +227,7 @@ namespace Finalproj.Controllers
             return View(cliente);
         }
 
+        // GET: confirmação antes de apagar
         public async Task<IActionResult> Delete(int? id, CancellationToken cancellationToken = default)
         {
             if (id == null)
@@ -232,6 +240,7 @@ namespace Finalproj.Controllers
 
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        // Apaga cliente e pasta de documentos
         public async Task<IActionResult> DeleteConfirmed(int id, CancellationToken cancellationToken = default)
         {
             var item = await _context.Clientes.FindAsync(id);
@@ -249,6 +258,7 @@ namespace Finalproj.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // Devolve ficheiro de documento extra (inline no browser)
         public IActionResult Download(int id, int extraId)
         {
             var extra = _context.ClienteDocumentoExtras.AsNoTracking().FirstOrDefault(e => e.Id == extraId && e.ClienteId == id);
@@ -257,6 +267,7 @@ namespace Finalproj.Controllers
             return ServirFicheiro(extra.Caminho);
         }
 
+        // Envia ficheiro do disco com Content-Type e nome para inline
         private IActionResult ServirFicheiro(string caminhoRelativo)
         {
             var caminhoFisico = Path.Combine(_env.WebRootPath, caminhoRelativo);
@@ -269,12 +280,14 @@ namespace Finalproj.Controllers
             return PhysicalFile(caminhoFisico, contentType);
         }
 
+        // Só permite extensões da lista (pdf, jpg, etc.)
         private static bool FicheiroPermitido(string fileName)
         {
             var ext = Path.GetExtension(fileName);
             return !string.IsNullOrEmpty(ext) && ExtensoesPermitidas.Contains(ext.ToLowerInvariant());
         }
 
+        // Grava IFormFile na pasta com nome único; devolve caminho relativo para BD
         private static async Task<string> GuardarFicheiro(IFormFile ficheiro, string pastaBase, string prefixo)
         {
             var ext = Path.GetExtension(ficheiro.FileName).ToLowerInvariant();

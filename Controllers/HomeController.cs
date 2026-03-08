@@ -8,10 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Finalproj.Controllers
 {
-    /// <summary>
-    /// Tutorial Class 8: "The [Authorize] filter, says that to access this controller the user needs to be authenticated.
-    /// If he is not authenticated then is redirect to the login page." e "We can authorize some actions to be access to anonymous users."
-    /// </summary>
+    // Página inicial, perfil, preferências (tema), alterar password; LimparDados para desenvolvimento
     [Authorize]
     public class HomeController : Controller
     {
@@ -36,14 +33,13 @@ namespace Finalproj.Controllers
             _context = context;
         }
 
-        /// <summary>
-        /// Página inicial – requer autenticação (Tutorial Class 8: sem sessão não navega).
-        /// </summary>
+        // Página inicial (após login)
         public IActionResult Index()
         {
             return View();
         }
 
+        // Página de privacidade
         public IActionResult Privacy()
         {
             return View();
@@ -51,6 +47,7 @@ namespace Finalproj.Controllers
 
         [AllowAnonymous]
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        // Página de erro (RequestId para suporte)
         public IActionResult Error()
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
@@ -61,6 +58,7 @@ namespace Finalproj.Controllers
         /// </summary>
         [Authorize]
         [HttpGet]
+        // Apaga contas, roles e dados; recria roles e faz logout (uso em desenvolvimento)
         public IActionResult LimparDados()
         {
             return View();
@@ -96,10 +94,7 @@ namespace Finalproj.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        /// <summary>
-        /// Tutorial Class 7: "Add the Preferences action" – "use cookies to store user preferences locally in the browser",
-        /// "change the application presentation between light mode and dark mode". Opção só para utilizadores autenticados.
-        /// </summary>
+        // Preferências: tema guardado em cookie (light/dark)
         [HttpGet]
         public IActionResult Preferencias()
         {
@@ -117,11 +112,7 @@ namespace Finalproj.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        /// <summary>
-        /// Página de perfil do utilizador autenticado (Tutorial Class 8: dados adicionais em Perfil, Roles).
-        /// Se o utilizador estiver associado a um funcionário, os dados editáveis (Nome, Telefone) são os da ficha do funcionário,
-        /// para que as alterações apareçam na lista de Funcionários.
-        /// </summary>
+        // Perfil: se tiver funcionário associado, edita dados da ficha do funcionário; senão usa tabela Perfil
         [HttpGet]
         public async Task<IActionResult> Perfil()
         {
@@ -212,9 +203,7 @@ namespace Finalproj.Controllers
             return View(model);
         }
 
-        /// <summary>
-        /// Alterar palavra-passe a partir da página de perfil (Identity).
-        /// </summary>
+        // Alterar palavra-passe (Identity) a partir do perfil
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AlterarPassword(AlterarPasswordViewModel model)

@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Finalproj.Controllers
 {
+    // Funcionários: CRUD, documentos (CC, ADR, licença), associação a conta Identity; acesso por cargo
     [Authorize]
     public class FuncionariosController : Controller
     {
@@ -24,6 +25,7 @@ namespace Finalproj.Controllers
             _userManager = userManager;
         }
 
+        // Lista com pesquisa e filtro por cargo
         public async Task<IActionResult> Index(string? pesquisa, string? cargo, string? ordenar, CancellationToken cancellationToken = default)
         {
             var query = _context.Funcionarios.AsNoTracking();
@@ -57,6 +59,7 @@ namespace Finalproj.Controllers
             return View(lista);
         }
 
+        // Detalhe do funcionário com documentos
         public async Task<IActionResult> Details(int? id, CancellationToken cancellationToken = default)
         {
             if (id == null)
@@ -67,6 +70,7 @@ namespace Finalproj.Controllers
             return View(item);
         }
 
+        // GET: formulário criar funcionário; dropdown cargo
         [Authorize(Roles = "Admin")]
         public IActionResult Create()
         {
@@ -77,6 +81,7 @@ namespace Finalproj.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
+        // Grava funcionário, CC/ADR/licença e documentos extras
         public async Task<IActionResult> Create(
             [Bind("NomeCompleto,NIF,Email,Telefone,Morada,NumeroSegurancaSocial,IBAN,Cargo,Notas")] Funcionario funcionario,
             IFormFile? cartaoCidadaoFicheiro,
@@ -137,6 +142,7 @@ namespace Finalproj.Controllers
         }
 
         [Authorize(Roles = "Admin")]
+        // GET: edição com dropdown cargo e utilizadores (para UserId)
         public async Task<IActionResult> Edit(int? id, CancellationToken cancellationToken = default)
         {
             if (id == null)
@@ -152,6 +158,7 @@ namespace Finalproj.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
+        // Actualiza ficha, documentos e associação utilizador (um user só num funcionário)
         public async Task<IActionResult> Edit(
             int id,
             [Bind("Id,NomeCompleto,NIF,Email,Telefone,Morada,NumeroSegurancaSocial,IBAN,Cargo,Notas,UserId,DataRegisto,CartaoCidadaoCaminho,DocumentoADDRCaminho,LicencaOperadorCaminho,OutrosCaminho")] Funcionario funcionario,
@@ -253,6 +260,7 @@ namespace Finalproj.Controllers
         }
 
         [Authorize(Roles = "Admin")]
+        // GET: confirmação antes de apagar (conta Identity não é apagada)
         public async Task<IActionResult> Delete(int? id, CancellationToken cancellationToken = default)
         {
             if (id == null)
@@ -266,6 +274,7 @@ namespace Finalproj.Controllers
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
+        // Apaga ficha e pasta de documentos; mantém conta Identity
         public async Task<IActionResult> DeleteConfirmed(int id, CancellationToken cancellationToken = default)
         {
             var item = await _context.Funcionarios.FindAsync(id);
@@ -291,7 +300,7 @@ namespace Finalproj.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        /// <summary> Mostrar documento do funcionário no browser (inline, sem descarregar). </summary>
+        // Devolve documento (CC, ADR, licença, outros ou extra por id) inline
         public IActionResult Download(int id, string tipo, int? extraId = null)
         {
             if (tipo?.ToLowerInvariant() == "extra" && extraId.HasValue)
@@ -318,6 +327,7 @@ namespace Finalproj.Controllers
             return ServirFicheiro(caminhoRelativo);
         }
 
+        // Envia ficheiro do disco com Content-Type e nome para inline
         private IActionResult ServirFicheiro(string caminhoRelativo)
         {
             var caminhoFisico = Path.Combine(_env.WebRootPath, caminhoRelativo);
@@ -336,12 +346,14 @@ namespace Finalproj.Controllers
             return PhysicalFile(caminhoFisico, contentType);
         }
 
+        // Só permite extensões da lista (pdf, jpg, etc.)
         private static bool FicheiroPermitido(string fileName)
         {
             var ext = Path.GetExtension(fileName);
             return !string.IsNullOrEmpty(ext) && ExtensoesPermitidas.Contains(ext.ToLowerInvariant());
         }
 
+        // Grava IFormFile na pasta com nome único; devolve caminho relativo
         private static async Task<string> GuardarFicheiro(IFormFile ficheiro, string pastaBase, string prefixo)
         {
             var ext = Path.GetExtension(ficheiro.FileName).ToLowerInvariant();
@@ -354,6 +366,7 @@ namespace Finalproj.Controllers
             return relativo;
         }
 
+        // Apaga ficheiro em wwwroot se existir (ignora erros)
         private static void ApagarFicheiroSeExistir(string webRoot, string? caminhoRelativo)
         {
             if (string.IsNullOrEmpty(caminhoRelativo)) return;
@@ -364,6 +377,7 @@ namespace Finalproj.Controllers
             }
         }
 
+        // Preenche ViewData com SelectList de cargos
         private void PreencherDropdownCargo(string? valorSelecionado)
         {
             ViewData["Cargo"] = new SelectList(
@@ -372,6 +386,7 @@ namespace Finalproj.Controllers
                 valorSelecionado);
         }
 
+        // Preenche ViewData com SelectList de utilizadores (para associar conta)
         private async Task PreencherDropdownUtilizadores(string? userIdSelecionado)
         {
             var users = await _userManager.Users

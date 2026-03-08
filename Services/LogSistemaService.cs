@@ -5,15 +5,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Finalproj.Services;
 
+// Registo de auditoria: cada acção (ex.: ENCOMENDA_ACEITE, SAIDA_STOCK) fica numa linha com userId, dados em JSON, timestamp
 public class LogSistemaService : ILogSistemaService
 {
     private readonly FinalprojContext _context;
 
-    public LogSistemaService(FinalprojContext context)
-    {
-        _context = context;
-    }
+    public LogSistemaService(FinalprojContext context) => _context = context;
 
+    // Regista uma linha de auditoria (acção, user, dados em JSON)
     public async Task RegistarAsync(string acao, string? userId, string? userName, object? dados = null, CancellationToken cancellationToken = default)
     {
         var json = dados != null ? JsonSerializer.Serialize(dados) : null;

@@ -2,9 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Finalproj.Models;
 
-/// <summary>
-/// Documento do cliente com nome à escolha (ex.: contrato, certidão). Permite vários documentos por cliente.
-/// </summary>
+// Documento do cliente com nome à escolha (ex.: contrato); caminho do ficheiro
 public class ClienteDocumentoExtra
 {
     public int Id { get; set; }
@@ -12,12 +10,12 @@ public class ClienteDocumentoExtra
     public int ClienteId { get; set; }
     public Cliente Cliente { get; set; } = null!;
 
-    [Required]
-    [StringLength(100)]
+    [Required(ErrorMessage = "O nome do documento é obrigatório.")]
+    [StringLength(100, ErrorMessage = "O nome do documento não pode exceder 100 caracteres.")]
     [Display(Name = "Nome do documento")]
     public string Nome { get; set; } = string.Empty;
 
-    [Required]
-    [StringLength(500)]
+    [Required(ErrorMessage = "O caminho do ficheiro é obrigatório.")]
+    [StringLength(500, ErrorMessage = "O caminho não pode exceder 500 caracteres.")]
     public string Caminho { get; set; } = string.Empty;
 }

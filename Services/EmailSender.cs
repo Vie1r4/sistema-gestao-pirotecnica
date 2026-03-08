@@ -4,10 +4,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace Finalproj.Services;
 
-/// <summary>
-/// Class 8: Envio de email para confirmação de conta. Em desenvolvimento escreve o link num ficheiro;
-/// em produção configurar SMTP em appsettings (Email:SmtpHost, etc.) para envio real.
-/// </summary>
+// Envio de email (confirmação de conta): se SMTP configurado envia; senão grava em ficheiro
 public class EmailSender : IEmailSender
 {
     private readonly IWebHostEnvironment _env;
@@ -25,6 +22,7 @@ public class EmailSender : IEmailSender
         _logger = logger;
     }
 
+    // Envia por SMTP se configurado; senão grava em ficheiro
     public Task SendEmailAsync(string email, string subject, string htmlMessage)
     {
         var smtpHost = _config["Email:SmtpHost"];
@@ -34,6 +32,7 @@ public class EmailSender : IEmailSender
         return GravarEmFicheiroAsync(email, subject, htmlMessage);
     }
 
+    // Acrescenta linha ao ficheiro emails_confirmacao.txt
     private async Task GravarEmFicheiroAsync(string email, string subject, string htmlMessage)
     {
         var path = Path.Combine(_env.ContentRootPath, FicheiroEmails);
@@ -42,6 +41,7 @@ public class EmailSender : IEmailSender
         _logger.LogInformation("Email de confirmação gravado em {Path} para {Email}", path, email);
     }
 
+    // Envia por SMTP; em falha grava em ficheiro
     private async Task EnviarPorSmtpAsync(string email, string subject, string htmlMessage)
     {
         var host = _config["Email:SmtpHost"];

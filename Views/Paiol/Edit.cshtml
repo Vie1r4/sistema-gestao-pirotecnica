@@ -26,6 +26,17 @@
             </div>
             <div class="row">
                 <div class="col-md-6 mb-3">
+                    <label asp-for="CoordenadasLat" class="form-label">Latitude</label>
+                    <input asp-for="CoordenadasLat" class="form-control" type="number" step="0.000000001" placeholder="Ex: 41.5454" />
+                    <small class="text-muted">Para "Ver rota do paiol" nos detalhes do serviço.</small>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="CoordenadasLng" class="form-label">Longitude</label>
+                    <input asp-for="CoordenadasLng" class="form-control" type="number" step="0.000000001" placeholder="Ex: -8.4265" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
                     <label asp-for="LimiteMLE" class="form-label"></label> <span class="text-danger">*</span>
                     <input asp-for="LimiteMLE" class="form-control" type="number" step="any" min="0.01" />
                     <span asp-validation-for="LimiteMLE" class="text-danger small"></span>

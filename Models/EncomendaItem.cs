@@ -2,9 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Finalproj.Models;
 
-/// <summary>
-/// Linha de uma encomenda: produto e quantidade pedida.
-/// </summary>
+// Linha da encomenda: produto + quantidade pedida
 public class EncomendaItem
 {
     public int Id { get; set; }

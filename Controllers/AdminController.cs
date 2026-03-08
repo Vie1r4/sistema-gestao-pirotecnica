@@ -7,10 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Finalproj.Controllers
 {
-    /// <summary>
-    /// Tutorial Class 8: "The authorization can be done using Roles" e "Adapt the Menu to show only the options allowed to the role of the user authenticated."
-    /// Inclui associação utilizador ↔ funcionário (UserId na ficha do funcionário).
-    /// </summary>
+    // Área Admin: utilizadores, roles, associação utilizador ↔ funcionário; só role Admin
     [Authorize(Roles = "Admin")]
     public class AdminController : Controller
     {
@@ -26,11 +23,13 @@ namespace Finalproj.Controllers
             _context = context;
         }
 
+        // Dashboard Admin
         public IActionResult Index()
         {
             return View();
         }
 
+        // Lista de utilizadores com roles e nome do funcionário associado (se houver)
         public async Task<IActionResult> Utilizadores()
         {
             var utilizadores = new List<UtilizadorComRolesViewModel>();
@@ -53,6 +52,7 @@ namespace Finalproj.Controllers
             return View(utilizadores);
         }
 
+        // GET: formulário editar roles e funcionário associado
         public async Task<IActionResult> EditarUtilizador(string id)
         {
             if (string.IsNullOrEmpty(id)) return NotFound();
@@ -91,6 +91,7 @@ namespace Finalproj.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        // Grava roles e associação utilizador-funcionário
         public async Task<IActionResult> EditarUtilizador(string id, EditarUtilizadorRolesViewModel model)
         {
             if (id != model.Id) return NotFound();
@@ -130,6 +131,7 @@ namespace Finalproj.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        // Apaga conta Identity; desassocia de funcionários e clientes primeiro
         public async Task<IActionResult> EliminarUtilizador(string id)
         {
             if (string.IsNullOrEmpty(id)) return NotFound();

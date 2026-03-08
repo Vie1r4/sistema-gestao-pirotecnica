@@ -2,10 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Finalproj.Models;
 
-/// <summary>
-/// Registo de entrada de produto num paiol (Class 4 – FK e navegação).
-/// Usado para somar o NEM atual no paiol e validar novas entradas.
-/// </summary>
+// Entrada de produto num paiol; usada para stock e FIFO (DataFabrico, DataEntrada, NumeroLote)
 public class EntradaPaiol
 {
     public int Id { get; set; }
@@ -24,12 +21,12 @@ public class EntradaPaiol
     [Display(Name = "Data de entrada")]
     public DateTime DataEntrada { get; set; } = DateTime.UtcNow;
 
-    /// <summary> Utilizador (Identity) que registou a entrada. </summary>
+    // Quem registou (Identity)
     [StringLength(450)]
     [Display(Name = "Registado por")]
     public string? FuncionarioRegistouUserId { get; set; }
 
-    /// <summary> Número de lote (batch) para rastreabilidade e FIFO. </summary>
+    // Lote para rastreabilidade e FIFO
     [StringLength(50)]
     [Display(Name = "N.º de lote")]
     public string? NumeroLote { get; set; }

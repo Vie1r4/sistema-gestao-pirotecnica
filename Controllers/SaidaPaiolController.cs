@@ -7,9 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Finalproj.Controllers
 {
-    /// <summary>
-    /// Registo de saída de material do paiol. Só aparecem paióis a que o utilizador tem acesso (por cargo).
-    /// </summary>
+    // Saídas do paiol: escolher paiol e produto, depois quantidade; acesso por cargo
     [Authorize]
     public class SaidaPaiolController : Controller
     {
@@ -22,7 +20,7 @@ namespace Finalproj.Controllers
             _userManager = userManager;
         }
 
-        /// <summary> GET: a única forma de retirar material é abrir o paiol, escolher o produto e depois indicar a quantidade. Sem paiolId e produtoId redireciona para o Armazém. </summary>
+        // GET: paiol + produto obrigatórios; mostra stock disponível
         public async Task<IActionResult> Registar(int? paiolId, int? produtoId)
         {
             if (!paiolId.HasValue || !produtoId.HasValue)
@@ -61,6 +59,7 @@ namespace Finalproj.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        // Grava saída e redirecciona para conteúdo do paiol
         public async Task<IActionResult> Registar(SaidaPaiolViewModel model)
         {
             var paiol = await _context.Paiol.FindAsync(model.PaiolId);
@@ -104,11 +103,10 @@ namespace Finalproj.Controllers
             return RedirectToAction("Conteudo", "Paiol", new { id = model.PaiolId });
         }
 
-        /// <summary> O histórico de saídas só é acessível através de Paiol/Movimentos. </summary>
+        // Redirecciona para Paiol/Movimentos (histórico de saídas)
         public IActionResult Index()
         {
             return RedirectToAction("Movimentos", "Paiol", new { tipo = "Saidas" });
         }
-
-            }
+    }
 }

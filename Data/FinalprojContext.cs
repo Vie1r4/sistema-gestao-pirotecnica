@@ -2,16 +2,17 @@ using Finalproj.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
-namespace Finalproj.Data
-{
-    public class FinalprojContext : IdentityDbContext<Microsoft.AspNetCore.Identity.IdentityUser>
-    {
-        public FinalprojContext(DbContextOptions<FinalprojContext> options)
-            : base(options)
-        {
-        }
+namespace Finalproj.Data;
 
-        public DbSet<Paiol> Paiol => Set<Paiol>();
+// DbContext principal: Identity + Paióis, Produtos, Encomendas, Serviços, Log. Configurações de precisão e cascatas em OnModelCreating.
+public class FinalprojContext : IdentityDbContext<Microsoft.AspNetCore.Identity.IdentityUser>
+{
+    public FinalprojContext(DbContextOptions<FinalprojContext> options)
+        : base(options)
+    {
+    }
+
+    public DbSet<Paiol> Paiol => Set<Paiol>();
         public DbSet<PaiolDocumentoExtra> PaiolDocumentoExtras => Set<PaiolDocumentoExtra>();
         public DbSet<Perfil> Perfis => Set<Perfil>();
         public DbSet<Funcionario> Funcionarios => Set<Funcionario>();
@@ -25,12 +26,18 @@ namespace Finalproj.Data
         public DbSet<Encomenda> Encomendas => Set<Encomenda>();
         public DbSet<EncomendaItem> EncomendaItems => Set<EncomendaItem>();
         public DbSet<Reserva> Reservas => Set<Reserva>();
+        public DbSet<Servico> Servicos => Set<Servico>();
+        public DbSet<ServicoDocumentoExtra> ServicoDocumentoExtras => Set<ServicoDocumentoExtra>();
+        public DbSet<ServicoEquipa> ServicoEquipas => Set<ServicoEquipa>();
+        public DbSet<ServicoLicenca> ServicoLicencas => Set<ServicoLicenca>();
+        public DbSet<ServicoDistanciaSeguranca> ServicoDistanciasSeguranca => Set<ServicoDistanciaSeguranca>();
         public DbSet<LogSistema> LogSistema => Set<LogSistema>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
+            // Precisão decimal e relações
             modelBuilder.Entity<Paiol>()
                 .Property(p => p.LimiteMLE)
                 .HasPrecision(18, 2);
@@ -107,6 +114,76 @@ namespace Finalproj.Data
                 .HasForeignKey(r => r.EncomendaId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<Servico>()
+                .HasOne(s => s.Encomenda)
+                .WithMany(e => e.Servicos)
+                .HasForeignKey(s => s.EncomendaId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Servico>()
+                .HasIndex(s => s.EncomendaId)
+                .IsUnique();
+
+            modelBuilder.Entity<Servico>()
+                .Property(s => s.CoordenadasLat)
+                .HasPrecision(18, 9);
+            modelBuilder.Entity<Servico>()
+                .Property(s => s.CoordenadasLng)
+                .HasPrecision(18, 9);
+
+            modelBuilder.Entity<Servico>()
+                .HasOne(s => s.Cliente)
+                .WithMany()
+                .HasForeignKey(s => s.ClienteId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Servico>()
+                .HasOne(s => s.ResponsavelTecnico)
+                .WithMany()
+                .HasForeignKey(s => s.ResponsavelTecnicoId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ServicoDocumentoExtra>()
+                .HasOne(d => d.Servico)
+                .WithMany(s => s.DocumentosExtras)
+                .HasForeignKey(d => d.ServicoId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ServicoEquipa>()
+                .HasOne(se => se.Servico)
+                .WithMany(s => s.Equipa)
+                .HasForeignKey(se => se.ServicoId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ServicoEquipa>()
+                .HasOne(se => se.Funcionario)
+                .WithMany()
+                .HasForeignKey(se => se.FuncionarioId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ServicoEquipa>()
+                .HasIndex(se => new { se.ServicoId, se.FuncionarioId })
+                .IsUnique();
+
+            modelBuilder.Entity<ServicoLicenca>()
+                .HasOne(l => l.Servico)
+                .WithMany(s => s.Licencas)
+                .HasForeignKey(l => l.ServicoId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ServicoDistanciaSeguranca>()
+                .HasOne(d => d.Servico)
+                .WithMany(s => s.DistanciasSeguranca)
+                .HasForeignKey(d => d.ServicoId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Paiol>()
+                .Property(p => p.CoordenadasLat)
+                .HasPrecision(18, 9);
+            modelBuilder.Entity<Paiol>()
+                .Property(p => p.CoordenadasLng)
+                .HasPrecision(18, 9);
+
             modelBuilder.Entity<Reserva>()
                 .HasOne(r => r.Produto)
                 .WithMany()
@@ -144,4 +221,3 @@ namespace Finalproj.Data
                 .OnDelete(DeleteBehavior.Cascade);
         }
     }
-}

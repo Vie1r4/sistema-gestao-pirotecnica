@@ -2,10 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Finalproj.Models;
 
-/// <summary>
-/// Registo de saída de produto de um paiol (Class 4 – FK e navegação).
-/// O stock efetivo é (entradas − saídas) por produto no paiol.
-/// </summary>
+// Saída de produto de um paiol; pode referenciar EncomendaId e EntradaPaiolId (FIFO)
 public class SaidaPaiol
 {
     public int Id { get; set; }
@@ -24,15 +21,15 @@ public class SaidaPaiol
     [Display(Name = "Data de saída")]
     public DateTime DataSaida { get; set; } = DateTime.UtcNow;
 
-    /// <summary> Utilizador (Identity) que efetuou a retirada. </summary>
+    // Quem retirou (Identity)
     [StringLength(450)]
     [Display(Name = "Retirado por")]
     public string? FuncionarioRetirouUserId { get; set; }
 
-    /// <summary> Encomenda à qual esta saída está associada (quando aplicável). </summary>
+    // Encomenda associada (quando a saída é da preparação)
     public int? EncomendaId { get; set; }
 
-    /// <summary> Lote (entrada) de origem para rastreabilidade e FIFO. </summary>
+    // Entrada de origem (FIFO e rastreabilidade)
     public int? EntradaPaiolId { get; set; }
     public EntradaPaiol? EntradaPaiol { get; set; }
 }

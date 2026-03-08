@@ -10,10 +10,7 @@ using System.Text.Json;
 
 namespace Finalproj.Controllers;
 
-/// <summary>
-/// Fluxo de encomendas conforme diagrama ERP: Pendente → Aceite | Rejeitada; Aceite → Em preparação → Concluída.
-/// Stock reservado enquanto estado ∈ { Pendente, Aceite, Em preparação }; libertado ao rejeitar ou ao concluir (saídas já registadas).
-/// </summary>
+// Encomendas: listagem por estado, detalhe, criar rascunho em sessão, aceitar/rejeitar, preparar (FIFO) e concluir.
 [Authorize]
 public class EncomendasController : Controller
 {
@@ -21,14 +18,19 @@ public class EncomendasController : Controller
     private readonly FinalprojContext _context;
     private readonly ILogSistemaService _logSistema;
     private readonly UserManager<IdentityUser> _userManager;
+    private readonly IStockDisponivelService _stockDisponivel;
+    private readonly IEncomendaService _encomendaService;
 
-    public EncomendasController(FinalprojContext context, ILogSistemaService logSistema, UserManager<IdentityUser> userManager)
+    public EncomendasController(FinalprojContext context, ILogSistemaService logSistema, UserManager<IdentityUser> userManager, IStockDisponivelService stockDisponivel, IEncomendaService encomendaService)
     {
         _context = context;
         _logSistema = logSistema;
         _userManager = userManager;
+        _stockDisponivel = stockDisponivel;
+        _encomendaService = encomendaService;
     }
 
+    // Lê rascunho da encomenda da sessão (JSON)
     private EncomendaDraftViewModel? GetDraft()
     {
         var json = HttpContext.Session.GetString(SessionKeyDraft);
@@ -40,18 +42,24 @@ public class EncomendasController : Controller
         catch { return null; }
     }
 
+    // Guarda rascunho na sessão
     private void SetDraft(EncomendaDraftViewModel draft)
     {
         HttpContext.Session.SetString(SessionKeyDraft, JsonSerializer.Serialize(draft));
     }
 
+    // Limpa rascunho da sessão
     private void ClearDraft()
     {
         HttpContext.Session.Remove(SessionKeyDraft);
     }
 
-    public async Task<IActionResult> Index(string? estado, CancellationToken cancellationToken = default)
+    // Lista encomendas com filtro por estado e paginação
+    public async Task<IActionResult> Index(string? estado, int pagina = 1, int itensPorPagina = 20, CancellationToken cancellationToken = default)
     {
+        if (pagina < 1) pagina = 1;
+        if (itensPorPagina < 5 || itensPorPagina > 100) itensPorPagina = 20;
+
         IQueryable<Encomenda> query = _context.Encomendas
             .AsNoTracking()
             .Include(e => e.Cliente);
@@ -60,7 +68,12 @@ public class EncomendasController : Controller
             query = query.Where(e => e.Estado == estado);
 
         query = query.OrderBy(e => e.DataEntrega == null).ThenBy(e => e.DataEntrega ?? DateTime.MaxValue).ThenByDescending(e => e.DataCriacao);
-        var lista = await query.ToListAsync(cancellationToken);
+
+        var totalRegistos = await query.CountAsync(cancellationToken);
+        var lista = await query
+            .Skip((pagina - 1) * itensPorPagina)
+            .Take(itensPorPagina)
+            .ToListAsync(cancellationToken);
 
         var totaisPorEstado = await _context.Encomendas
             .AsNoTracking()
@@ -73,9 +86,13 @@ public class EncomendasController : Controller
         ViewData["EstadosParaFiltro"] = ConstantesEncomenda.TodosEstados;
         ViewData["TotaisPorEstado"] = totaisPorEstado;
         ViewData["TotalGeral"] = totalGeral;
+        ViewData["PaginaAtual"] = pagina;
+        ViewData["ItensPorPagina"] = itensPorPagina;
+        ViewData["TotalRegistos"] = totalRegistos;
         return View(lista);
     }
 
+    // Detalhe da encomenda + stock actual por produto (para UI)
     public async Task<IActionResult> Details(int? id, CancellationToken cancellationToken = default)
     {
         if (id == null) return NotFound();
@@ -84,25 +101,30 @@ public class EncomendasController : Controller
             .AsNoTracking()
             .Include(e => e.Cliente)
             .Include(e => e.Itens).ThenInclude(i => i.Produto)
+            .Include(e => e.Servicos)
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
         if (encomenda == null) return NotFound();
 
-        var stockPorProduto = await StockDisponivelService.ObterStockDisponivelPorProdutoAsync(_context, cancellationToken);
+        var stockPorProduto = await _stockDisponivel.ObterStockDisponivelPorProdutoAsync(cancellationToken);
         ViewData["StockPorProduto"] = stockPorProduto;
 
+        var userIds = new List<string>();
+        if (!string.IsNullOrEmpty(encomenda.FuncionarioAceiteUserId)) userIds.Add(encomenda.FuncionarioAceiteUserId);
+        if (!string.IsNullOrEmpty(encomenda.FuncionarioPreparouUserId) && !userIds.Contains(encomenda.FuncionarioPreparouUserId)) userIds.Add(encomenda.FuncionarioPreparouUserId);
+        var nomesPorUserId = new Dictionary<string, string>();
+        if (userIds.Count > 0)
+        {
+            var users = await _userManager.Users.Where(u => userIds.Contains(u.Id)).ToListAsync(cancellationToken);
+            foreach (var u in users)
+                nomesPorUserId[u.Id] = u.UserName ?? u.Id;
+        }
         string? funcionarioAceiteNome = null;
         string? funcionarioPreparouNome = null;
         if (!string.IsNullOrEmpty(encomenda.FuncionarioAceiteUserId))
-        {
-            var uAceite = await _userManager.FindByIdAsync(encomenda.FuncionarioAceiteUserId);
-            funcionarioAceiteNome = uAceite?.UserName ?? encomenda.FuncionarioAceiteUserId;
-        }
+            funcionarioAceiteNome = nomesPorUserId.GetValueOrDefault(encomenda.FuncionarioAceiteUserId) ?? encomenda.FuncionarioAceiteUserId;
         if (!string.IsNullOrEmpty(encomenda.FuncionarioPreparouUserId))
-        {
-            var uPreparou = await _userManager.FindByIdAsync(encomenda.FuncionarioPreparouUserId);
-            funcionarioPreparouNome = uPreparou?.UserName ?? encomenda.FuncionarioPreparouUserId;
-        }
+            funcionarioPreparouNome = nomesPorUserId.GetValueOrDefault(encomenda.FuncionarioPreparouUserId) ?? encomenda.FuncionarioPreparouUserId;
         ViewData["FuncionarioAceiteNome"] = funcionarioAceiteNome;
         ViewData["FuncionarioPreparouNome"] = funcionarioPreparouNome;
 
@@ -121,6 +143,7 @@ public class EncomendasController : Controller
     }
 
     [Authorize(Roles = "Admin")]
+    // GET: formulário para escolher cliente; depois segue para AdicionarItens
     public async Task<IActionResult> Create(int? clienteId, CancellationToken cancellationToken = default)
     {
         var clientes = await _context.Clientes.OrderBy(c => c.Nome).ToListAsync(cancellationToken);
@@ -148,6 +171,7 @@ public class EncomendasController : Controller
     }
 
     [Authorize(Roles = "Admin")]
+    // GET: escolher produtos para o rascunho (filtros como no catálogo)
     public async Task<IActionResult> AdicionarItens(
         int clienteId,
         string? pesquisa,
@@ -197,6 +221,7 @@ public class EncomendasController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "Admin")]
+    // Adiciona produto ao rascunho (ou soma quantidade se já existir)
     public async Task<IActionResult> AdicionarItem(
         int clienteId,
         int produtoId,
@@ -233,6 +258,7 @@ public class EncomendasController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "Admin")]
+    // Remove produto do rascunho
     public IActionResult RemoverItem(int clienteId, int produtoId, string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre)
     {
         var draft = GetDraft();
@@ -247,6 +273,7 @@ public class EncomendasController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "Admin")]
+    // Cria encomenda e reservas a partir do rascunho; estado Pendente
     public async Task<IActionResult> AdicionarItens(int clienteId, DateTime? dataEntrega, string? observacoes, CancellationToken cancellationToken = default)
     {
         var cliente = await _context.Clientes.FindAsync(clienteId);
@@ -302,6 +329,7 @@ public class EncomendasController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "Admin")]
+    // Passa encomenda de Pendente → Aceite; guarda quem aceitou e regista no log
     public async Task<IActionResult> Aceitar(int id, CancellationToken cancellationToken = default)
     {
         var encomenda = await _context.Encomendas.FindAsync(id);
@@ -324,6 +352,7 @@ public class EncomendasController : Controller
     }
 
     [Authorize(Roles = "Admin")]
+    // GET: formulário de rejeição (motivo opcional)
     public async Task<IActionResult> Rejeitar(int? id, CancellationToken cancellationToken = default)
     {
         if (id == null) return NotFound();
@@ -340,6 +369,7 @@ public class EncomendasController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "Admin")]
+    // Rejeita encomenda, remove reservas de stock e regista no log
     public async Task<IActionResult> Rejeitar(int id, string? motivoRejeicao, CancellationToken cancellationToken = default)
     {
         var encomenda = await _context.Encomendas.Include(e => e.Itens).FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
@@ -364,6 +394,7 @@ public class EncomendasController : Controller
     }
 
     [Authorize(Roles = "Admin")]
+    // GET: vista de preparação com stock por paiol e entradas FIFO
     public async Task<IActionResult> Preparar(int? id, CancellationToken cancellationToken = default)
     {
         if (id == null) return NotFound();
@@ -417,7 +448,7 @@ public class EncomendasController : Controller
         foreach (var k in stockPaiolProduto.Keys.ToList())
             if (stockPaiolProduto[k] < 0) stockPaiolProduto[k] = 0;
 
-        var stockPorProduto = await StockDisponivelService.ObterStockDisponivelPorProdutoAsync(_context, cancellationToken);
+        var stockPorProduto = await _stockDisponivel.ObterStockDisponivelPorProdutoAsync(cancellationToken);
         ViewData["StockPorProduto"] = stockPorProduto;
         ViewData["Paiols"] = paióis;
         ViewData["StockPaiolProduto"] = stockPaiolProduto;
@@ -427,16 +458,9 @@ public class EncomendasController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "Admin")]
+    // Grava retiradas via EncomendaService (FIFO) e marca encomenda como Em preparação
     public async Task<IActionResult> RegistarPreparacao(int id, List<RetiradaPreparacaoInput>? retiradas, CancellationToken cancellationToken = default)
     {
-        var encomenda = await _context.Encomendas.Include(e => e.Itens).ThenInclude(i => i.Produto).FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
-        if (encomenda == null) return NotFound();
-        if (encomenda.Estado != ConstantesEncomenda.ACEITE)
-        {
-            TempData["Erro"] = "Apenas encomendas aceites podem ser preparadas.";
-            return RedirectToAction(nameof(Details), new { id });
-        }
-
         var userId = User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         var user = await _userManager.GetUserAsync(User!);
         var rolesDoUtilizador = user == null ? Array.Empty<string>() : (await _userManager.GetRolesAsync(user)).ToArray();
@@ -446,96 +470,19 @@ public class EncomendasController : Controller
             .Distinct()
             .ToListAsync(cancellationToken);
 
-        retiradas ??= new List<RetiradaPreparacaoInput>();
-        var retiradasComQuantidade = retiradas.Where(r => r.Quantidade > 0).ToList();
+        var (sucesso, erro) = await _encomendaService.RegistarPreparacaoAsync(
+            id,
+            userId,
+            idsPaióisComAcesso,
+            retiradas ?? new List<RetiradaPreparacaoInput>(),
+            User?.Identity?.Name,
+            cancellationToken);
 
-        var itensPorId = encomenda.Itens.ToDictionary(i => i.Id);
-        foreach (var r in retiradasComQuantidade)
+        if (!sucesso)
         {
-            if (!itensPorId.ContainsKey(r.EncomendaItemId))
-            {
-                TempData["Erro"] = "Dados de preparação inválidos (item não pertence à encomenda).";
-                return RedirectToAction(nameof(Preparar), new { id });
-            }
-            if (!idsPaióisComAcesso.Contains(r.PaiolId))
-            {
-                TempData["Erro"] = "Não tem acesso a um dos paióis selecionados.";
-                return RedirectToAction(nameof(Preparar), new { id });
-            }
+            TempData["Erro"] = erro ?? "Erro ao registar preparação.";
+            return RedirectToAction(nameof(Preparar), new { id });
         }
-
-        foreach (var item in encomenda.Itens)
-        {
-            var somaRetiradas = retiradasComQuantidade.Where(r => r.EncomendaItemId == item.Id).Sum(r => r.Quantidade);
-            if (Math.Abs(somaRetiradas - item.QuantidadePedida) > 0.0001m)
-            {
-                TempData["Erro"] = $"Para o produto {item.Produto?.Nome}, a soma das quantidades a retirar ({somaRetiradas:N2}) deve ser igual à quantidade pedida ({item.QuantidadePedida:N2}).";
-                return RedirectToAction(nameof(Preparar), new { id });
-            }
-        }
-
-        var entradas = await _context.EntradasPaiol
-            .Include(e => e.Paiol)
-            .Include(e => e.Produto)
-            .Where(e => idsPaióisComAcesso.Contains(e.PaiolId))
-            .ToListAsync(cancellationToken);
-        var saidasExistentes = await _context.SaidasPaiol.Where(s => s.EntradaPaiolId != null).ToListAsync(cancellationToken);
-        var restantePorEntrada = new Dictionary<int, decimal>();
-        foreach (var e in entradas)
-            restantePorEntrada[e.Id] = e.Quantidade;
-        foreach (var s in saidasExistentes.Where(s => s.EntradaPaiolId.HasValue))
-            restantePorEntrada[s.EntradaPaiolId!.Value] = restantePorEntrada.GetValueOrDefault(s.EntradaPaiolId.Value) - s.Quantidade;
-
-        foreach (var r in retiradasComQuantidade)
-        {
-            var item = itensPorId[r.EncomendaItemId];
-            var falta = r.Quantidade;
-            var entradasPaiolProduto = entradas
-                .Where(e => e.PaiolId == r.PaiolId && e.ProdutoId == item.ProdutoId && restantePorEntrada.GetValueOrDefault(e.Id, 0) > 0)
-                .OrderBy(e => e.DataFabrico ?? e.DataEntrada)
-                .ThenBy(e => e.DataEntrada)
-                .ToList();
-
-            foreach (var ent in entradasPaiolProduto)
-            {
-                if (falta <= 0) break;
-                var rest = restantePorEntrada.GetValueOrDefault(ent.Id, 0);
-                if (rest <= 0) continue;
-                var qty = Math.Min(falta, rest);
-                _context.SaidasPaiol.Add(new SaidaPaiol
-                {
-                    PaiolId = ent.PaiolId,
-                    ProdutoId = ent.ProdutoId,
-                    Quantidade = qty,
-                    DataSaida = DateTime.UtcNow,
-                    EncomendaId = encomenda.Id,
-                    EntradaPaiolId = ent.Id,
-                    FuncionarioRetirouUserId = userId
-                });
-                restantePorEntrada[ent.Id] = rest - qty;
-                falta -= qty;
-
-                await _logSistema.RegistarAsync("SAIDA_STOCK", userId, User?.Identity?.Name, new
-                {
-                    produto_id = ent.ProdutoId,
-                    numero_lote = ent.NumeroLote,
-                    quantidade_retirada_kg = qty,
-                    paiol_id = ent.PaiolId,
-                    paiol_nome = ent.Paiol?.Nome,
-                    encomenda_id = encomenda.Id
-                }, cancellationToken);
-            }
-
-            if (falta > 0)
-            {
-                TempData["Erro"] = $"Stock insuficiente no paiol selecionado para o produto {item.Produto?.Nome}. Reduza a quantidade ou escolha outro paiol.";
-                return RedirectToAction(nameof(Preparar), new { id });
-            }
-        }
-
-        encomenda.Estado = ConstantesEncomenda.EM_PREPARACAO;
-        encomenda.FuncionarioPreparouUserId = userId;
-        await _context.SaveChangesAsync(cancellationToken);
 
         TempData["EncomendaPreparacao"] = true;
         return RedirectToAction(nameof(Details), new { id });
@@ -544,6 +491,7 @@ public class EncomendasController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "Admin")]
+    // Marca encomenda como Concluída, remove reservas e regista no log
     public async Task<IActionResult> Concluir(int id, CancellationToken cancellationToken = default)
     {
         var encomenda = await _context.Encomendas.FindAsync(id);

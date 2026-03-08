@@ -1,0 +1,368 @@
+@model Finalproj.Models.Servico
+@using Finalproj.Models
+@{
+    ViewData["Title"] = "Detalhes do serviço";
+    var resumoMaterial = ViewData["ResumoMaterial"] as ResumoMaterialServicoViewModel;
+    var licencasEvento = ViewData["LicencasEvento"] as List<LicencaServicoLinhaViewModel> ?? new List<LicencaServicoLinhaViewModel>();
+    var licObrTotal = ViewData["LicencasObrigatoriasTotal"] as int? ?? 0;
+    var licObrEntregues = ViewData["LicencasObrigatoriasEntregues"] as int? ?? 0;
+    var distanciasSeguranca = ViewData["DistanciasSeguranca"] as List<ServicoDistanciaSeguranca> ?? new List<ServicoDistanciaSeguranca>();
+    var paiolParaRota = ViewData["PaiolParaRota"] as Paiol;
+    var distanciaPaiolKm = ViewData["DistanciaPaiolKm"] as double?;
+}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h1 class="mb-1">Serviço #@Model.Id</h1>
+        <p class="text-muted mb-0">@Model.DataServico.ToString("dd/MM/yyyy") · @(Model.Cliente?.Nome)</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-controller="Encomendas" asp-action="Details" asp-route-id="@Model.EncomendaId" class="btn btn-outline-primary">Ver encomenda associada (#@Model.EncomendaId)</a>
+        @if (User.IsInRole("Admin"))
+        {
+            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-secondary">Editar</a>
+            <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-outline-danger">Eliminar</a>
+        }
+        <a asp-action="Index" class="btn btn-outline-secondary">Voltar à lista</a>
+    </div>
+</div>
+
+@if (TempData["ServicoCriado"] != null || TempData["ServicoEditado"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        @(TempData["ServicoCriado"] != null ? "Serviço criado com sucesso." : "Serviço guardado.")
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+    </div>
+}
+
+<div class="row">
+    <div class="col-12 col-xl-10 mx-auto">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Dados do serviço</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-3 col-md-2 text-muted small">Cliente</dt>
+                    <dd class="col-sm-9 col-md-10">@Model.Cliente?.Nome</dd>
+                    <dt class="col-sm-3 col-md-2 text-muted small">Data</dt>
+                    <dd class="col-sm-9 col-md-10">@Model.DataServico.ToString("dd/MM/yyyy")</dd>
+                    <dt class="col-sm-3 col-md-2 text-muted small">Público / Privado</dt>
+                    <dd class="col-sm-9 col-md-10">@(string.IsNullOrWhiteSpace(Model.PublicoPrivado) ? "—" : Model.PublicoPrivado)</dd>
+                    @if (Model.RaioPublico.HasValue)
+                    {
+                        <dt class="col-sm-3 col-md-2 text-muted small">Raio público</dt>
+                        <dd class="col-sm-9 col-md-10">@Model.RaioPublico m</dd>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.Local))
+                    {
+                        <dt class="col-sm-3 col-md-2 text-muted small">Local</dt>
+                        <dd class="col-sm-9 col-md-10">@Model.Local</dd>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.Distrito) || !string.IsNullOrWhiteSpace(Model.Cidade) || !string.IsNullOrWhiteSpace(Model.Municipio) || (Model.CoordenadasLat.HasValue && Model.CoordenadasLng.HasValue))
+                    {
+                        <dt class="col-sm-3 col-md-2 text-muted small">Localização</dt>
+                        <dd class="col-sm-9 col-md-10">
+                            @{
+                                var partes = new[] { Model.Distrito, Model.Cidade, Model.Municipio }.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+                            }
+                            @(partes.Any() ? string.Join(" · ", partes) : "—")
+                        </dd>
+                        @if (Model.CoordenadasLat.HasValue && Model.CoordenadasLng.HasValue)
+                        {
+                            <dt class="col-sm-3 col-md-2 text-muted small">Coordenadas</dt>
+                            <dd class="col-sm-9 col-md-10">
+                                @Model.CoordenadasLat.Value.ToString("F4")° N, @Model.CoordenadasLng.Value.ToString("F4")° W
+                                <a href="https://www.google.com/maps?q=@Model.CoordenadasLat.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),@Model.CoordenadasLng.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary ms-1">Abrir no Google Maps</a>
+                                <button type="button" class="btn btn-sm btn-outline-secondary copiar-coords" data-lat="@Model.CoordenadasLat.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-lng="@Model.CoordenadasLng.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)">Copiar coordenadas</button>
+                            </dd>
+                        }
+                        @if (paiolParaRota != null && distanciaPaiolKm.HasValue)
+                        {
+                            <dt class="col-sm-3 col-md-2 text-muted small">Distância ao paiol</dt>
+                            <dd class="col-sm-9 col-md-10">
+                                @GeoHelper.FormatarDistancia(distanciaPaiolKm.Value) (em linha reta)
+                                @{
+                                    var latP = paiolParaRota.CoordenadasLat!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                                    var lngP = paiolParaRota.CoordenadasLng!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                                    var latS = Model.CoordenadasLat!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                                    var lngS = Model.CoordenadasLng!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                                }
+                                <a href="https://www.google.com/maps/dir/@(latP),@(lngP)/@(latS),@(lngS)" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary ms-1">Ver rota do paiol</a>
+                            </dd>
+                        }
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.Observacoes))
+                    {
+                        <dt class="col-sm-3 col-md-2 text-muted small">Observações</dt>
+                        <dd class="col-sm-9 col-md-10">@Model.Observacoes</dd>
+                    }
+                </dl>
+            </div>
+        </div>
+
+        @if (Model.CoordenadasLat.HasValue && Model.CoordenadasLng.HasValue)
+        {
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">Mapa</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div id="mapa-details" style="width:100%; height:360px; border-radius:0 0 var(--bs-border-radius, 0.375rem) var(--bs-border-radius, 0.375rem);"></div>
+                </div>
+            </div>
+        }
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0">Risco de incêndio</h6>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-0">Consulte o índice de risco de incêndio em <a href="https://www.ipma.pt/pt/riscoincendio/rcm.pt/" target="_blank" rel="noopener">www.ipma.pt</a>.</p>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Material utilizado — Encomenda #@Model.EncomendaId</h5>
+            </div>
+            <div class="card-body">
+                @{
+                    var itensEncomenda = ViewData["ItensEncomenda"] as List<EncomendaItem> ?? new List<EncomendaItem>();
+                }
+                @if (itensEncomenda.Any())
+                {
+                    <div class="table-responsive mb-3">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-2">Produto</th>
+                                    <th>Calibre</th>
+                                    <th>Grupo de risco</th>
+                                    <th class="text-end pe-2">Quantidade</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in itensEncomenda)
+                                {
+                                    <tr>
+                                        <td class="ps-2">@item.Produto?.Nome</td>
+                                        <td>@ConstantesCatalogo.TextoCalibre(item.Produto?.Calibre)</td>
+                                        <td>@ConstantesCatalogo.TextoClassificacao(item.Produto?.FamiliaRisco ?? "")</td>
+                                        <td class="text-end pe-2">@item.QuantidadePedida.ToString("N2")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    @if (resumoMaterial != null)
+                    {
+                        <div class="bg-light rounded p-3 small mb-3">
+                            <strong>Resumo:</strong>
+                            @resumoMaterial.NumeroProdutos produtos · @resumoMaterial.TotalUnidades.ToString("N0") unidades
+                            · MLE total: <strong>@resumoMaterial.MleTotalKg.ToString("N1") kg</strong>
+                            @if (!string.IsNullOrEmpty(resumoMaterial.DivisaoDominante))
+                            {
+                                <span class="badge bg-@(resumoMaterial.CorDivisaoDominante ?? "secondary") ms-1">@resumoMaterial.DivisaoDominante</span>
+                            }
+                            @if (!string.IsNullOrEmpty(resumoMaterial.CategoriasPresentes))
+                            {
+                                <span class="text-muted ms-1">· Categorias ADR: @resumoMaterial.CategoriasPresentes</span>
+                            }
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="text-muted small mb-2">Nenhum item na encomenda ou encomenda não encontrada.</p>
+                }
+                <p class="text-muted small mb-2">O material deste serviço provém da encomenda concluída.</p>
+                <a asp-controller="Encomendas" asp-action="Details" asp-route-id="@Model.EncomendaId" class="btn btn-primary">Ver encomenda #@Model.EncomendaId</a>
+            </div>
+        </div>
+
+        @if (distanciasSeguranca.Any())
+        {
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Distâncias de segurança</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-3">Mínimos a cumprir para este espetáculo (em metros), por tipo de referência.</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Tipo</th>
+                                    <th class="text-end">Mínimo (m)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var d in distanciasSeguranca)
+                                {
+                                    <tr>
+                                        <td>@(d.DescricaoReferencia ?? ConstantesDistanciaSeguranca.Nome((TipoReferenciaDistancia)d.TipoReferencia))</td>
+                                        <td class="text-end">@d.DistanciaMinima_m</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (licencasEvento.Any())
+        {
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Licenças do evento</h5>
+                </div>
+                <div class="card-body">
+                    @if (licObrTotal > 0)
+                    {
+                        <p class="small mb-2">@licObrEntregues de @licObrTotal licenças obrigatórias entregues</p>
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: @(licObrTotal > 0 ? (100 * licObrEntregues / licObrTotal) : 0)%"></div>
+                        </div>
+                    }
+                    <ul class="list-unstyled mb-0">
+                        @foreach (var linha in licencasEvento)
+                        {
+                            var nomeDisplay = linha.Tipo == TipoLicencaServico.OUTRO && linha.Licenca != null && !string.IsNullOrWhiteSpace(linha.Licenca.NomePersonalizado) ? linha.Licenca.NomePersonalizado : linha.Nome;
+                            var icon = linha.Estado == 2 ? "✅" : linha.Estado == 1 ? "⚠️" : "❌";
+                            var iconClass = linha.Estado == 2 ? "text-success" : linha.Estado == 1 ? "text-warning" : "text-danger";
+                            var validadeExpirada = linha.Licenca?.DataValidade.HasValue == true && linha.Licenca.DataValidade.Value.Date < DateTime.Today;
+                            <li class="d-flex flex-wrap align-items-center gap-2 py-2 border-bottom border-light">
+                                <span class="@iconClass" style="width:1.5rem;">@icon</span>
+                                <span class="flex-grow-1">
+                                    @nomeDisplay
+                                    @if (linha.Obrigatorio) { <span class="badge bg-secondary badge-sm">obrigatório</span> }
+                                    @if (!string.IsNullOrEmpty(linha.Tooltip)) { <span class="text-muted small" title="@linha.Tooltip">ⓘ</span> }
+                                </span>
+                                @if (linha.Licenca != null)
+                                {
+                                    if (!string.IsNullOrWhiteSpace(linha.Licenca.NumeroDocumento)) { <span class="small text-muted">@linha.Licenca.NumeroDocumento</span> }
+                                    if (linha.Licenca.DataValidade.HasValue) { <span class="small @(validadeExpirada ? "text-danger" : "")">Val. @linha.Licenca.DataValidade.Value.ToString("dd/MM/yyyy")</span> }
+                                    if (!string.IsNullOrWhiteSpace(linha.Licenca.FicheiroPath)) { <a asp-action="DownloadLicenca" asp-route-id="@Model.Id" asp-route-licencaId="@linha.Licenca.Id" target="_blank" class="btn btn-sm btn-outline-secondary">Ver</a> }
+                                }
+                                @if (User.IsInRole("Admin"))
+                                { <a asp-action="UploadLicenca" asp-route-id="@Model.Id" asp-route-tipo="@((int)linha.Tipo)" asp-route-licencaId="@(linha.Licenca?.Id)" class="btn btn-sm btn-outline-primary">@(linha.Licenca != null ? "Editar" : "Upload")</a> }
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        }
+
+        @if (Model.Equipa?.Any() == true)
+        {
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Equipa</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        @foreach (var m in Model.Equipa.OrderBy(x => x.Funcionario?.NomeCompleto))
+                        {
+                            var f = m.Funcionario;
+                            if (f == null) { continue; }
+                            var eResponsavel = Model.ResponsavelTecnicoId == f.Id;
+                            <li class="mb-2 d-flex align-items-center gap-2">
+                                <a asp-controller="Funcionarios" asp-action="Details" asp-route-id="@f.Id" class="text-body text-decoration-none">@f.NomeCompleto</a>
+                                @if (eResponsavel) { <span class="badge border border-secondary text-secondary fw-normal">Responsável técnico</span> }
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        }
+
+        @if (Model.DocumentosExtras?.Any() == true)
+        {
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Documentação do evento</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">Ex.: carta de lançador dos membros da equipa.</p>
+                    <ul class="list-unstyled mb-0">
+                        @foreach (var doc in Model.DocumentosExtras)
+                        {
+                            <li class="mb-2">
+                                <a asp-action="Download" asp-route-id="@Model.Id" asp-route-extraId="@doc.Id" target="_blank" class="btn btn-sm btn-outline-success">@(string.IsNullOrWhiteSpace(doc.Nome) ? "Documento" : doc.Nome)</a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.copiar-coords').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var lat = this.getAttribute('data-lat');
+                var lng = this.getAttribute('data-lng');
+                var texto = lat + ', ' + lng;
+                navigator.clipboard.writeText(texto).then(function() { btn.textContent = '✓ Copiado'; setTimeout(function() { btn.textContent = '📋 Copiar coordenadas'; }, 1500); });
+            });
+        });
+    </script>
+    @if (Model.CoordenadasLat.HasValue && Model.CoordenadasLng.HasValue)
+    {
+        var apiKeyDetails = ViewData["GoogleMapsApiKey"] as string ?? "";
+        var latDetails = Model.CoordenadasLat.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var lngDetails = Model.CoordenadasLng.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var raioDetails = Model.RaioPublico.HasValue && Model.RaioPublico.Value > 0 ? Model.RaioPublico.Value : 0;
+        if (!string.IsNullOrWhiteSpace(apiKeyDetails))
+        {
+            <script src="https://maps.googleapis.com/maps/api/js?key=@(apiKeyDetails)" async defer></script>
+            <script>
+                (function() {
+                    var lat = @(latDetails);
+                    var lng = @(lngDetails);
+                    var raioM = @(raioDetails);
+                    function initMapaDetails() {
+                        var divMap = document.getElementById('mapa-details');
+                        if (!divMap || typeof google === 'undefined' || !google.maps) return;
+                        var center = { lat: lat, lng: lng };
+                        var map = new google.maps.Map(divMap, {
+                            center: center,
+                            zoom: 14,
+                            mapTypeControl: true,
+                            fullscreenControl: true,
+                            streetViewControl: false
+                        });
+                        var marker = new google.maps.Marker({ position: center, map: map });
+                        if (raioM > 0) {
+                            new google.maps.Circle({
+                                map: map,
+                                center: center,
+                                radius: raioM,
+                                fillColor: '#1a73e8',
+                                fillOpacity: 0.15,
+                                strokeColor: '#1a73e8',
+                                strokeWeight: 2
+                            });
+                        }
+                    }
+                    if (typeof google !== 'undefined' && google.maps) { initMapaDetails(); } else { window.addEventListener('load', function() { setTimeout(initMapaDetails, 500); }); }
+                })();
+            </script>
+        }
+        else
+        {
+            <script>
+                (function() {
+                    var divMap = document.getElementById('mapa-details');
+                    if (!divMap) return;
+                    var lat = @(latDetails);
+                    var lng = @(lngDetails);
+                    divMap.innerHTML = '<div class="p-3 text-muted small">Configure GoogleMapsApiKey em appsettings para ver o mapa com o raio público.</div><a href="https://www.google.com/maps?q=' + lat + ',' + lng + '" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary m-2">Abrir no Google Maps</a>';
+                })();
+            </script>
+        }
+    }
+}

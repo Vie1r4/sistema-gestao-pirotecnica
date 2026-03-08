@@ -56,11 +56,11 @@ public static class ConstantesCatalogo
     /// <summary> Calibres. Value = código guardado na BD. </summary>
     public static readonly (string Value, string Text)[] Calibres =
     {
-        ("MuitoPequeno", "< 20 mm (muito pequeno)"),
-        ("BateriasPadrao", "20–30 mm (baterias padrão)"),
-        ("BombasPequenas", "50–75 mm (bombas pequenas)"),
-        ("BombasMedias", "100–125 mm (bombas médias, 4\"–5\")"),
-        ("BombasGrandes", "> 150 mm (bombas grandes, 6\"+)")
+        ("MuitoPequeno", "< 20 mm"),
+        ("BateriasPadrao", "20–30 mm"),
+        ("BombasPequenas", "50–75 mm"),
+        ("BombasMedias", "100–125 mm"),
+        ("BombasGrandes", "> 150 mm")
     };
 
     public static List<SelectListItem> FiltrosTecnicosParaDropdown()

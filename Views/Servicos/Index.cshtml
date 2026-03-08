@@ -1,0 +1,136 @@
+@model IEnumerable<Finalproj.Models.Servico>
+@using Finalproj.Models
+@{
+    ViewData["Title"] = "Serviços";
+    var clienteId = ViewData["ClienteIdFiltro"] as int?;
+    var dataDesde = ViewData["DataDesde"] as string ?? "";
+    var dataAte = ViewData["DataAte"] as string ?? "";
+    var paginaAtual = (int)(ViewData["PaginaAtual"] ?? 1);
+    var totalRegistos = (int)(ViewData["TotalRegistos"] ?? 0);
+    var itensPorPagina = (int)(ViewData["ItensPorPagina"] ?? 20);
+    var totalPaginas = itensPorPagina > 0 ? (int)Math.Ceiling(totalRegistos / (double)itensPorPagina) : 1;
+}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h1 class="mb-1">Serviços</h1>
+        <p class="text-muted mb-0">Operações no terreno realizadas pela empresa. Cada serviço está ligado a uma encomenda concluída.</p>
+    </div>
+    @if (User.IsInRole("Admin"))
+    {
+        <a asp-action="Create" class="btn btn-primary">Novo serviço</a>
+    }
+</div>
+@if (TempData["ServicoCriado"] as bool? == true)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        Serviço criado com sucesso.
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+    </div>
+}
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body py-3">
+        <form method="get" asp-action="Index" class="row g-3 align-items-end">
+            <input type="hidden" name="pagina" value="1" />
+            <div class="col-12 col-md-3">
+                <label class="form-label small text-muted">Cliente</label>
+                <select name="clienteId" class="form-select form-select-sm" asp-items="@(ViewData["ClienteId"] as SelectList)">
+                    <option value="">— Todos —</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small text-muted">Data desde</label>
+                <input type="date" name="dataDesde" value="@dataDesde" class="form-control form-control-sm" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small text-muted">Data até</label>
+                <input type="date" name="dataAte" value="@dataAte" class="form-control form-control-sm" />
+            </div>
+            <div class="col-12 col-md-2">
+                <button type="submit" class="btn btn-primary btn-sm w-100">Filtrar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.Any())
+{
+    <div class="card shadow-sm border-0 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4" style="width: 70px;">N.º</th>
+                        <th>Cliente</th>
+                        <th style="width: 110px;">Data serviço</th>
+                        <th>Local</th>
+                        <th style="width: 100px;">Público/Privado</th>
+                        <th>Responsável técnico</th>
+                        <th class="text-end pe-4" style="width: 100px;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Model)
+                    {
+                        <tr>
+                            <td class="ps-4"><strong>#@s.Id</strong></td>
+                            <td>@s.Cliente?.Nome</td>
+                            <td class="text-muted small">@s.DataServico.ToString("dd/MM/yyyy")</td>
+                            <td class="small">@(string.IsNullOrWhiteSpace(s.Local) ? "—" : s.Local)</td>
+                            <td class="small">@(string.IsNullOrWhiteSpace(s.PublicoPrivado) ? "—" : s.PublicoPrivado)</td>
+                            <td class="small">@(s.ResponsavelTecnico?.NomeCompleto ?? "—")</td>
+                            <td class="text-end pe-4">
+                                <a asp-action="Details" asp-route-id="@s.Id" class="btn btn-sm btn-outline-primary">Detalhes</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @if (totalPaginas > 1)
+    {
+        var routeVals = new Dictionary<string, object> { ["pagina"] = 1, ["itensPorPagina"] = itensPorPagina };
+        if (clienteId.HasValue) routeVals["clienteId"] = clienteId.Value;
+        if (!string.IsNullOrEmpty(dataDesde)) routeVals["dataDesde"] = dataDesde;
+        if (!string.IsNullOrEmpty(dataAte)) routeVals["dataAte"] = dataAte;
+        <nav class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+            <p class="text-muted small mb-0">A mostrar @((paginaAtual - 1) * itensPorPagina + 1)–@(Math.Min(paginaAtual * itensPorPagina, totalRegistos)) de @totalRegistos</p>
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item @(paginaAtual <= 1 ? "disabled" : "")">
+                    @{ routeVals["pagina"] = paginaAtual - 1; }
+                    <a class="page-link" href="@(paginaAtual <= 1 ? "#" : Url.Action("Index", routeVals))">Anterior</a>
+                </li>
+                @for (var p = 1; p <= Math.Min(totalPaginas, 10); p++)
+                {
+                    routeVals["pagina"] = p;
+                    <li class="page-item @(p == paginaAtual ? "active" : "")">
+                        <a class="page-link" href="@Url.Action("Index", routeVals)">@p</a>
+                    </li>
+                }
+                @if (totalPaginas > 10)
+                {
+                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                    routeVals["pagina"] = totalPaginas;
+                    <li class="page-item"><a class="page-link" href="@Url.Action("Index", routeVals)">@totalPaginas</a></li>
+                }
+                <li class="page-item @(paginaAtual >= totalPaginas ? "disabled" : "")">
+                    @{ routeVals["pagina"] = paginaAtual + 1; }
+                    <a class="page-link" href="@(paginaAtual >= totalPaginas ? "#" : Url.Action("Index", routeVals))">Próximo</a>
+                </li>
+            </ul>
+        </nav>
+    }
+}
+else
+{
+    <div class="card shadow-sm border-0">
+        <div class="card-body text-center py-5">
+            <p class="text-muted mb-2">Nenhum serviço encontrado.</p>
+            @if (User.IsInRole("Admin"))
+            {
+                <a asp-action="Create" class="btn btn-primary">Novo serviço</a>
+            }
+        </div>
+    </div>
+}

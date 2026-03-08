@@ -2,11 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Finalproj.Models;
 
-/// <summary>
-/// Reserva de stock por produto para uma encomenda (Pendente / Aceite / Em preparação).
-/// O stock disponível no catálogo = entradas - saídas - sum(reservas com estado em EstadosComReserva).
-/// Ao rejeitar a encomenda, as reservas são removidas e o stock volta a ficar disponível.
-/// </summary>
+// Reserva de quantidade de um produto para uma encomenda (Pendente/Aceite/Em preparação); reduz stock disponível até rejeitar ou concluir
 public class Reserva
 {
     public int Id { get; set; }

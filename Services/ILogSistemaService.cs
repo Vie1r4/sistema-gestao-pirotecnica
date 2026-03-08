@@ -1,8 +1,6 @@
 namespace Finalproj.Services;
 
-/// <summary>
-/// Registo imutável de ações no sistema (entrada/saída stock, encomenda aceite/rejeitada/concluída).
-/// </summary>
+// Auditoria: uma linha por acção (userId, nome, dados em JSON, timestamp)
 public interface ILogSistemaService
 {
     Task RegistarAsync(string acao, string? userId, string? userName, object? dados = null, CancellationToken cancellationToken = default);

@@ -2,22 +2,15 @@ using System.Globalization;
 
 namespace Finalproj.Models;
 
-/// <summary>
-/// Motor de validação de entradas em paióis pirotécnicos (PROMPT_Motor_Validacao_Paiol).
-/// Executa as 9 regras em sequência; se uma falhar, bloqueia e devolve o erro. Nunca lança exceções.
-/// Base: ADR Classe 1 e RFACEPE.
-/// </summary>
+// Motor de validação de entradas no paiol (regras ADR/RFACEPE); devolve erros/avisos, não lança excepções
 public static class MotorValidacaoPaiol
 {
     private const decimal LimiteMleGrupoCComG = 50m;
 
-    /// <summary> Hierarquia de perigo (do mais para o menos perigoso). </summary>
+    // Ordem de perigo (mais perigoso primeiro)
     private static readonly string[] HierarquiaDivisao = { "1.1", "1.2", "1.3", "1.4", "1.4S" };
 
-    /// <summary>
-    /// Valida se a entrada do produto no paiol pode ser aceite.
-    /// </summary>
-    /// <param name="dataValidadeLote">Opcional. Data de validade do lote a entrar; se fornecida e expirada, bloqueia (Regra 8). O catálogo não tem validade — a validade é do lote físico.</param>
+    // Valida entrada; dataValidadeLote opcional (Regra 8: lote expirado bloqueia)
     public static ResultadoValidacaoPaiol ValidarEntrada(
         Produto produto,
         Paiol paiol,

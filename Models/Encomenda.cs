@@ -2,10 +2,8 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Finalproj.Models;
 
-/// <summary>
-/// Encomenda do cliente. Estados: Pendente → Aceite | Rejeitada; Aceite → Em preparação → Concluída.
-/// Stock reservado enquanto estado ∈ { Pendente, Aceite, Em preparação }.
-/// </summary>
+// Encomenda do cliente. Ciclo: Pendente → Aceite|Rejeitada; Aceite → Em preparação → Concluída.
+// Enquanto estiver Pendente/Aceite/Em preparação o stock fica reservado.
 public class Encomenda
 {
     public int Id { get; set; }
@@ -13,8 +11,9 @@ public class Encomenda
     public int ClienteId { get; set; }
     public Cliente Cliente { get; set; } = null!;
 
-    [Required]
-    [StringLength(20)]
+    // Valores em ConstantesEncomenda (Pendente, Aceite, Rejeitada, etc.)
+    [Required(ErrorMessage = "O estado da encomenda é obrigatório.")]
+    [StringLength(20, ErrorMessage = "O estado não pode exceder 20 caracteres.")]
     public string Estado { get; set; } = ConstantesEncomenda.PENDENTE;
 
     [Display(Name = "Data de criação")]
@@ -25,7 +24,6 @@ public class Encomenda
     [DataType(DataType.DateTime)]
     public DateTime? DataConclusao { get; set; }
 
-    /// <summary> Data prevista de entrega ao cliente. </summary>
     [Display(Name = "Data de entrega")]
     [DataType(DataType.Date)]
     public DateTime? DataEntrega { get; set; }
@@ -38,13 +36,14 @@ public class Encomenda
     [Display(Name = "Motivo de rejeição")]
     public string? MotivoRejeicao { get; set; }
 
-    /// <summary> Utilizador (Identity) que aceitou a encomenda. </summary>
+    // UserId do Identity (quem aceitou / quem preparou)
     [StringLength(450)]
     public string? FuncionarioAceiteUserId { get; set; }
-
-    /// <summary> Utilizador (Identity) que preparou/concluiu a encomenda. </summary>
     [StringLength(450)]
     public string? FuncionarioPreparouUserId { get; set; }
 
     public ICollection<EncomendaItem> Itens { get; set; } = new List<EncomendaItem>();
+
+    // Um serviço no terreno usa o material desta encomenda (só quando concluída)
+    public ICollection<Servico> Servicos { get; set; } = new List<Servico>();
 }

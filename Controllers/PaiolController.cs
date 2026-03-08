@@ -8,9 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Finalproj.Controllers
 {
-    /// <summary>
-    /// Tutorial Class 8: sem sessão iniciada o utilizador não pode aceder – [Authorize] em todo o controller.
-    /// </summary>
+    // Paióis: CRUD, documentos extras, acesso por role; listagem com ocupação MLE e percentagem
     [Authorize]
     public class PaiolController : Controller
     {
@@ -27,7 +25,7 @@ namespace Finalproj.Controllers
             _env = env;
         }
 
-        /// <summary>Ids dos paióis a que o utilizador atual tem acesso (por cargo).</summary>
+        // Paióis a que o utilizador tem acesso (por cargo)
         private async Task<List<int>> ObterPaiolIdsComAcessoAsync()
         {
             var user = await _userManager.GetUserAsync(User);
@@ -39,7 +37,7 @@ namespace Finalproj.Controllers
                 .ToListAsync();
         }
 
-        /// <summary>Calcula MLE atual e percentagem de ocupação por paiol (para listagens).</summary>
+        // MLE actual e % ocupação por paiol (para listagens)
         private async Task<Dictionary<int, (decimal MleAtual, decimal PercentagemOcupacao)>> CalcularOcupacaoPorPaiolAsync(IEnumerable<Paiol> paióis)
         {
             var ids = paióis.Select(p => p.Id).ToList();
@@ -99,7 +97,7 @@ namespace Finalproj.Controllers
             return View(viewModel);
         }
 
-        /// <summary>Stock físico (entradas - saídas) por produto, apenas nos paióis com acesso.</summary>
+        // Stock físico (entradas - saídas) por produto nos paióis com acesso
         private async Task<Dictionary<int, decimal>> ObterStockFisicoPorProdutoAsync(List<int> idsPaióis)
         {
             if (idsPaióis.Count == 0)
@@ -124,7 +122,7 @@ namespace Finalproj.Controllers
             return resultado;
         }
 
-        /// <summary>Catálogo com quantidade em stock (igual ao catálogo mas com coluna Stock nos paióis com acesso).</summary>
+        // Catálogo com coluna stock (só nos paióis com acesso)
         public async Task<IActionResult> Stock(string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre)
         {
             ViewData["Pesquisa"] = pesquisa;
@@ -154,15 +152,19 @@ namespace Finalproj.Controllers
         }
 
         // GET: Paiol/Movimentos — ver entradas ou saídas, com filtro por paiol (Class 8: só paióis com acesso)
-        public async Task<IActionResult> Movimentos(string? tipo, int? paiolId)
+        public async Task<IActionResult> Movimentos(string? tipo, int? paiolId, int pagina = 1, int itensPorPagina = 25, CancellationToken cancellationToken = default)
         {
+            if (pagina < 1) pagina = 1;
+            if (itensPorPagina < 5 || itensPorPagina > 100) itensPorPagina = 25;
+
             var idsAcesso = await ObterPaiolIdsComAcessoAsync();
             var paióis = await _context.Paiol
                 .Where(p => idsAcesso.Contains(p.Id))
                 .OrderBy(p => p.Nome)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             ViewData["PaiolId"] = new SelectList(paióis, "Id", "Nome", paiolId);
+            ViewData["PaiolIdFiltro"] = paiolId;
             ViewData["Tipo"] = tipo ?? "";
 
             if (string.IsNullOrEmpty(tipo))
@@ -180,18 +182,21 @@ namespace Finalproj.Controllers
                     .Where(e => idsAcesso.Contains(e.PaiolId));
                 if (paiolId.HasValue)
                     query = query.Where(e => e.PaiolId == paiolId.Value);
-                var entradas = await query.OrderByDescending(e => e.DataEntrada).ToListAsync();
+                query = query.OrderByDescending(e => e.DataEntrada);
+                var totalRegistos = await query.CountAsync(cancellationToken);
+                var entradas = await query
+                    .Skip((pagina - 1) * itensPorPagina)
+                    .Take(itensPorPagina)
+                    .ToListAsync(cancellationToken);
                 ViewData["Entradas"] = entradas;
                 ViewData["Saidas"] = new List<SaidaPaiol>();
 
                 var userIdsEntradas = entradas.Where(e => !string.IsNullOrEmpty(e.FuncionarioRegistouUserId)).Select(e => e.FuncionarioRegistouUserId!).Distinct().ToList();
-                var nomesEntradas = new Dictionary<string, string>();
-                foreach (var uid in userIdsEntradas)
-                {
-                    var u = await _userManager.FindByIdAsync(uid);
-                    nomesEntradas[uid] = u?.UserName ?? uid;
-                }
+                var nomesEntradas = await ObterNomesUtilizadoresAsync(userIdsEntradas, cancellationToken);
                 ViewData["NomesUtilizadoresEntradas"] = nomesEntradas;
+                ViewData["PaginaAtual"] = pagina;
+                ViewData["TotalRegistos"] = totalRegistos;
+                ViewData["ItensPorPagina"] = itensPorPagina;
             }
             else
             {
@@ -201,21 +206,32 @@ namespace Finalproj.Controllers
                     .Where(s => idsAcesso.Contains(s.PaiolId));
                 if (paiolId.HasValue)
                     query = query.Where(s => s.PaiolId == paiolId.Value);
-                var saidas = await query.OrderByDescending(s => s.DataSaida).ToListAsync();
+                query = query.OrderByDescending(s => s.DataSaida);
+                var totalRegistos = await query.CountAsync(cancellationToken);
+                var saidas = await query
+                    .Skip((pagina - 1) * itensPorPagina)
+                    .Take(itensPorPagina)
+                    .ToListAsync(cancellationToken);
                 ViewData["Entradas"] = new List<EntradaPaiol>();
                 ViewData["Saidas"] = saidas;
 
                 var userIds = saidas.Where(s => !string.IsNullOrEmpty(s.FuncionarioRetirouUserId)).Select(s => s.FuncionarioRetirouUserId!).Distinct().ToList();
-                var nomesSaidas = new Dictionary<string, string>();
-                foreach (var uid in userIds)
-                {
-                    var u = await _userManager.FindByIdAsync(uid);
-                    nomesSaidas[uid] = u?.UserName ?? uid;
-                }
+                var nomesSaidas = await ObterNomesUtilizadoresAsync(userIds, cancellationToken);
                 ViewData["NomesUtilizadoresSaidas"] = nomesSaidas;
+                ViewData["PaginaAtual"] = pagina;
+                ViewData["TotalRegistos"] = totalRegistos;
+                ViewData["ItensPorPagina"] = itensPorPagina;
             }
 
             return View();
+        }
+
+        // Dicionário userId → nome (UserName) para mostrar em listagens
+        private async Task<Dictionary<string, string>> ObterNomesUtilizadoresAsync(List<string> userIds, CancellationToken cancellationToken)
+        {
+            if (userIds.Count == 0) return new Dictionary<string, string>();
+            var users = await _userManager.Users.Where(u => userIds.Contains(u.Id)).ToListAsync(cancellationToken);
+            return users.ToDictionary(u => u.Id, u => u.UserName ?? u.Id);
         }
 
         // GET: Paiol/Gestao — CRUD completo; apenas Admin
@@ -336,7 +352,7 @@ namespace Finalproj.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Create([Bind("Id,Nome,Localizacao,LimiteMLE,PerfilRisco,Estado,NumeroLicenca,DataValidadeLicenca")] Paiol paiol, string[]? CargosAcesso, List<DocumentoExtraInput>? documentosExtras)
+        public async Task<IActionResult> Create([Bind("Id,Nome,Localizacao,CoordenadasLat,CoordenadasLng,LimiteMLE,PerfilRisco,Estado,NumeroLicenca,DataValidadeLicenca")] Paiol paiol, string[]? CargosAcesso, List<DocumentoExtraInput>? documentosExtras)
         {
             if (ModelState.IsValid)
             {
@@ -409,7 +425,8 @@ namespace Finalproj.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Nome,Localizacao,LimiteMLE,PerfilRisco,Estado,NumeroLicenca,DataValidadeLicenca")] Paiol paiol, string[]? CargosAcesso, List<DocumentoExtraInput>? documentosExtras, List<int>? RemoverDocumentoExtraIds)
+        // Actualiza paiol, cargos de acesso e documentos extras
+        public async Task<IActionResult> Edit(int id, [Bind("Id,Nome,Localizacao,CoordenadasLat,CoordenadasLng,LimiteMLE,PerfilRisco,Estado,NumeroLicenca,DataValidadeLicenca")] Paiol paiol, string[]? CargosAcesso, List<DocumentoExtraInput>? documentosExtras, List<int>? RemoverDocumentoExtraIds)
         {
             if (id != paiol.Id)
                 return NotFound();
@@ -504,6 +521,7 @@ namespace Finalproj.Controllers
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
+        // Apaga paiol e pasta de documentos
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var paiol = await _context.Paiol.FindAsync(id);
@@ -520,6 +538,7 @@ namespace Finalproj.Controllers
             return RedirectToAction(nameof(Gestao));
         }
 
+        // Devolve documento extra do paiol (inline)
         public IActionResult Download(int id, int extraId)
         {
             var extra = _context.PaiolDocumentoExtras.AsNoTracking().FirstOrDefault(e => e.Id == extraId && e.PaiolId == id);
@@ -528,6 +547,7 @@ namespace Finalproj.Controllers
             return ServirFicheiro(extra.Caminho);
         }
 
+        // Envia ficheiro do disco com Content-Type e nome para inline
         private IActionResult ServirFicheiro(string caminhoRelativo)
         {
             var caminhoFisico = Path.Combine(_env.WebRootPath, caminhoRelativo);
@@ -540,12 +560,14 @@ namespace Finalproj.Controllers
             return PhysicalFile(caminhoFisico, contentType);
         }
 
+        // Só permite extensões da lista (pdf, jpg, etc.)
         private static bool FicheiroPermitido(string fileName)
         {
             var ext = Path.GetExtension(fileName);
             return !string.IsNullOrEmpty(ext) && ExtensoesPermitidas.Contains(ext.ToLowerInvariant());
         }
 
+        // Grava IFormFile na pasta com nome único; devolve caminho relativo
         private async Task<string> GuardarFicheiro(IFormFile ficheiro, string pastaBase, string prefixo)
         {
             var ext = Path.GetExtension(ficheiro.FileName).ToLowerInvariant();
@@ -557,6 +579,7 @@ namespace Finalproj.Controllers
             return Path.Combine(PastaDocumentosPaiol, idPasta, nomeUnico).Replace('\\', '/');
         }
 
+        // Verifica se o paiol existe (para concurrency)
         private async Task<bool> PaiolExistsAsync(int id)
         {
             return await _context.Paiol.AnyAsync(e => e.Id == id);

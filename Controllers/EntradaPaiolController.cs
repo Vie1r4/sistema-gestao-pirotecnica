@@ -8,9 +8,7 @@ using Microsoft.AspNetCore.Identity;
 
 namespace Finalproj.Controllers
 {
-    /// <summary>
-    /// Processo de decisão de entrada no paiol (Class 3 + 4). Class 8: só aparecem paióis a que o cargo do utilizador tem acesso.
-    /// </summary>
+    // Entradas no paiol: formulário Registar com validação MLE e licença; histórico em Paiol/Movimentos
     [Authorize]
     public class EntradaPaiolController : Controller
     {
@@ -25,13 +23,13 @@ namespace Finalproj.Controllers
             _logSistema = logSistema;
         }
 
-        /// <summary> O histórico de entradas só é acessível através de Paiol/Movimentos. </summary>
+        // Redirecciona para Paiol/Movimentos (histórico de entradas)
         public IActionResult Index()
         {
             return RedirectToAction("Movimentos", "Paiol", new { tipo = "Entradas" });
         }
 
-        /// <summary> GET: formulário "Registar entrada". Filtros: paiolId, classificacao, grupoCompatibilidade, filtroTecnico, calibre. </summary>
+        // GET: formulário com filtros (paiol, classificação, grupo, etc.)
         public async Task<IActionResult> Registar(int? paiolId, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre)
         {
             var model = new EntradaPaiolViewModel();
@@ -47,6 +45,7 @@ namespace Finalproj.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        // Valida com MotorValidacaoPaiol, grava entrada e regista no log
         public async Task<IActionResult> Registar(EntradaPaiolViewModel model)
         {
             var paiol = await _context.Paiol.FindAsync(model.PaiolId);
@@ -152,6 +151,7 @@ namespace Finalproj.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // Preenche dropdowns paiol (com acesso) e produtos (com filtros)
         private async Task PopularDropdownsAsync(int? paiolId, int? produtoId, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre)
         {
             var user = await _userManager.GetUserAsync(User);
