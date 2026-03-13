@@ -1,5 +1,6 @@
 using Finalproj.Data;
 using Finalproj.Models;
+using Finalproj.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -13,13 +14,14 @@ namespace Finalproj.Controllers
     {
         private readonly FinalprojContext _context;
         private readonly IWebHostEnvironment _env;
+        private readonly IDocumentoStorageService _documentoStorage;
         private const string PastaDocumentosClientes = "Documentos/Clientes";
-        private static readonly string[] ExtensoesPermitidas = { ".pdf", ".jpg", ".jpeg", ".png" };
 
-        public ClientesController(FinalprojContext context, IWebHostEnvironment env)
+        public ClientesController(FinalprojContext context, IWebHostEnvironment env, IDocumentoStorageService documentoStorage)
         {
             _context = context;
             _env = env;
+            _documentoStorage = documentoStorage;
         }
 
         // Lista com pesquisa (nome, email, telefone, NIF) e ordenação
@@ -113,19 +115,16 @@ namespace Finalproj.Controllers
                 _context.Clientes.Add(cliente);
                 await _context.SaveChangesAsync(cancellationToken);
 
-                var pastaBase = Path.Combine(_env.WebRootPath, PastaDocumentosClientes, cliente.Id.ToString());
-                if (Directory.Exists(pastaBase) == false)
-                    Directory.CreateDirectory(pastaBase);
                 if (documentosExtras != null)
                 {
                     var idx = 0;
                     foreach (var ext in documentosExtras)
                     {
-                        if (ext?.Ficheiro != null && FicheiroPermitido(ext.Ficheiro.FileName))
+                        if (ext?.Ficheiro != null && _documentoStorage.ExtensaoPermitida(ext.Ficheiro.FileName))
                         {
                             var nome = string.IsNullOrWhiteSpace(ext.Nome) ? "Documento " + (idx + 1) : ext.Nome.Trim();
                             if (nome.Length > 100) nome = nome[..100];
-                            var caminho = await GuardarFicheiro(ext.Ficheiro, pastaBase, "doc_" + idx);
+                            var caminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosClientes, cliente.Id, ext.Ficheiro, "doc_" + idx, cancellationToken);
                             _context.ClienteDocumentoExtras.Add(new ClienteDocumentoExtra { ClienteId = cliente.Id, Nome = nome, Caminho = caminho });
                             idx++;
                         }
@@ -174,11 +173,7 @@ namespace Finalproj.Controllers
                             .ToListAsync(cancellationToken);
                         foreach (var e in aRemover)
                         {
-                            var caminhoFisico = Path.Combine(_env.WebRootPath, e.Caminho);
-                            if (System.IO.File.Exists(caminhoFisico))
-                            {
-                                try { System.IO.File.Delete(caminhoFisico); } catch { }
-                            }
+                            _documentoStorage.ApagarFicheiroSeExistir(e.Caminho);
                             _context.ClienteDocumentoExtras.Remove(e);
                         }
                     }
@@ -194,19 +189,16 @@ namespace Finalproj.Controllers
                     existente.Morada = cliente.Morada;
                     existente.Notas = cliente.Notas;
 
-                    var pastaBase = Path.Combine(_env.WebRootPath, PastaDocumentosClientes, id.ToString());
-                    if (Directory.Exists(pastaBase) == false)
-                        Directory.CreateDirectory(pastaBase);
                     if (documentosExtras != null)
                     {
                         var idx = 0;
                         foreach (var ext in documentosExtras)
                         {
-                            if (ext?.Ficheiro != null && FicheiroPermitido(ext.Ficheiro.FileName))
+                            if (ext?.Ficheiro != null && _documentoStorage.ExtensaoPermitida(ext.Ficheiro.FileName))
                             {
                                 var nome = string.IsNullOrWhiteSpace(ext.Nome) ? "Documento " + (idx + 1) : ext.Nome.Trim();
                                 if (nome.Length > 100) nome = nome[..100];
-                                var caminho = await GuardarFicheiro(ext.Ficheiro, pastaBase, "doc_" + Guid.NewGuid().ToString("N")[..8]);
+                                var caminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosClientes, id, ext.Ficheiro, "doc_" + Guid.NewGuid().ToString("N")[..8], cancellationToken);
                                 _context.ClienteDocumentoExtras.Add(new ClienteDocumentoExtra { ClienteId = id, Nome = nome, Caminho = caminho });
                                 idx++;
                             }
@@ -246,11 +238,7 @@ namespace Finalproj.Controllers
             var item = await _context.Clientes.FindAsync(id);
             if (item != null)
             {
-                var pastaBase = Path.Combine(_env.WebRootPath, PastaDocumentosClientes, id.ToString());
-                if (Directory.Exists(pastaBase))
-                {
-                    try { Directory.Delete(pastaBase, recursive: true); } catch { }
-                }
+                _documentoStorage.ApagarPastaRecursiva(Path.Combine(PastaDocumentosClientes, id.ToString()));
                 _context.Clientes.Remove(item);
                 await _context.SaveChangesAsync(cancellationToken);
                 TempData["ClienteEliminado"] = true;
@@ -278,25 +266,6 @@ namespace Finalproj.Controllers
             var nomeFicheiro = Path.GetFileName(caminhoRelativo);
             Response.Headers["Content-Disposition"] = "inline; filename=\"" + nomeFicheiro.Replace("\"", "\\\"") + "\"";
             return PhysicalFile(caminhoFisico, contentType);
-        }
-
-        // Só permite extensões da lista (pdf, jpg, etc.)
-        private static bool FicheiroPermitido(string fileName)
-        {
-            var ext = Path.GetExtension(fileName);
-            return !string.IsNullOrEmpty(ext) && ExtensoesPermitidas.Contains(ext.ToLowerInvariant());
-        }
-
-        // Grava IFormFile na pasta com nome único; devolve caminho relativo para BD
-        private static async Task<string> GuardarFicheiro(IFormFile ficheiro, string pastaBase, string prefixo)
-        {
-            var ext = Path.GetExtension(ficheiro.FileName).ToLowerInvariant();
-            var nomeUnico = $"{prefixo}_{Guid.NewGuid():N}{ext}";
-            var caminhoFisico = Path.Combine(pastaBase, nomeUnico);
-            await using var stream = new FileStream(caminhoFisico, FileMode.Create);
-            await ficheiro.CopyToAsync(stream);
-            var idPasta = Path.GetFileName(pastaBase.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-            return Path.Combine(PastaDocumentosClientes, idPasta, nomeUnico).Replace('\\', '/');
         }
     }
 }

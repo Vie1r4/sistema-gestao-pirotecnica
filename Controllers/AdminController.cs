@@ -42,7 +42,7 @@ namespace Finalproj.Controllers
                 var roles = await _userManager.GetRolesAsync(user);
                 utilizadores.Add(new UtilizadorComRolesViewModel
                 {
-                    Id = user.Id,
+                    Id = user.Id ?? "",
                     UserName = user.UserName ?? "",
                     Email = user.Email ?? "",
                     Roles = roles,

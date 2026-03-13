@@ -1,7 +1,7 @@
 @using Microsoft.AspNetCore.Identity
 @inject SignInManager<IdentityUser> SignInManager
 @* Tutorial Class 8: "add the Login and Logout options to the menu. These menu options are configured to appear to the user only when necessary (Login only appears when the user is not logged in and Logout appears only when the user is already logged in)." *@
-<ul class="navbar-nav">
+<ul class="navbar-nav ms-auto">
 @if (SignInManager.IsSignedIn(User))
 {
     <li class="nav-item">
@@ -10,9 +10,6 @@
 }
 else
 {
-    <li class="nav-item">
-        <a class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Register">Registo</a>
-    </li>
     <li class="nav-item">
         <a class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Login">Entrar</a>
     </li>

@@ -17,8 +17,7 @@ builder.Services.AddDbContext<FinalprojContext>(options =>
 
 builder.Services.AddDefaultIdentity<IdentityUser>(options =>
 {
-    // Confirmação de email desligada por agora; reativar em produção
-    // options.SignIn.RequireConfirmedAccount = true;
+    options.SignIn.RequireConfirmedAccount = true;
     options.Password.RequireDigit = true;
     options.Password.RequireLowercase = true;
     options.Password.RequireUppercase = true;
@@ -37,6 +36,7 @@ builder.Services.AddSingleton<Microsoft.AspNetCore.Identity.UI.Services.IEmailSe
 builder.Services.AddScoped<Finalproj.Services.ILogSistemaService, Finalproj.Services.LogSistemaService>();
 builder.Services.AddScoped<Finalproj.Services.IStockDisponivelService, Finalproj.Services.StockDisponivelService>();
 builder.Services.AddScoped<Finalproj.Services.IEncomendaService, Finalproj.Services.EncomendaService>();
+builder.Services.AddScoped<Finalproj.Services.IDocumentoStorageService, Finalproj.Services.DocumentoStorageService>();
 
 // Sessão (para rascunho de encomenda) e cookies de autenticação
 builder.Services.AddDistributedMemoryCache();

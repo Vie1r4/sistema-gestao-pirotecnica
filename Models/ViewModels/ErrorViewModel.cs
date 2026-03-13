@@ -4,6 +4,9 @@ namespace Finalproj.Models
     {
         public string? RequestId { get; set; }
 
-        public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+        /// <summary>Quando true, mostrar RequestId na página (apenas em desenvolvimento).</summary>
+        public bool IsDevelopment { get; set; }
+
+        public bool ShowRequestId => IsDevelopment && !string.IsNullOrEmpty(RequestId);
     }
 }

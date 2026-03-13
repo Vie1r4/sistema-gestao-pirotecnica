@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 
 namespace Finalproj.Areas.Identity.Pages.Account
 {
@@ -28,8 +29,8 @@ namespace Finalproj.Areas.Identity.Pages.Account
 
         public class InputModel
         {
-            [Required(ErrorMessage = "O nome de utilizador é obrigatório.")]
-            [Display(Name = "Nome de utilizador")]
+            [Required(ErrorMessage = "O email é obrigatório.")]
+            [Display(Name = "Email")]
             public string UserName { get; set; } = string.Empty;
 
             [Required(ErrorMessage = "A palavra-passe é obrigatória.")]
@@ -41,9 +42,13 @@ namespace Finalproj.Areas.Identity.Pages.Account
             public bool RememberMe { get; set; }
         }
 
-        public void OnGet(string? returnUrl = null)
+        public async Task<IActionResult> OnGetAsync(string? returnUrl = null)
         {
             ReturnUrl = returnUrl;
+            var count = await _userManager.Users.CountAsync();
+            if (count == 0)
+                return RedirectToPage("/Account/CriarPrimeiroAdmin", new { returnUrl });
+            return Page();
         }
 
         public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
@@ -56,14 +61,13 @@ namespace Finalproj.Areas.Identity.Pages.Account
                 if (result.Succeeded)
                     return LocalRedirect(returnUrl);
 
-                // [CONFIRMAÇÃO EMAIL] Para testes: bloco comentado para permitir login sem confirmar email. Para reativar, descomentar até ao fim do bloco.
-                // var user = await _userManager.FindByNameAsync(Input.UserName);
-                // if (user != null && !await _userManager.IsEmailConfirmedAsync(user))
-                // {
-                //     ModelState.AddModelError(string.Empty, "Deve confirmar o seu email antes de iniciar sessão.");
-                //     ViewData["EmailNaoConfirmado"] = user.Email;
-                //     return Page();
-                // }
+                var user = await _userManager.FindByNameAsync(Input.UserName);
+                if (user != null && !await _userManager.IsEmailConfirmedAsync(user))
+                {
+                    ModelState.AddModelError(string.Empty, "Deve confirmar o seu email antes de iniciar sessão. Verifique a sua caixa de correio e clique no link enviado.");
+                    ViewData["EmailNaoConfirmado"] = user.Email;
+                    return Page();
+                }
 
                 if (result.IsLockedOut)
                 {
@@ -71,7 +75,7 @@ namespace Finalproj.Areas.Identity.Pages.Account
                 }
                 else
                 {
-                    ModelState.AddModelError(string.Empty, "Nome de utilizador ou palavra-passe incorretos.");
+                    ModelState.AddModelError(string.Empty, "Email ou palavra-passe incorretos.");
                 }
             }
             return Page();

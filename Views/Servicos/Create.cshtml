@@ -172,101 +172,83 @@
             checkEquipaFromResponsavel();
         })();
     </script>
-    @{
-        var apiKeyCreate = ViewData["GoogleMapsApiKey"] as string ?? "";
-    }
-    @if (!string.IsNullOrWhiteSpace(apiKeyCreate))
-    {
-        <script src="https://maps.googleapis.com/maps/api/js?key=@(apiKeyCreate)" async defer></script>
-        <script>
-            (function() {
-                var mapCreate = null, markerCreate = null, circleCreate = null;
-                function updateCircleCreate(center, radiusM) {
-                    if (circleCreate) { circleCreate.setMap(null); circleCreate = null; }
-                    if (!mapCreate || !center || !radiusM || radiusM <= 0) return;
-                    circleCreate = new google.maps.Circle({
-                        map: mapCreate,
-                        center: center,
-                        radius: parseInt(radiusM, 10),
-                        fillColor: '#1a73e8',
-                        fillOpacity: 0.15,
-                        strokeColor: '#1a73e8',
-                        strokeWeight: 2
-                    });
-                }
-                function setMapPosition(lat, lng) {
-                    if (!mapCreate) return;
-                    var pos = { lat: lat, lng: lng };
-                    mapCreate.setCenter(pos);
-                    mapCreate.setZoom(14);
-                    if (markerCreate) markerCreate.setMap(null);
-                    markerCreate = new google.maps.Marker({ position: pos, map: mapCreate });
-                    var latInp = document.getElementById('input-lat-create');
-                    var lngInp = document.getElementById('input-lng-create');
-                    if (latInp) latInp.value = lat;
-                    if (lngInp) lngInp.value = lng;
-                    var raioInp = document.getElementById('input-raio-create');
-                    if (raioInp && raioInp.value) { var r = parseFloat(raioInp.value); if (!isNaN(r) && r > 0) updateCircleCreate(pos, r); }
-                }
-                function initMapaClick() {
-                    var latInp = document.getElementById('input-lat-create');
-                    var lngInp = document.getElementById('input-lng-create');
-                    var cidade = document.getElementById('input-cidade-create');
-                    var municipio = document.getElementById('input-municipio-create');
-                    var distrito = document.getElementById('input-distrito-create');
-                    var container = document.getElementById('container-mapa-create');
-                    var divMap = document.getElementById('mapa-escolha-create');
-                    if (!divMap || typeof google === 'undefined' || !google.maps) return;
-                    container.style.display = 'block';
-                    var centerPortugal = { lat: 39.5, lng: -8.0 };
-                    mapCreate = new google.maps.Map(divMap, {
-                        center: centerPortugal,
-                        zoom: 6,
-                        restriction: { latLngBounds: { north: 42.2, south: 36.9, west: -9.5, east: -6.2 }, strictBounds: false },
-                        mapTypeControl: true,
-                        fullscreenControl: true,
-                        streetViewControl: false
-                    });
-                    if (latInp && lngInp && latInp.value && lngInp.value) {
-                        var latVal = parseFloat(latInp.value), lngVal = parseFloat(lngInp.value);
-                        if (!isNaN(latVal) && !isNaN(lngVal)) setMapPosition(latVal, lngVal);
-                    }
-                    var raioInp = document.getElementById('input-raio-create');
-                    if (raioInp) raioInp.addEventListener('input', function() {
-                        if (!markerCreate) return;
-                        var r = parseFloat(this.value);
-                        updateCircleCreate(markerCreate.getPosition(), isNaN(r) ? 0 : r);
-                    });
-                    mapCreate.addListener('click', function(e) {
-                        var latVal = e.latLng.lat(), lngVal = e.latLng.lng();
-                        if (latInp) latInp.value = latVal;
-                        if (lngInp) lngInp.value = lngVal;
-                        if (markerCreate) markerCreate.setMap(null);
-                        markerCreate = new google.maps.Marker({ position: e.latLng, map: mapCreate });
-                        var r = raioInp ? parseFloat(raioInp.value) : 0;
-                        if (!isNaN(r) && r > 0) updateCircleCreate(e.latLng, r);
-                        var geocoder = new google.maps.Geocoder();
-                        geocoder.geocode({ location: { lat: latVal, lng: lngVal } }, function(results, status) {
-                            if (status === 'OK' && results && results[0]) {
-                                var r0 = results[0];
-                                if (r0.address_components) {
-                                    var loc = '', adm2 = '', adm1 = '';
-                                    for (var i = 0; i < r0.address_components.length; i++) {
-                                        var comp = r0.address_components[i];
-                                        if (comp.types.indexOf('administrative_area_level_2') >= 0) adm2 = comp.long_name;
-                                        if (comp.types.indexOf('administrative_area_level_1') >= 0) adm1 = comp.long_name;
-                                        if (comp.types.indexOf('locality') >= 0) loc = comp.long_name;
-                                    }
-                                    if (cidade) cidade.value = loc || '';
-                                    if (municipio) municipio.value = adm2 || loc || '';
-                                    if (distrito) distrito.value = adm1 || '';
-                                }
-                            }
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        (function() {
+            var mapCreate = null, markerCreate = null, circleCreate = null;
+            function updateCircleCreate(center, radiusM) {
+                if (circleCreate) { mapCreate.removeLayer(circleCreate); circleCreate = null; }
+                if (!mapCreate || !center || !radiusM || radiusM <= 0) return;
+                circleCreate = L.circle([center.lat, center.lng], { radius: parseInt(radiusM, 10), color: '#1a73e8', fillColor: '#1a73e8', fillOpacity: 0.15, weight: 2 }).addTo(mapCreate);
+            }
+            function setMapPosition(lat, lng) {
+                if (!mapCreate) return;
+                var pos = { lat: lat, lng: lng };
+                mapCreate.setView([lat, lng], 14);
+                if (markerCreate) mapCreate.removeLayer(markerCreate);
+                markerCreate = L.marker([lat, lng]).addTo(mapCreate);
+                var latInp = document.getElementById('input-lat-create');
+                var lngInp = document.getElementById('input-lng-create');
+                if (latInp) latInp.value = lat;
+                if (lngInp) lngInp.value = lng;
+                var raioInp = document.getElementById('input-raio-create');
+                if (raioInp && raioInp.value) { var r = parseFloat(raioInp.value); if (!isNaN(r) && r > 0) updateCircleCreate(pos, r); }
+            }
+            function reverseGeocode(lat, lng, callback) {
+                var url = 'https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lng + '&format=json';
+                fetch(url, { headers: { 'Accept': 'application/json', 'Accept-Language': 'pt' } })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        var addr = data.address || {};
+                        callback({
+                            cidade: addr.city || addr.town || addr.village || addr.municipality || '',
+                            municipio: addr.municipality || addr.county || addr.city || addr.town || '',
+                            distrito: addr.state || addr.county || ''
                         });
-                    });
+                    })
+                    .catch(function() { callback({ cidade: '', municipio: '', distrito: '' }); });
+            }
+            function initMapaClick() {
+                var latInp = document.getElementById('input-lat-create');
+                var lngInp = document.getElementById('input-lng-create');
+                var cidade = document.getElementById('input-cidade-create');
+                var municipio = document.getElementById('input-municipio-create');
+                var distrito = document.getElementById('input-distrito-create');
+                var container = document.getElementById('container-mapa-create');
+                var divMap = document.getElementById('mapa-escolha-create');
+                if (!divMap || typeof L === 'undefined') return;
+                container.style.display = 'block';
+                mapCreate = L.map(divMap, { attributionControl: false }).setView([39.5, -8.0], 6);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(mapCreate);
+                mapCreate.setMaxBounds([[36.9, -9.5], [42.2, -6.2]]);
+                if (latInp && lngInp && latInp.value && lngInp.value) {
+                    var latVal = parseFloat(latInp.value), lngVal = parseFloat(lngInp.value);
+                    if (!isNaN(latVal) && !isNaN(lngVal)) setMapPosition(latVal, lngVal);
                 }
-                if (typeof google !== 'undefined' && google.maps) { initMapaClick(); } else { window.addEventListener('load', function() { setTimeout(function() { initMapaClick(); }, 500); }); }
-            })();
-        </script>
-    }
+                var raioInp = document.getElementById('input-raio-create');
+                if (raioInp) raioInp.addEventListener('input', function() {
+                    if (!markerCreate) return;
+                    var r = parseFloat(this.value);
+                    var lat = markerCreate.getLatLng().lat, lng = markerCreate.getLatLng().lng;
+                    updateCircleCreate({ lat: lat, lng: lng }, isNaN(r) ? 0 : r);
+                });
+                mapCreate.on('click', function(e) {
+                    var latVal = e.latlng.lat, lngVal = e.latlng.lng;
+                    if (latInp) latInp.value = latVal;
+                    if (lngInp) lngInp.value = lngVal;
+                    if (markerCreate) mapCreate.removeLayer(markerCreate);
+                    markerCreate = L.marker([latVal, lngVal]).addTo(mapCreate);
+                    var r = raioInp ? parseFloat(raioInp.value) : 0;
+                    if (!isNaN(r) && r > 0) updateCircleCreate({ lat: latVal, lng: lngVal }, r);
+                    reverseGeocode(latVal, lngVal, function(addr) {
+                        if (cidade) cidade.value = addr.cidade || '';
+                        if (municipio) municipio.value = addr.municipio || '';
+                        if (distrito) distrito.value = addr.distrito || '';
+                    });
+                });
+            }
+            if (typeof L !== 'undefined') { initMapaClick(); } else { window.addEventListener('load', function() { setTimeout(initMapaClick, 500); }); }
+        })();
+    </script>
 }

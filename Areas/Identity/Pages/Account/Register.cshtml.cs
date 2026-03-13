@@ -76,45 +76,15 @@ namespace Finalproj.Areas.Identity.Pages.Account
             public string? Role { get; set; }
         }
 
-        public void OnGet(string? returnUrl = null)
+        public IActionResult OnGet(string? returnUrl = null)
         {
-            ReturnUrl = returnUrl;
-            ViewData["Roles"] = RolesDisponiveis;
+            // Registo desativado: contas são criadas apenas pelo Admin a partir da ficha do Funcionário.
+            return RedirectToPage("/Account/Login", new { returnUrl });
         }
 
-        public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
+        public IActionResult OnPostAsync(string? returnUrl = null)
         {
-            returnUrl ??= Url.Content("~/");
-            ReturnUrl = returnUrl;
-            if (ModelState.IsValid)
-            {
-                var user = new IdentityUser { UserName = Input.UserName, Email = Input.Email };
-                var result = await _userManager.CreateAsync(user, Input.Password);
-                if (result.Succeeded)
-                {
-                    if (!string.IsNullOrEmpty(Input.Role) && RolesDisponiveis.Contains(Input.Role))
-                        await _userManager.AddToRoleAsync(user, Input.Role);
-                    await _context.Perfis.AddAsync(new Perfil
-                    {
-                        UserId = user.Id,
-                        Nome = Input.Nome,
-                        Telefone = Input.Telefone,
-                        DataRegisto = DateTime.UtcNow
-                    });
-                    await _context.SaveChangesAsync();
-
-                    var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                    var callbackUrl = Url.Page("/Account/ConfirmEmail", pageHandler: null, values: new { area = "Identity", userId = user.Id, code, returnUrl }, protocol: Request.Scheme);
-                    await _emailSender.SendEmailAsync(Input.Email, "Confirmar o seu email – PIROFAFE",
-                        $"Por favor confirme a sua conta <a href='{callbackUrl}'>clicando aqui</a>. Se não criou esta conta, ignore este email.");
-
-                    return RedirectToPage("RegisterConfirmation", new { email = Input.Email, returnUrl });
-                }
-                foreach (var error in result.Errors)
-                    ModelState.AddModelError(string.Empty, error.Description);
-            }
-            ViewData["Roles"] = RolesDisponiveis;
-            return Page();
+            return RedirectToPage("/Account/Login", new { returnUrl });
         }
     }
 }

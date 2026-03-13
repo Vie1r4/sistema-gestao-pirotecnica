@@ -1,10 +1,10 @@
 using Finalproj.Data;
 using Finalproj.Models;
+using Finalproj.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 
 namespace Finalproj.Controllers;
 
@@ -13,14 +13,17 @@ namespace Finalproj.Controllers;
 public class ServicosController : Controller
 {
     private const string PastaDocumentosServico = "Documentos/Servico";
-    private static readonly string[] ExtensoesPermitidas = { ".pdf", ".jpg", ".jpeg", ".png" };
     private readonly FinalprojContext _context;
     private readonly IWebHostEnvironment _env;
+    private readonly IDocumentoStorageService _documentoStorage;
+    private readonly ILogger<ServicosController> _logger;
 
-    public ServicosController(FinalprojContext context, IWebHostEnvironment env)
+    public ServicosController(FinalprojContext context, IWebHostEnvironment env, IDocumentoStorageService documentoStorage, ILogger<ServicosController> logger)
     {
         _context = context;
         _env = env;
+        _documentoStorage = documentoStorage;
+        _logger = logger;
     }
 
     // Lista com filtros por cliente e intervalo de datas
@@ -121,7 +124,6 @@ public class ServicosController : Controller
         }
         ViewData["PaiolParaRota"] = paiolParaRota;
         ViewData["DistanciaPaiolKm"] = distanciaPaiolKm;
-        ViewData["GoogleMapsApiKey"] = HttpContext.RequestServices.GetService<IConfiguration>() is IConfiguration cfg ? (cfg["GoogleMapsApiKey"] ?? "") : "";
 
         var obrigatorios = ConstantesServicoLicenca.TiposObrigatoriosPara(servico.PublicoPrivado).ToList();
         var licencasDoServico = servico.Licencas?.ToList() ?? new List<ServicoLicenca>();
@@ -234,7 +236,6 @@ public class ServicosController : Controller
     public async Task<IActionResult> Create(int? encomendaId, CancellationToken cancellationToken = default)
     {
         await PopularDropdownsCreateAsync(encomendaId, cancellationToken);
-        ViewData["GoogleMapsApiKey"] = HttpContext.RequestServices.GetService<IConfiguration>()?["GoogleMapsApiKey"] ?? "";
         return View(new Servico { DataServico = DateTime.Today, EncomendaId = encomendaId ?? 0 });
     }
 
@@ -259,58 +260,25 @@ public class ServicosController : Controller
                 ModelState.AddModelError(nameof(Servico.EncomendaId), "Cada encomenda só pode ser utilizada num único serviço. Esta encomenda já está associada a outro serviço.");
         }
 
-        // Regra: responsável técnico tem de ser funcionário com ADR e licença de operador
-        if (servico.ResponsavelTecnicoId.HasValue)
-        {
-            var resp = await _context.Funcionarios.AsNoTracking().FirstOrDefaultAsync(f => f.Id == servico.ResponsavelTecnicoId.Value, cancellationToken);
-            if (resp == null || string.IsNullOrWhiteSpace(resp.DocumentoADDRCaminho) || string.IsNullOrWhiteSpace(resp.LicencaOperadorCaminho))
-                ModelState.AddModelError(nameof(Servico.ResponsavelTecnicoId), "O responsável técnico tem de ser um funcionário com ADR e licença de operador.");
-        }
-
-        // Regra: equipa só pode incluir funcionários com licença de operador
-        if (EquipaIds != null && EquipaIds.Length > 0)
-        {
-            var comLicenca = await _context.Funcionarios
-                .Where(f => !string.IsNullOrWhiteSpace(f.LicencaOperadorCaminho))
-                .Select(f => f.Id)
-                .ToListAsync(cancellationToken);
-            var invalidos = EquipaIds.Where(id => !comLicenca.Contains(id)).ToList();
-            if (invalidos.Any())
-                ModelState.AddModelError("EquipaIds", "Só podem fazer parte da equipa funcionários com licença de operador.");
-        }
+        await ValidarResponsavelEEquipaAsync(servico.ResponsavelTecnicoId, EquipaIds, cancellationToken);
 
         if (ModelState.IsValid && encomenda != null)
         {
             _context.Servicos.Add(servico);
             await _context.SaveChangesAsync(cancellationToken);
 
-            if (EquipaIds != null && EquipaIds.Length > 0)
-            {
-                var comLicenca = await _context.Funcionarios
-                    .Where(f => !string.IsNullOrWhiteSpace(f.LicencaOperadorCaminho))
-                    .Select(f => f.Id)
-                    .ToListAsync(cancellationToken);
-                foreach (var fid in EquipaIds.Distinct())
-                {
-                    if (comLicenca.Contains(fid))
-                        _context.ServicoEquipas.Add(new ServicoEquipa { ServicoId = servico.Id, FuncionarioId = fid });
-                }
-                await _context.SaveChangesAsync(cancellationToken);
-            }
+            await GravarEquipaAsync(servico.Id, EquipaIds, cancellationToken);
 
-            var pastaBase = Path.Combine(_env.WebRootPath, PastaDocumentosServico, servico.Id.ToString());
-            if (Directory.Exists(pastaBase) == false)
-                Directory.CreateDirectory(pastaBase);
             if (documentosExtras != null)
             {
                 var idx = 0;
                 foreach (var ext in documentosExtras)
                 {
-                    if (ext?.Ficheiro != null && FicheiroPermitido(ext.Ficheiro.FileName))
+                    if (ext?.Ficheiro != null && _documentoStorage.ExtensaoPermitida(ext.Ficheiro.FileName))
                     {
                         var nome = string.IsNullOrWhiteSpace(ext.Nome) ? "Documento " + (idx + 1) : ext.Nome.Trim();
                         if (nome.Length > 100) nome = nome[..100];
-                        var caminho = await GuardarFicheiro(ext.Ficheiro, pastaBase, "doc_" + Guid.NewGuid().ToString("N")[..8]);
+                        var caminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosServico, servico.Id, ext.Ficheiro, "doc_" + Guid.NewGuid().ToString("N")[..8], cancellationToken);
                         _context.ServicoDocumentoExtras.Add(new ServicoDocumentoExtra { ServicoId = servico.Id, Nome = nome, Caminho = caminho });
                         idx++;
                     }
@@ -333,7 +301,6 @@ public class ServicosController : Controller
         if (servico == null) return NotFound();
         await PopularDropdownsEditAsync(servico, cancellationToken);
         ViewData["EquipaIds"] = servico.Equipa.Select(e => e.FuncionarioId).ToList();
-        ViewData["GoogleMapsApiKey"] = HttpContext.RequestServices.GetService<IConfiguration>()?["GoogleMapsApiKey"] ?? "";
         return View(servico);
     }
 
@@ -359,25 +326,7 @@ public class ServicosController : Controller
                 ModelState.AddModelError(nameof(Servico.EncomendaId), "Cada encomenda só pode ser utilizada num único serviço. Esta encomenda já está associada a outro serviço.");
         }
 
-        // Regra: responsável técnico tem de ser funcionário com ADR e licença de operador
-        if (servico.ResponsavelTecnicoId.HasValue)
-        {
-            var resp = await _context.Funcionarios.AsNoTracking().FirstOrDefaultAsync(f => f.Id == servico.ResponsavelTecnicoId.Value, cancellationToken);
-            if (resp == null || string.IsNullOrWhiteSpace(resp.DocumentoADDRCaminho) || string.IsNullOrWhiteSpace(resp.LicencaOperadorCaminho))
-                ModelState.AddModelError(nameof(Servico.ResponsavelTecnicoId), "O responsável técnico tem de ser um funcionário com ADR e licença de operador.");
-        }
-
-        // Regra: equipa só pode incluir funcionários com licença de operador
-        if (EquipaIds != null && EquipaIds.Length > 0)
-        {
-            var comLicenca = await _context.Funcionarios
-                .Where(f => !string.IsNullOrWhiteSpace(f.LicencaOperadorCaminho))
-                .Select(f => f.Id)
-                .ToListAsync(cancellationToken);
-            var invalidos = EquipaIds.Where(id => !comLicenca.Contains(id)).ToList();
-            if (invalidos.Any())
-                ModelState.AddModelError("EquipaIds", "Só podem fazer parte da equipa funcionários com licença de operador.");
-        }
+        await ValidarResponsavelEEquipaAsync(servico.ResponsavelTecnicoId, EquipaIds, cancellationToken);
 
         if (ModelState.IsValid)
         {
@@ -388,8 +337,7 @@ public class ServicosController : Controller
                     var aRemover = await _context.ServicoDocumentoExtras.Where(d => d.ServicoId == id && RemoverDocumentoExtraIds.Contains(d.Id)).ToListAsync(cancellationToken);
                     foreach (var d in aRemover)
                     {
-                        var caminhoFisico = Path.Combine(_env.WebRootPath, d.Caminho);
-                        if (System.IO.File.Exists(caminhoFisico)) { try { System.IO.File.Delete(caminhoFisico); } catch { } }
+                        _documentoStorage.ApagarFicheiroSeExistir(d.Caminho);
                         _context.ServicoDocumentoExtras.Remove(d);
                     }
                     await _context.SaveChangesAsync(cancellationToken);
@@ -397,31 +345,18 @@ public class ServicosController : Controller
                 _context.Update(servico);
                 var equipaAtual = await _context.ServicoEquipas.Where(e => e.ServicoId == id).ToListAsync(cancellationToken);
                 _context.ServicoEquipas.RemoveRange(equipaAtual);
-                var comLicenca = await _context.Funcionarios
-                    .Where(f => !string.IsNullOrWhiteSpace(f.LicencaOperadorCaminho))
-                    .Select(f => f.Id)
-                    .ToListAsync(cancellationToken);
-                if (EquipaIds != null && EquipaIds.Length > 0)
-                {
-                    foreach (var fid in EquipaIds.Distinct())
-                    {
-                        if (comLicenca.Contains(fid))
-                            _context.ServicoEquipas.Add(new ServicoEquipa { ServicoId = id, FuncionarioId = fid });
-                    }
-                }
                 await _context.SaveChangesAsync(cancellationToken);
-                var pastaBase = Path.Combine(_env.WebRootPath, PastaDocumentosServico, id.ToString());
-                if (Directory.Exists(pastaBase) == false) Directory.CreateDirectory(pastaBase);
+                await GravarEquipaAsync(id, EquipaIds, cancellationToken);
                 if (documentosExtras != null)
                 {
                     var idx = 0;
                     foreach (var ext in documentosExtras)
                     {
-                        if (ext?.Ficheiro != null && FicheiroPermitido(ext.Ficheiro.FileName))
+                        if (ext?.Ficheiro != null && _documentoStorage.ExtensaoPermitida(ext.Ficheiro.FileName))
                         {
                             var nome = string.IsNullOrWhiteSpace(ext.Nome) ? "Documento " + (idx + 1) : ext.Nome.Trim();
                             if (nome.Length > 100) nome = nome[..100];
-                            var caminho = await GuardarFicheiro(ext.Ficheiro, pastaBase, "doc_" + Guid.NewGuid().ToString("N")[..8]);
+                            var caminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosServico, id, ext.Ficheiro, "doc_" + Guid.NewGuid().ToString("N")[..8], cancellationToken);
                             _context.ServicoDocumentoExtras.Add(new ServicoDocumentoExtra { ServicoId = id, Nome = nome, Caminho = caminho });
                             idx++;
                         }
@@ -461,8 +396,7 @@ public class ServicosController : Controller
         var servico = await _context.Servicos.FindAsync(id);
         if (servico != null)
         {
-            var pastaBase = Path.Combine(_env.WebRootPath, PastaDocumentosServico, id.ToString());
-            if (Directory.Exists(pastaBase)) { try { Directory.Delete(pastaBase, recursive: true); } catch { } }
+            _documentoStorage.ApagarPastaRecursiva(Path.Combine(PastaDocumentosServico, id.ToString()));
             _context.Servicos.Remove(servico);
             await _context.SaveChangesAsync(cancellationToken);
         }
@@ -528,7 +462,7 @@ public class ServicosController : Controller
             _context.ServicoLicencas.Add(lic);
             await _context.SaveChangesAsync(cancellationToken);
         }
-        if (ficheiro != null && FicheiroPermitido(ficheiro.FileName))
+        if (ficheiro != null && _documentoStorage.ExtensaoPermitida(ficheiro.FileName))
         {
             var pastaLicencas = Path.Combine(_env.WebRootPath, PastaDocumentosServico, id.ToString(), "Licencas");
             if (!Directory.Exists(pastaLicencas)) Directory.CreateDirectory(pastaLicencas);
@@ -539,10 +473,7 @@ public class ServicosController : Controller
                 await ficheiro.CopyToAsync(stream);
             var caminhoRelativo = Path.Combine(PastaDocumentosServico, id.ToString(), "Licencas", nomeUnico).Replace('\\', '/');
             if (!string.IsNullOrWhiteSpace(lic.FicheiroPath))
-            {
-                var antigo = Path.Combine(_env.WebRootPath, lic.FicheiroPath);
-                if (System.IO.File.Exists(antigo)) try { System.IO.File.Delete(antigo); } catch { }
-            }
+                _documentoStorage.ApagarFicheiroSeExistir(lic.FicheiroPath);
             lic.FicheiroPath = caminhoRelativo;
             await _context.SaveChangesAsync(cancellationToken);
         }
@@ -570,6 +501,44 @@ public class ServicosController : Controller
         await _context.SaveChangesAsync(cancellationToken);
         TempData["DistanciaGuardada"] = true;
         return RedirectToAction(nameof(Details), new { id });
+    }
+
+    // Valida responsável técnico (ADR + licença operador) e equipa (licença operador). Adiciona erros ao ModelState.
+    private async Task ValidarResponsavelEEquipaAsync(int? responsavelTecnicoId, int[]? equipaIds, CancellationToken cancellationToken)
+    {
+        if (responsavelTecnicoId.HasValue)
+        {
+            var resp = await _context.Funcionarios.AsNoTracking().FirstOrDefaultAsync(f => f.Id == responsavelTecnicoId.Value, cancellationToken);
+            if (resp == null || string.IsNullOrWhiteSpace(resp.DocumentoADDRCaminho) || string.IsNullOrWhiteSpace(resp.LicencaOperadorCaminho))
+                ModelState.AddModelError(nameof(Servico.ResponsavelTecnicoId), "O responsável técnico tem de ser um funcionário com ADR e licença de operador.");
+        }
+        if (equipaIds != null && equipaIds.Length > 0)
+        {
+            var comLicenca = await ObterIdsFuncionariosComLicencaOperadorAsync(cancellationToken);
+            var invalidos = equipaIds.Where(id => !comLicenca.Contains(id)).ToList();
+            if (invalidos.Any())
+                ModelState.AddModelError("EquipaIds", "Só podem fazer parte da equipa funcionários com licença de operador.");
+        }
+    }
+
+    private async Task<List<int>> ObterIdsFuncionariosComLicencaOperadorAsync(CancellationToken cancellationToken)
+    {
+        return await _context.Funcionarios
+            .Where(f => !string.IsNullOrWhiteSpace(f.LicencaOperadorCaminho))
+            .Select(f => f.Id)
+            .ToListAsync(cancellationToken);
+    }
+
+    private async Task GravarEquipaAsync(int servicoId, int[]? equipaIds, CancellationToken cancellationToken)
+    {
+        var comLicenca = await ObterIdsFuncionariosComLicencaOperadorAsync(cancellationToken);
+        if (equipaIds == null || equipaIds.Length == 0) return;
+        foreach (var fid in equipaIds.Distinct())
+        {
+            if (comLicenca.Contains(fid))
+                _context.ServicoEquipas.Add(new ServicoEquipa { ServicoId = servicoId, FuncionarioId = fid });
+        }
+        await _context.SaveChangesAsync(cancellationToken);
     }
 
     // Dropdowns para Create: encomendas disponíveis, responsáveis, equipa (com licença)
@@ -629,24 +598,5 @@ public class ServicosController : Controller
         var contentType = ext switch { ".pdf" => "application/pdf", ".jpg" or ".jpeg" => "image/jpeg", ".png" => "image/png", _ => "application/octet-stream" };
         Response.Headers["Content-Disposition"] = "inline; filename=\"" + Path.GetFileName(caminhoRelativo).Replace("\"", "\\\"") + "\"";
         return PhysicalFile(caminhoFisico, contentType);
-    }
-
-    // Só permite extensões da lista (pdf, jpg, etc.)
-    private static bool FicheiroPermitido(string fileName)
-    {
-        var ext = Path.GetExtension(fileName);
-        return !string.IsNullOrEmpty(ext) && ExtensoesPermitidas.Contains(ext.ToLowerInvariant());
-    }
-
-    // Grava IFormFile na pasta com nome único; devolve caminho relativo
-    private async Task<string> GuardarFicheiro(IFormFile ficheiro, string pastaBase, string prefixo)
-    {
-        var ext = Path.GetExtension(ficheiro.FileName).ToLowerInvariant();
-        var nomeUnico = $"{prefixo}_{Guid.NewGuid():N}{ext}";
-        var caminhoFisico = Path.Combine(pastaBase, nomeUnico);
-        await using var stream = new FileStream(caminhoFisico, FileMode.Create);
-        await ficheiro.CopyToAsync(stream);
-        var idPasta = Path.GetFileName(pastaBase.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-        return Path.Combine(PastaDocumentosServico, idPasta, nomeUnico).Replace('\\', '/');
     }
 }

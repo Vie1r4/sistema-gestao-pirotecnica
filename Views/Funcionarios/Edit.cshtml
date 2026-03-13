@@ -13,7 +13,7 @@
     <input type="hidden" asp-for="DocumentoADDRCaminho" />
     <input type="hidden" asp-for="LicencaOperadorCaminho" />
     <input type="hidden" asp-for="OutrosCaminho" />
-    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+    <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
 
     <div class="card mb-4">
         <div class="card-header bg-light">
@@ -70,13 +70,59 @@
                     <textarea asp-for="Notas" class="form-control" rows="1" placeholder="Notas"></textarea>
                 </div>
             </div>
-            <div class="mb-0">
-                <label class="form-label">Associar a utilizador</label>
-                <p class="small text-muted mb-1">Se escolher um utilizador, esta ficha fica ligada à conta desse utilizador (pode fazer login e aparece «Associado: Sim» na lista).</p>
-                <select asp-for="UserId" class="form-select" asp-items="@ViewBag.Utilizadores">
-                    <option value="">— Nenhum (funcionário sem conta de login) —</option>
-                </select>
-            </div>
+            @if (string.IsNullOrEmpty(Model.UserId))
+            {
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Conta de acesso ao sistema</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="small text-muted mb-3">Opcionalmente pode criar uma conta para este funcionário poder entrar no sistema. Depois entregue-lhe o email e a palavra-passe.</p>
+                        <div class="form-check mb-3">
+                            <input type="checkbox" class="form-check-input" name="criarConta" value="true" id="criarConta" style="width:1.15rem;height:1.15rem;margin-top:0.2rem;">
+                            <label class="form-check-label" for="criarConta">Criar conta de acesso para este funcionário</label>
+                        </div>
+                        <div id="bloco-conta-edit" style="display:none;">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label" for="contaEmail">Email para login</label>
+                                    <input type="email" name="contaEmail" id="contaEmail" class="form-control" placeholder="exemplo@email.com" value="@Model.Email" />
+                                    <span class="text-danger small" data-valmsg-for="ContaEmail" data-valmsg-replace="true"></span>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label" for="contaRole">Perfil de acesso</label>
+                                    <select name="contaRole" id="contaRole" class="form-select" asp-items="@ViewBag.RolesConta">
+                                        <option value="">— Selecionar —</option>
+                                    </select>
+                                    <span class="text-danger small" data-valmsg-for="ContaRole" data-valmsg-replace="true"></span>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label" for="contaPassword">Palavra-passe</label>
+                                    <input type="password" name="contaPassword" id="contaPassword" class="form-control" autocomplete="new-password" />
+                                    <p class="form-text small text-muted mb-0">Mín. 6 caracteres, com pelo menos uma maiúscula, uma minúscula e um algarismo.</p>
+                                    <span class="text-danger small" data-valmsg-for="ContaPassword" data-valmsg-replace="true"></span>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label" for="contaConfirmPassword">Confirmar palavra-passe</label>
+                                    <input type="password" name="contaConfirmPassword" id="contaConfirmPassword" class="form-control" />
+                                    <span class="text-danger small" data-valmsg-for="ContaConfirmPassword" data-valmsg-replace="true"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <input type="hidden" asp-for="UserId" />
+                <div class="mb-0">
+                    <label class="form-label">Conta de acesso</label>
+                    <p class="mb-1">Conta associada: <strong>@(ViewData["ContaEmail"] ?? "—")</strong>. O funcionário entra com este email e a palavra-passe que lhe foi dada.</p>
+                    <a asp-action="DesassociarConta" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-danger">Desassociar conta</a>
+                </div>
+            }
         </div>
     </div>
 
@@ -214,6 +260,12 @@
                     atualizarVisibilidadeBloco();
                 });
             });
+
+            var criarContaCb = document.getElementById('criarConta');
+            var blocoConta = document.getElementById('bloco-conta-edit');
+            if (criarContaCb && blocoConta) {
+                criarContaCb.addEventListener('change', function() { blocoConta.style.display = this.checked ? 'block' : 'none'; });
+            }
 
             if (btnMais && listaExtras) {
                 btnMais.addEventListener('click', function() {

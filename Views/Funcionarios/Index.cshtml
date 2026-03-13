@@ -17,28 +17,6 @@
     }
 </div>
 
-@if (TempData["FuncionarioCriado"] as bool? == true)
-{
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        Funcionário adicionado. Pode ver os detalhes abaixo.
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
-    </div>
-}
-@if (TempData["FuncionarioEditado"] as bool? == true)
-{
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        Alterações guardadas.
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
-    </div>
-}
-@if (TempData["FuncionarioEliminado"] as bool? == true)
-{
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        Funcionário eliminado.
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
-    </div>
-}
-
 <div class="bg-light rounded-3 p-3 p-md-4 mb-4">
     <form method="get" asp-action="Index" id="formFuncionarios" class="row g-2 g-md-3 align-items-end">
         <div class="col-12 col-md-5 col-lg-4">
@@ -96,13 +74,21 @@
                         <td class="text-break">@(item.Email ?? "—")</td>
                         <td>@(item.Telefone ?? "—")</td>
                         <td>
-                            @if (!string.IsNullOrEmpty(item.UserId))
+                            @{
+                                var confirmados = ViewData["UserIdEmailConfirmados"] as HashSet<string>;
+                                var estaConfirmado = !string.IsNullOrEmpty(item.UserId) && confirmados != null && confirmados.Contains(item.UserId);
+                            }
+                            @if (string.IsNullOrEmpty(item.UserId))
+                            {
+                                <span class="badge bg-secondary">Não</span>
+                            }
+                            else if (estaConfirmado)
                             {
                                 <span class="badge bg-success">Sim</span>
                             }
                             else
                             {
-                                <span class="badge bg-secondary">Não</span>
+                                <span class="badge bg-warning text-dark">Pendente</span>
                             }
                         </td>
                         <td class="text-end">

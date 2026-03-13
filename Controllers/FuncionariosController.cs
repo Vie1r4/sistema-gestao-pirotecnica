@@ -1,7 +1,9 @@
 using Finalproj.Data;
 using Finalproj.Models;
+using Finalproj.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -15,14 +17,18 @@ namespace Finalproj.Controllers
         private readonly FinalprojContext _context;
         private readonly IWebHostEnvironment _env;
         private readonly UserManager<IdentityUser> _userManager;
+        private readonly IDocumentoStorageService _documentoStorage;
+        private readonly IEmailSender _emailSender;
         private const string PastaDocumentosFuncionarios = "Documentos/Funcionarios";
-        private static readonly string[] ExtensoesPermitidas = { ".pdf", ".jpg", ".jpeg", ".png" };
+        private static readonly string[] RolesParaConta = { "Admin", "Armazém", "Técnico", "Comercial" };
 
-        public FuncionariosController(FinalprojContext context, IWebHostEnvironment env, UserManager<IdentityUser> userManager)
+        public FuncionariosController(FinalprojContext context, IWebHostEnvironment env, UserManager<IdentityUser> userManager, IDocumentoStorageService documentoStorage, IEmailSender emailSender)
         {
             _context = context;
             _env = env;
             _userManager = userManager;
+            _documentoStorage = documentoStorage;
+            _emailSender = emailSender;
         }
 
         // Lista com pesquisa e filtro por cargo
@@ -52,6 +58,16 @@ namespace Finalproj.Controllers
 
             var lista = await query.ToListAsync(cancellationToken);
 
+            var userIdsComConta = lista.Where(f => !string.IsNullOrEmpty(f.UserId)).Select(f => f.UserId!).Distinct().ToList();
+            var userIdsConfirmados = new HashSet<string>();
+            foreach (var uid in userIdsComConta)
+            {
+                var user = await _userManager.FindByIdAsync(uid);
+                if (user != null && user.EmailConfirmed)
+                    userIdsConfirmados.Add(uid);
+            }
+            ViewData["UserIdEmailConfirmados"] = userIdsConfirmados;
+
             ViewData["Pesquisa"] = pesquisa ?? string.Empty;
             ViewData["Cargo"] = cargo ?? string.Empty;
             ViewData["Ordenar"] = ordenar ?? "nome";
@@ -67,61 +83,84 @@ namespace Finalproj.Controllers
             var item = await _context.Funcionarios.AsNoTracking().Include(f => f.DocumentosExtras).FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
             if (item == null)
                 return NotFound();
+            if (!string.IsNullOrEmpty(item.UserId))
+            {
+                var user = await _userManager.FindByIdAsync(item.UserId);
+                ViewData["ContaEmail"] = user?.Email ?? user?.UserName;
+                ViewData["ContaEmailConfirmada"] = user != null && user.EmailConfirmed;
+            }
             return View(item);
         }
 
-        // GET: formulário criar funcionário; dropdown cargo
+        // GET: formulário criar funcionário; dropdown cargo e roles para conta
         [Authorize(Roles = "Admin")]
         public IActionResult Create()
         {
             PreencherDropdownCargo(null);
+            PreencherDropdownRolesConta(null);
             return View(new Funcionario());
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
-        // Grava funcionário, CC/ADR/licença e documentos extras
+        // Grava funcionário, opcionalmente cria conta de acesso; CC/ADR/licença e documentos extras
         public async Task<IActionResult> Create(
             [Bind("NomeCompleto,NIF,Email,Telefone,Morada,NumeroSegurancaSocial,IBAN,Cargo,Notas")] Funcionario funcionario,
             IFormFile? cartaoCidadaoFicheiro,
             IFormFile? documentoADDRFicheiro,
             IFormFile? licencaOperadorFicheiro,
             List<DocumentoExtraInput>? documentosExtras,
+            bool criarConta = false,
+            string? contaEmail = null,
+            string? contaPassword = null,
+            string? contaConfirmPassword = null,
+            string? contaRole = null,
             CancellationToken cancellationToken = default)
         {
+            if (criarConta)
+            {
+                var email = (contaEmail ?? funcionario.Email ?? "").Trim();
+                if (string.IsNullOrEmpty(email))
+                    ModelState.AddModelError("ContaEmail", "O email é obrigatório para criar a conta de acesso.");
+                else if (await _userManager.FindByEmailAsync(email) != null)
+                    ModelState.AddModelError("ContaEmail", "Já existe uma conta com este email.");
+                if (string.IsNullOrEmpty(contaPassword))
+                    ModelState.AddModelError("ContaPassword", "A palavra-passe é obrigatória.");
+                else if (contaPassword != contaConfirmPassword)
+                    ModelState.AddModelError("ContaConfirmPassword", "A confirmação da palavra-passe não coincide.");
+                if (string.IsNullOrEmpty(contaRole) || !RolesParaConta.Contains(contaRole))
+                    ModelState.AddModelError("ContaRole", "Selecione um perfil de acesso.");
+            }
+
             if (ModelState.IsValid)
             {
                 funcionario.DataRegisto = DateTime.UtcNow;
                 _context.Funcionarios.Add(funcionario);
                 await _context.SaveChangesAsync(cancellationToken);
 
-                var pastaBase = Path.Combine(_env.WebRootPath, PastaDocumentosFuncionarios, funcionario.Id.ToString());
-                if (Directory.Exists(pastaBase) == false)
-                    Directory.CreateDirectory(pastaBase);
-
-                if (cartaoCidadaoFicheiro != null && FicheiroPermitido(cartaoCidadaoFicheiro.FileName))
+                if (cartaoCidadaoFicheiro != null && _documentoStorage.ExtensaoPermitida(cartaoCidadaoFicheiro.FileName))
                 {
-                    funcionario.CartaoCidadaoCaminho = await GuardarFicheiro(cartaoCidadaoFicheiro, pastaBase, "cc");
+                    funcionario.CartaoCidadaoCaminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, cartaoCidadaoFicheiro, "cc", cancellationToken);
                 }
-                if (documentoADDRFicheiro != null && FicheiroPermitido(documentoADDRFicheiro.FileName))
+                if (documentoADDRFicheiro != null && _documentoStorage.ExtensaoPermitida(documentoADDRFicheiro.FileName))
                 {
-                    funcionario.DocumentoADDRCaminho = await GuardarFicheiro(documentoADDRFicheiro, pastaBase, "addr");
+                    funcionario.DocumentoADDRCaminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, documentoADDRFicheiro, "addr", cancellationToken);
                 }
-                if (licencaOperadorFicheiro != null && FicheiroPermitido(licencaOperadorFicheiro.FileName))
+                if (licencaOperadorFicheiro != null && _documentoStorage.ExtensaoPermitida(licencaOperadorFicheiro.FileName))
                 {
-                    funcionario.LicencaOperadorCaminho = await GuardarFicheiro(licencaOperadorFicheiro, pastaBase, "licenca");
+                    funcionario.LicencaOperadorCaminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, licencaOperadorFicheiro, "licenca", cancellationToken);
                 }
                 if (documentosExtras != null)
                 {
                     var idx = 0;
                     foreach (var ext in documentosExtras)
                     {
-                        if (ext?.Ficheiro != null && FicheiroPermitido(ext.Ficheiro.FileName))
+                        if (ext?.Ficheiro != null && _documentoStorage.ExtensaoPermitida(ext.Ficheiro.FileName))
                         {
                             var nome = string.IsNullOrWhiteSpace(ext.Nome) ? "Documento " + (idx + 1) : ext.Nome.Trim();
                             if (nome.Length > 100) nome = nome[..100];
-                            var caminho = await GuardarFicheiro(ext.Ficheiro, pastaBase, "extra_" + idx);
+                            var caminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, ext.Ficheiro, "extra_" + idx, cancellationToken);
                             _context.FuncionarioDocumentoExtras.Add(new FuncionarioDocumentoExtra
                             {
                                 FuncionarioId = funcionario.Id,
@@ -134,15 +173,50 @@ namespace Finalproj.Controllers
                 }
                 await _context.SaveChangesAsync(cancellationToken);
 
+                if (criarConta)
+                {
+                    var email = (contaEmail ?? funcionario.Email ?? "").Trim();
+                    var user = new IdentityUser { UserName = email, Email = email };
+                    var createResult = await _userManager.CreateAsync(user, contaPassword!);
+                    if (createResult.Succeeded)
+                    {
+                        await _userManager.AddToRoleAsync(user, contaRole!);
+                        funcionario.UserId = user.Id;
+                        _context.Perfis.Add(new Perfil
+                        {
+                            UserId = user.Id,
+                            Nome = funcionario.NomeCompleto,
+                            Telefone = funcionario.Telefone,
+                            DataRegisto = DateTime.UtcNow
+                        });
+                        await _context.SaveChangesAsync(cancellationToken);
+                        TempData["CredenciaisCriadas"] = true;
+                        TempData["CredenciaisEmail"] = email;
+                        TempData["CredenciaisPassword"] = contaPassword;
+                        var confirmCode = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                        var confirmUrl = Url.Page("/Account/ConfirmEmail", null, new { area = "Identity", userId = user.Id, code = confirmCode, returnUrl = Url.Content("~/") }, Request.Scheme);
+                        await EnviarEmailContaCriadaAsync(email, funcionario.NomeCompleto, contaPassword!, confirmUrl);
+                    }
+                    else
+                    {
+                        foreach (var err in createResult.Errors)
+                            ModelState.AddModelError("ContaPassword", err.Description);
+                        PreencherDropdownCargo(funcionario.Cargo);
+                        PreencherDropdownRolesConta(contaRole);
+                        return View(funcionario);
+                    }
+                }
+
                 TempData["FuncionarioCriado"] = true;
                 return RedirectToAction(nameof(Details), new { id = funcionario.Id });
             }
             PreencherDropdownCargo(funcionario.Cargo);
+            PreencherDropdownRolesConta(contaRole);
             return View(funcionario);
         }
 
         [Authorize(Roles = "Admin")]
-        // GET: edição com dropdown cargo e utilizadores (para UserId)
+        // GET: edição com dropdown cargo; secção Criar conta se não tiver UserId
         public async Task<IActionResult> Edit(int? id, CancellationToken cancellationToken = default)
         {
             if (id == null)
@@ -151,14 +225,19 @@ namespace Finalproj.Controllers
             if (item == null)
                 return NotFound();
             PreencherDropdownCargo(item.Cargo);
-            await PreencherDropdownUtilizadores(item.UserId);
+            PreencherDropdownRolesConta(null);
+            if (!string.IsNullOrEmpty(item.UserId))
+            {
+                var user = await _userManager.FindByIdAsync(item.UserId);
+                ViewData["ContaEmail"] = user?.Email ?? user?.UserName;
+            }
             return View(item);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
-        // Actualiza ficha, documentos e associação utilizador (um user só num funcionário)
+        // Actualiza ficha, documentos; opcionalmente cria conta (quando UserId é null)
         public async Task<IActionResult> Edit(
             int id,
             [Bind("Id,NomeCompleto,NIF,Email,Telefone,Morada,NumeroSegurancaSocial,IBAN,Cargo,Notas,UserId,DataRegisto,CartaoCidadaoCaminho,DocumentoADDRCaminho,LicencaOperadorCaminho,OutrosCaminho")] Funcionario funcionario,
@@ -168,10 +247,31 @@ namespace Finalproj.Controllers
             List<DocumentoExtraInput>? documentosExtras,
             List<int>? removerDocumentoExtraIds,
             bool removerOutrosAntigo = false,
+            bool criarConta = false,
+            string? contaEmail = null,
+            string? contaPassword = null,
+            string? contaConfirmPassword = null,
+            string? contaRole = null,
             CancellationToken cancellationToken = default)
         {
             if (id != funcionario.Id)
                 return NotFound();
+
+            if (criarConta && string.IsNullOrEmpty(funcionario.UserId))
+            {
+                var email = (contaEmail ?? funcionario.Email ?? "").Trim();
+                if (string.IsNullOrEmpty(email))
+                    ModelState.AddModelError("ContaEmail", "O email é obrigatório para criar a conta de acesso.");
+                else if (await _userManager.FindByEmailAsync(email) != null)
+                    ModelState.AddModelError("ContaEmail", "Já existe uma conta com este email.");
+                if (string.IsNullOrEmpty(contaPassword))
+                    ModelState.AddModelError("ContaPassword", "A palavra-passe é obrigatória.");
+                else if (contaPassword != contaConfirmPassword)
+                    ModelState.AddModelError("ContaConfirmPassword", "A confirmação da palavra-passe não coincide.");
+                if (string.IsNullOrEmpty(contaRole) || !RolesParaConta.Contains(contaRole))
+                    ModelState.AddModelError("ContaRole", "Selecione um perfil de acesso.");
+            }
+
             if (ModelState.IsValid)
             {
                 try
@@ -183,45 +283,41 @@ namespace Finalproj.Controllers
                             .ToListAsync(cancellationToken);
                         foreach (var e in aRemover)
                         {
-                            ApagarFicheiroSeExistir(_env.WebRootPath, e.Caminho);
+                            _documentoStorage.ApagarFicheiroSeExistir(e.Caminho);
                             _context.FuncionarioDocumentoExtras.Remove(e);
                         }
                     }
                     if (removerOutrosAntigo && !string.IsNullOrEmpty(funcionario.OutrosCaminho))
                     {
-                        ApagarFicheiroSeExistir(_env.WebRootPath, funcionario.OutrosCaminho);
+                        _documentoStorage.ApagarFicheiroSeExistir(funcionario.OutrosCaminho);
                         funcionario.OutrosCaminho = null;
                     }
 
-                    var pastaBase = Path.Combine(_env.WebRootPath, PastaDocumentosFuncionarios, funcionario.Id.ToString());
-                    if (Directory.Exists(pastaBase) == false)
-                        Directory.CreateDirectory(pastaBase);
-
-                    if (cartaoCidadaoFicheiro != null && FicheiroPermitido(cartaoCidadaoFicheiro.FileName))
+                    if (cartaoCidadaoFicheiro != null && _documentoStorage.ExtensaoPermitida(cartaoCidadaoFicheiro.FileName))
                     {
-                        ApagarFicheiroSeExistir(_env.WebRootPath, funcionario.CartaoCidadaoCaminho);
-                        funcionario.CartaoCidadaoCaminho = await GuardarFicheiro(cartaoCidadaoFicheiro, pastaBase, "cc");
+                        _documentoStorage.ApagarFicheiroSeExistir(funcionario.CartaoCidadaoCaminho);
+                        funcionario.CartaoCidadaoCaminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, cartaoCidadaoFicheiro, "cc", cancellationToken);
                     }
-                    if (documentoADDRFicheiro != null && FicheiroPermitido(documentoADDRFicheiro.FileName))
+                    if (documentoADDRFicheiro != null && _documentoStorage.ExtensaoPermitida(documentoADDRFicheiro.FileName))
                     {
-                        ApagarFicheiroSeExistir(_env.WebRootPath, funcionario.DocumentoADDRCaminho);
-                        funcionario.DocumentoADDRCaminho = await GuardarFicheiro(documentoADDRFicheiro, pastaBase, "addr");
+                        _documentoStorage.ApagarFicheiroSeExistir(funcionario.DocumentoADDRCaminho);
+                        funcionario.DocumentoADDRCaminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, documentoADDRFicheiro, "addr", cancellationToken);
                     }
-                    if (licencaOperadorFicheiro != null && FicheiroPermitido(licencaOperadorFicheiro.FileName))
+                    if (licencaOperadorFicheiro != null && _documentoStorage.ExtensaoPermitida(licencaOperadorFicheiro.FileName))
                     {
-                        ApagarFicheiroSeExistir(_env.WebRootPath, funcionario.LicencaOperadorCaminho);
-                        funcionario.LicencaOperadorCaminho = await GuardarFicheiro(licencaOperadorFicheiro, pastaBase, "licenca");
+                        _documentoStorage.ApagarFicheiroSeExistir(funcionario.LicencaOperadorCaminho);
+                        funcionario.LicencaOperadorCaminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, licencaOperadorFicheiro, "licenca", cancellationToken);
                     }
                     if (documentosExtras != null)
                     {
                         var idx = 0;
                         foreach (var ext in documentosExtras)
                         {
-                            if (ext?.Ficheiro != null && FicheiroPermitido(ext.Ficheiro.FileName))
+                            if (ext?.Ficheiro != null && _documentoStorage.ExtensaoPermitida(ext.Ficheiro.FileName))
                             {
                                 var nome = string.IsNullOrWhiteSpace(ext.Nome) ? "Documento " + (idx + 1) : ext.Nome.Trim();
                                 if (nome.Length > 100) nome = nome[..100];
-                                var caminho = await GuardarFicheiro(ext.Ficheiro, pastaBase, "extra_" + Guid.NewGuid().ToString("N")[..8]);
+                                var caminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, ext.Ficheiro, "extra_" + Guid.NewGuid().ToString("N")[..8], cancellationToken);
                                 _context.FuncionarioDocumentoExtras.Add(new FuncionarioDocumentoExtra
                                 {
                                     FuncionarioId = funcionario.Id,
@@ -233,14 +329,37 @@ namespace Finalproj.Controllers
                         }
                     }
 
-                    // Associação utilizador: um utilizador só pode estar ligado a um funcionário
-                    if (!string.IsNullOrEmpty(funcionario.UserId))
+                    if (criarConta && string.IsNullOrEmpty(funcionario.UserId))
                     {
-                        var outrosComMesmoUser = await _context.Funcionarios
-                            .Where(f => f.UserId == funcionario.UserId && f.Id != funcionario.Id)
-                            .ToListAsync(cancellationToken);
-                        foreach (var o in outrosComMesmoUser)
-                            o.UserId = null;
+                        var email = (contaEmail ?? funcionario.Email ?? "").Trim();
+                        var user = new IdentityUser { UserName = email, Email = email };
+                        var createResult = await _userManager.CreateAsync(user, contaPassword!);
+                        if (createResult.Succeeded)
+                        {
+                            await _userManager.AddToRoleAsync(user, contaRole!);
+                            funcionario.UserId = user.Id;
+                            _context.Perfis.Add(new Perfil
+                            {
+                                UserId = user.Id,
+                                Nome = funcionario.NomeCompleto,
+                                Telefone = funcionario.Telefone,
+                                DataRegisto = DateTime.UtcNow
+                            });
+                            TempData["CredenciaisCriadas"] = true;
+                            TempData["CredenciaisEmail"] = email;
+                            TempData["CredenciaisPassword"] = contaPassword;
+                            var confirmCode = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                            var confirmUrl = Url.Page("/Account/ConfirmEmail", null, new { area = "Identity", userId = user.Id, code = confirmCode, returnUrl = Url.Content("~/") }, Request.Scheme);
+                            await EnviarEmailContaCriadaAsync(email, funcionario.NomeCompleto, contaPassword!, confirmUrl);
+                        }
+                        else
+                        {
+                            foreach (var err in createResult.Errors)
+                                ModelState.AddModelError("ContaPassword", err.Description);
+                            PreencherDropdownCargo(funcionario.Cargo);
+                            PreencherDropdownRolesConta(contaRole);
+                            return View(funcionario);
+                        }
                     }
 
                     _context.Update(funcionario);
@@ -256,6 +375,7 @@ namespace Finalproj.Controllers
                 }
             }
             PreencherDropdownCargo(funcionario.Cargo);
+            PreencherDropdownRolesConta(contaRole);
             return View(funcionario);
         }
 
@@ -274,30 +394,82 @@ namespace Finalproj.Controllers
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
-        // Apaga ficha e pasta de documentos; mantém conta Identity
+        // Apaga ficha, pasta de documentos e conta Identity associada (se não for a conta do utilizador atual)
         public async Task<IActionResult> DeleteConfirmed(int id, CancellationToken cancellationToken = default)
         {
             var item = await _context.Funcionarios.FindAsync(id);
             if (item != null)
             {
-                // Apagar apenas a ficha do funcionário e os documentos. A conta de utilizador (Identity) associada (UserId) NÃO é apagada — continua a poder fazer login.
-                var pastaBase = Path.Combine(_env.WebRootPath, PastaDocumentosFuncionarios, id.ToString());
-                if (Directory.Exists(pastaBase))
+                var currentUserId = _userManager.GetUserId(User);
+                if (!string.IsNullOrEmpty(item.UserId) && item.UserId != currentUserId)
                 {
-                    try
+                    var user = await _userManager.FindByIdAsync(item.UserId);
+                    if (user != null)
                     {
-                        Directory.Delete(pastaBase, recursive: true);
-                    }
-                    catch
-                    {
-                        // Ignorar falha ao apagar pasta (ex.: ficheiros em uso)
+                        foreach (var f in await _context.Funcionarios.Where(f => f.UserId == item.UserId).ToListAsync(cancellationToken))
+                            f.UserId = null;
+                        foreach (var c in await _context.Clientes.Where(c => c.UserId == item.UserId).ToListAsync(cancellationToken))
+                            c.UserId = null;
+                        var perfis = await _context.Perfis.Where(p => p.UserId == item.UserId).ToListAsync(cancellationToken);
+                        _context.Perfis.RemoveRange(perfis);
+                        await _context.SaveChangesAsync(cancellationToken);
+                        await _userManager.DeleteAsync(user);
                     }
                 }
+                _documentoStorage.ApagarPastaRecursiva(Path.Combine(PastaDocumentosFuncionarios, id.ToString()));
                 _context.Funcionarios.Remove(item);
                 await _context.SaveChangesAsync(cancellationToken);
                 TempData["FuncionarioEliminado"] = true;
             }
             return RedirectToAction(nameof(Index));
+        }
+
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DesassociarConta(int? id, CancellationToken cancellationToken = default)
+        {
+            if (id == null) return NotFound();
+            var item = await _context.Funcionarios.AsNoTracking().FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
+            if (item == null || string.IsNullOrEmpty(item.UserId)) return NotFound();
+            return View(item);
+        }
+
+        [HttpPost, ActionName("DesassociarConta")]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DesassociarContaConfirmar(int id, CancellationToken cancellationToken = default)
+        {
+            var item = await _context.Funcionarios.FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
+            if (item == null || string.IsNullOrEmpty(item.UserId))
+                return NotFound();
+            var userId = item.UserId;
+            var currentUserId = _userManager.GetUserId(User);
+            if (currentUserId == userId)
+            {
+                TempData["DesassociarErro"] = "Não pode desassociar a sua própria conta.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                item.UserId = null;
+                await _context.SaveChangesAsync(cancellationToken);
+                return RedirectToAction(nameof(Details), new { id });
+            }
+            item.UserId = null;
+            foreach (var f in await _context.Funcionarios.Where(f => f.UserId == userId).ToListAsync(cancellationToken))
+                f.UserId = null;
+            foreach (var c in await _context.Clientes.Where(c => c.UserId == userId).ToListAsync(cancellationToken))
+                c.UserId = null;
+            var perfis = await _context.Perfis.Where(p => p.UserId == userId).ToListAsync(cancellationToken);
+            _context.Perfis.RemoveRange(perfis);
+            await _context.SaveChangesAsync(cancellationToken);
+            var result = await _userManager.DeleteAsync(user);
+            if (!result.Succeeded)
+            {
+                TempData["DesassociarErro"] = "Não foi possível remover a conta. A ficha foi desassociada.";
+            }
+            TempData["ContaDesassociada"] = true;
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         // Devolve documento (CC, ADR, licença, outros ou extra por id) inline
@@ -346,34 +518,34 @@ namespace Finalproj.Controllers
             return PhysicalFile(caminhoFisico, contentType);
         }
 
-        // Só permite extensões da lista (pdf, jpg, etc.)
-        private static bool FicheiroPermitido(string fileName)
+        private async Task EnviarEmailContaCriadaAsync(string email, string nomeFuncionario, string password, string? confirmarEmailUrl = null)
         {
-            var ext = Path.GetExtension(fileName);
-            return !string.IsNullOrEmpty(ext) && ExtensoesPermitidas.Contains(ext.ToLowerInvariant());
-        }
-
-        // Grava IFormFile na pasta com nome único; devolve caminho relativo
-        private static async Task<string> GuardarFicheiro(IFormFile ficheiro, string pastaBase, string prefixo)
-        {
-            var ext = Path.GetExtension(ficheiro.FileName).ToLowerInvariant();
-            var nomeUnico = $"{prefixo}_{Guid.NewGuid():N}{ext}";
-            var caminhoFisico = Path.Combine(pastaBase, nomeUnico);
-            await using var stream = new FileStream(caminhoFisico, FileMode.Create);
-            await ficheiro.CopyToAsync(stream);
-            var idPasta = Path.GetFileName(pastaBase.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-            var relativo = Path.Combine(PastaDocumentosFuncionarios, idPasta, nomeUnico).Replace('\\', '/');
-            return relativo;
-        }
-
-        // Apaga ficheiro em wwwroot se existir (ignora erros)
-        private static void ApagarFicheiroSeExistir(string webRoot, string? caminhoRelativo)
-        {
-            if (string.IsNullOrEmpty(caminhoRelativo)) return;
-            var caminhoFisico = Path.Combine(webRoot, caminhoRelativo);
-            if (System.IO.File.Exists(caminhoFisico))
+            var loginUrl = $"{Request.Scheme}://{Request.Host}/Identity/Account/Login";
+            var assunto = "Conta de acesso criada – confirme o seu email";
+            var corpo = $@"
+<p>Olá {nomeFuncionario},</p>
+<p>Foi criada uma conta de acesso para si.</p>
+<p><strong>Email:</strong> {email}<br/>
+<strong>Palavra-passe:</strong> {password}</p>
+";
+            if (!string.IsNullOrEmpty(confirmarEmailUrl))
             {
-                try { System.IO.File.Delete(caminhoFisico); } catch { /* ignorar */ }
+                corpo += $@"<p><strong>Confirme o seu email</strong> clicando no link abaixo. Só depois poderá entrar no site.</p>
+<p><a href=""{confirmarEmailUrl}"">Confirmar email e ativar conta</a></p>
+<p>Depois de confirmar, pode entrar em: <a href=""{loginUrl}"">{loginUrl}</a></p>";
+            }
+            else
+            {
+                corpo += $@"<p>Pode entrar em: <a href=""{loginUrl}"">{loginUrl}</a></p>";
+            }
+            corpo += "<p>Recomendamos que altere a palavra-passe após o primeiro login.</p>";
+            try
+            {
+                await _emailSender.SendEmailAsync(email, assunto, corpo);
+            }
+            catch
+            {
+                // Não falhar a criação da conta se o email falhar (ex.: SMTP não configurado)
             }
         }
 
@@ -386,18 +558,13 @@ namespace Finalproj.Controllers
                 valorSelecionado);
         }
 
-        // Preenche ViewData com SelectList de utilizadores (para associar conta)
-        private async Task PreencherDropdownUtilizadores(string? userIdSelecionado)
+        // Preenche ViewData com SelectList de roles para criar conta de acesso
+        private void PreencherDropdownRolesConta(string? valorSelecionado)
         {
-            var users = await _userManager.Users
-                .OrderBy(u => u.UserName)
-                .Select(u => new { u.Id, u.UserName })
-                .ToListAsync();
-            ViewData["Utilizadores"] = new SelectList(
-                users,
-                "Id",
-                "UserName",
-                userIdSelecionado);
+            ViewData["RolesConta"] = new SelectList(
+                ConstantesFuncionariosClientes.CargosParaDropdown(),
+                "Value", "Text",
+                valorSelecionado);
         }
     }
 }

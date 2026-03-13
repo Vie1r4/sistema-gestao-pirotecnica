@@ -10,7 +10,7 @@ public class ServicoLicenca
     public int ServicoId { get; set; }
     public Servico Servico { get; set; } = null!;
 
-    [Required]
+    [Required(ErrorMessage = "O tipo de licença é obrigatório.")]
     public TipoLicencaServico TipoLicenca { get; set; }
 
     [StringLength(200)]

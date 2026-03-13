@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Finalproj.Data;
 using Finalproj.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -47,10 +48,15 @@ namespace Finalproj.Controllers
 
         [AllowAnonymous]
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        // Página de erro (RequestId para suporte)
+        // Página de erro (RequestId apenas em desenvolvimento)
         public IActionResult Error()
         {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+            var isDev = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment();
+            return View(new ErrorViewModel
+            {
+                RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier,
+                IsDevelopment = isDev
+            });
         }
 
         /// <summary>
@@ -70,18 +76,31 @@ namespace Finalproj.Controllers
         [ActionName("LimparDados")]
         public async Task<IActionResult> LimparDadosConfirmar()
         {
+            // Apagar utilizadores e roles primeiro (Identity)
             foreach (var user in _userManager.Users.ToList())
                 await _userManager.DeleteAsync(user);
 
             foreach (var role in _roleManager.Roles.ToList())
                 await _roleManager.DeleteAsync(role);
 
-            // Apagar primeiro as tabelas que referenciam Paiol e Produto (respeitar FK)
+            // Ordem de eliminação respeitando FKs: dependentes primeiro, depois entidades principais
+            await _context.LogSistema.ExecuteDeleteAsync();
+            await _context.ServicoDistanciasSeguranca.ExecuteDeleteAsync();
+            await _context.ServicoLicencas.ExecuteDeleteAsync();
+            await _context.ServicoEquipas.ExecuteDeleteAsync();
+            await _context.ServicoDocumentoExtras.ExecuteDeleteAsync();
+            await _context.Servicos.ExecuteDeleteAsync();
+            await _context.Reservas.ExecuteDeleteAsync();
+            await _context.EncomendaItems.ExecuteDeleteAsync();
+            await _context.Encomendas.ExecuteDeleteAsync();
             await _context.EntradasPaiol.ExecuteDeleteAsync();
             await _context.SaidasPaiol.ExecuteDeleteAsync();
             await _context.PaiolAcessos.ExecuteDeleteAsync();
+            await _context.PaiolDocumentoExtras.ExecuteDeleteAsync();
             await _context.Paiol.ExecuteDeleteAsync();
             await _context.Produtos.ExecuteDeleteAsync();
+            await _context.FuncionarioDocumentoExtras.ExecuteDeleteAsync();
+            await _context.ClienteDocumentoExtras.ExecuteDeleteAsync();
             await _context.Funcionarios.ExecuteDeleteAsync();
             await _context.Clientes.ExecuteDeleteAsync();
             await _context.Perfis.ExecuteDeleteAsync();

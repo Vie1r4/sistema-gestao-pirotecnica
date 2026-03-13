@@ -72,7 +72,7 @@
                             <dt class="col-sm-3 col-md-2 text-muted small">Coordenadas</dt>
                             <dd class="col-sm-9 col-md-10">
                                 @Model.CoordenadasLat.Value.ToString("F4")° N, @Model.CoordenadasLng.Value.ToString("F4")° W
-                                <a href="https://www.google.com/maps?q=@Model.CoordenadasLat.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),@Model.CoordenadasLng.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary ms-1">Abrir no Google Maps</a>
+                                <a href="https://www.openstreetmap.org/?mlat=@Model.CoordenadasLat.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)&mlon=@Model.CoordenadasLng.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)&zoom=17" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary ms-1">Abrir no OpenStreetMap</a>
                                 <button type="button" class="btn btn-sm btn-outline-secondary copiar-coords" data-lat="@Model.CoordenadasLat.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-lng="@Model.CoordenadasLng.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)">Copiar coordenadas</button>
                             </dd>
                         }
@@ -87,7 +87,7 @@
                                     var latS = Model.CoordenadasLat!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
                                     var lngS = Model.CoordenadasLng!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
                                 }
-                                <a href="https://www.google.com/maps/dir/@(latP),@(lngP)/@(latS),@(lngS)" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary ms-1">Ver rota do paiol</a>
+                                <a href="https://www.openstreetmap.org/directions?engine=osrm_car&route=@(lngP),@(latP);@(lngS),@(latS)" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary ms-1">Ver rota do paiol</a>
                             </dd>
                         }
                     }
@@ -312,57 +312,28 @@
     </script>
     @if (Model.CoordenadasLat.HasValue && Model.CoordenadasLng.HasValue)
     {
-        var apiKeyDetails = ViewData["GoogleMapsApiKey"] as string ?? "";
         var latDetails = Model.CoordenadasLat.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
         var lngDetails = Model.CoordenadasLng.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
         var raioDetails = Model.RaioPublico.HasValue && Model.RaioPublico.Value > 0 ? Model.RaioPublico.Value : 0;
-        if (!string.IsNullOrWhiteSpace(apiKeyDetails))
-        {
-            <script src="https://maps.googleapis.com/maps/api/js?key=@(apiKeyDetails)" async defer></script>
-            <script>
-                (function() {
-                    var lat = @(latDetails);
-                    var lng = @(lngDetails);
-                    var raioM = @(raioDetails);
-                    function initMapaDetails() {
-                        var divMap = document.getElementById('mapa-details');
-                        if (!divMap || typeof google === 'undefined' || !google.maps) return;
-                        var center = { lat: lat, lng: lng };
-                        var map = new google.maps.Map(divMap, {
-                            center: center,
-                            zoom: 14,
-                            mapTypeControl: true,
-                            fullscreenControl: true,
-                            streetViewControl: false
-                        });
-                        var marker = new google.maps.Marker({ position: center, map: map });
-                        if (raioM > 0) {
-                            new google.maps.Circle({
-                                map: map,
-                                center: center,
-                                radius: raioM,
-                                fillColor: '#1a73e8',
-                                fillOpacity: 0.15,
-                                strokeColor: '#1a73e8',
-                                strokeWeight: 2
-                            });
-                        }
-                    }
-                    if (typeof google !== 'undefined' && google.maps) { initMapaDetails(); } else { window.addEventListener('load', function() { setTimeout(initMapaDetails, 500); }); }
-                })();
-            </script>
-        }
-        else
-        {
-            <script>
-                (function() {
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+        <script>
+            (function() {
+                var lat = @(latDetails);
+                var lng = @(lngDetails);
+                var raioM = @(raioDetails);
+                function initMapaDetails() {
                     var divMap = document.getElementById('mapa-details');
-                    if (!divMap) return;
-                    var lat = @(latDetails);
-                    var lng = @(lngDetails);
-                    divMap.innerHTML = '<div class="p-3 text-muted small">Configure GoogleMapsApiKey em appsettings para ver o mapa com o raio público.</div><a href="https://www.google.com/maps?q=' + lat + ',' + lng + '" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary m-2">Abrir no Google Maps</a>';
-                })();
-            </script>
-        }
+                    if (!divMap || typeof L === 'undefined') return;
+                    var map = L.map(divMap, { attributionControl: false }).setView([lat, lng], 14);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
+                    L.marker([lat, lng]).addTo(map);
+                    if (raioM > 0) {
+                        L.circle([lat, lng], { radius: raioM, color: '#1a73e8', fillColor: '#1a73e8', fillOpacity: 0.15, weight: 2 }).addTo(map);
+                    }
+                }
+                if (typeof L !== 'undefined') { initMapaDetails(); } else { window.addEventListener('load', function() { setTimeout(initMapaDetails, 500); }); }
+            })();
+        </script>
     }
 }

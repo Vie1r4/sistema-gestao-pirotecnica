@@ -6,17 +6,24 @@
 <h1 class="mb-2">@Model.NomeCompleto</h1>
 <p class="text-muted mb-4">Ficha do funcionário</p>
 
-@if (TempData["FuncionarioCriado"] as bool? == true)
+@if (TempData["CredenciaisCriadas"] as bool? == true)
 {
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        Funcionário registado com sucesso.
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <strong>Conta criada.</strong> Foi enviado um email ao funcionário com as credenciais e um link para confirmar o email. Só após confirmar poderá entrar no site. Entregue se necessário: <strong>Email:</strong> @TempData["CredenciaisEmail"] | <strong>Palavra-passe:</strong> @TempData["CredenciaisPassword"]
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
     </div>
 }
-@if (TempData["FuncionarioEditado"] as bool? == true)
+@if (TempData["ContaDesassociada"] as bool? == true)
 {
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        Alterações guardadas.
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        Conta desassociada. O utilizador já não pode entrar no site.
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+    </div>
+}
+@if (TempData["DesassociarErro"] != null)
+{
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        @TempData["DesassociarErro"]
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
     </div>
 }
@@ -55,15 +62,33 @@
                 <dt class="col-sm-3 col-md-2">Notas</dt>
                 <dd class="col-sm-9 col-md-10">@Model.Notas</dd>
             }
-            <dt class="col-sm-3 col-md-2">Associado a funcionários</dt>
+            <dt class="col-sm-3 col-md-2">Conta de acesso</dt>
             <dd class="col-sm-9 col-md-10">
                 @if (!string.IsNullOrEmpty(Model.UserId))
                 {
-                    <span class="badge bg-success">Sim</span> <span class="small text-muted">(tem conta de utilizador no sistema)</span>
+                    var emailConfirmada = ViewData["ContaEmailConfirmada"] as bool? ?? false;
+                    if (emailConfirmada)
+                    {
+                        <span class="badge bg-success">Sim</span>
+                        <span class="text-muted small">(@(ViewData["ContaEmail"] ?? "—"))</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-warning text-dark">À espera de confirmação</span>
+                        <span class="text-muted small">(@(ViewData["ContaEmail"] ?? "—") — o funcionário deve clicar no link enviado por email para confirmar)</span>
+                    }
+                    @if (User.IsInRole("Admin"))
+                    {
+                        <a asp-action="DesassociarConta" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-danger ms-2">Desassociar conta</a>
+                    }
                 }
                 else
                 {
                     <span class="badge bg-secondary">Não</span>
+                    @if (User.IsInRole("Admin"))
+                    {
+                        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary ms-2">Criar conta (editar funcionário)</a>
+                    }
                 }
             </dd>
             <dt class="col-sm-3 col-md-2">Data de registo</dt>
