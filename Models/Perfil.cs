@@ -20,5 +20,9 @@ namespace Finalproj.Models
 
         [Display(Name = "Data de registo")]
         public DateTime? DataRegisto { get; set; }
+
+        /// <summary>Preferência de tema: "Light" ou "Dark".</summary>
+        [StringLength(10)]
+        public string? Tema { get; set; }
     }
 }

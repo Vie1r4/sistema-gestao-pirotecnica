@@ -47,8 +47,7 @@ Generated\ Files/
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
 
-# NUnit
-*.VisualState.xml
+# NUnitq
 TestResult.xml
 nunit-*.xml
 

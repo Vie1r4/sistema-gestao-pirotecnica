@@ -1,0 +1,17 @@
+---
+description: Preferir APIs do backend em vez de duplicar lógica no frontend (localStorage / dados locais)
+globs: "**/*.tsx,**/*.ts,app/**/*"
+alwaysApply: true
+---
+
+# Usar a API do backend em primeiro lugar
+
+- **Regra geral**: O frontend deve **ler** os dados das APIs do backend e **não guardar** dados de negócio (clientes, produtos, encomendas, serviços, paióis, funcionários, etc.) em localStorage. A API é a fonte de verdade.
+- **Não duplicar lógica no frontend**: Evitar usar localStorage ou dados locais para informação que já existe no backend ou que pode ser obtida via API.
+- **Prioridade às APIs**: Se existirem endpoints (ex.: `/api/paiol`, `/api/clientes`, `/api/funcionarios`), o frontend deve usá-los para listagens, detalhe, criar, editar e eliminar. Usar TanStack Query (useQuery/useMutation) para fetching e invalidação.
+- **Quando vir o frontend a ignorar endpoints**: Avisar e propor usar a API em primeiro lugar em vez de manter fallbacks ou dados locais redundantes.
+- **Exceções (único uso aceitável de localStorage para dados)**:
+  - **Token de sessão** e, se necessário, objeto mínimo do utilizador (ex.: `pirofafe-user` para nome na Navbar) até haver GET `/api/auth/me` como fonte única.
+  - **Estado puramente de UI** que não existe no backend: tema (ex.: `pirofafe-theme`), sidebar aberta, etc.
+  - Cache/offline só se for explicitamente acordado no projeto.
+- **Não guardar em localStorage**: listas ou entidades que vêm da API (clientes, produtos, encomendas, serviços, paióis, funcionários, entradas/saídas de paiol). Ver `Docs/AUDITORIA-LOCALSTORAGE.md` para o estado atual.

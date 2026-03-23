@@ -1,15 +1,17 @@
+using Finalproj.Authorization;
 using Finalproj.Data;
 using Finalproj.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 
 namespace Finalproj.Controllers
 {
-    // Catálogo e gestão de produtos: NEM por unidade, família de risco, grupo compatibilidade, calibre
-    [Authorize]
-    public class ProdutosController : Controller
+    [Route("api/produtos")]
+    [ApiController]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    public class ProdutosController : ControllerBase
     {
         private readonly FinalprojContext _context;
 
@@ -19,14 +21,10 @@ namespace Finalproj.Controllers
         }
 
         // Catálogo com pesquisa e filtros (classificação, grupo, filtro técnico, calibre)
-        public async Task<IActionResult> Index(string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre)
+        [HttpGet]
+        [Authorize(Policy = PoliticasAutorizacao.PodeVerProdutos)]
+        public async Task<IActionResult> Index(string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default)
         {
-            ViewData["Pesquisa"] = pesquisa;
-            ViewData["Classificacao"] = classificacao;
-            ViewData["GrupoCompatibilidade"] = grupoCompatibilidade;
-            ViewData["FiltroTecnico"] = filtroTecnico;
-            ViewData["Calibre"] = calibre;
-
             var query = _context.Produtos.AsQueryable();
             if (!string.IsNullOrWhiteSpace(pesquisa))
                 query = query.Where(p => p.Nome.Contains(pesquisa));
@@ -39,19 +37,24 @@ namespace Finalproj.Controllers
             if (!string.IsNullOrEmpty(calibre))
                 query = query.Where(p => p.Calibre == calibre);
 
-            var lista = await query.OrderBy(p => p.Nome).ToListAsync();
-            return View(lista);
+            var lista = await query.OrderBy(p => p.Nome).ToListAsync(cancellationToken);
+            var items = lista.Select(ProdutoResponseDtoMapping.Map).ToList();
+
+            return Ok(new
+            {
+                items,
+                pesquisa = pesquisa ?? string.Empty,
+                classificacao = classificacao ?? string.Empty,
+                grupoCompatibilidade = grupoCompatibilidade ?? string.Empty,
+                filtroTecnico = filtroTecnico ?? string.Empty,
+                calibre = calibre ?? string.Empty
+            });
         }
 
         // Gestão com os mesmos filtros do catálogo
-        public async Task<IActionResult> Gerir(string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre)
+        [HttpGet("gerir")]
+        public async Task<IActionResult> Gerir(string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default)
         {
-            ViewData["Pesquisa"] = pesquisa ?? "";
-            ViewData["Classificacao"] = classificacao ?? "";
-            ViewData["GrupoCompatibilidade"] = grupoCompatibilidade ?? "";
-            ViewData["FiltroTecnico"] = filtroTecnico ?? "";
-            ViewData["Calibre"] = calibre ?? "";
-
             var query = _context.Produtos.AsQueryable();
             if (!string.IsNullOrWhiteSpace(pesquisa))
                 query = query.Where(p => p.Nome.Contains(pesquisa));
@@ -64,66 +67,87 @@ namespace Finalproj.Controllers
             if (!string.IsNullOrEmpty(calibre))
                 query = query.Where(p => p.Calibre == calibre);
 
-            var lista = await query.OrderBy(p => p.Nome).ToListAsync();
-            return View(lista);
+            var lista = await query.OrderBy(p => p.Nome).ToListAsync(cancellationToken);
+            var items = lista.Select(ProdutoResponseDtoMapping.Map).ToList();
+
+            return Ok(new
+            {
+                items,
+                pesquisa = pesquisa ?? string.Empty,
+                classificacao = classificacao ?? string.Empty,
+                grupoCompatibilidade = grupoCompatibilidade ?? string.Empty,
+                filtroTecnico = filtroTecnico ?? string.Empty,
+                calibre = calibre ?? string.Empty
+            });
         }
 
         // Detalhe do produto
-        public async Task<IActionResult> Details(int? id)
+        [HttpGet("{id:int}")]
+        [Authorize(Policy = PoliticasAutorizacao.PodeVerProdutos)]
+        public async Task<IActionResult> Details(int? id, CancellationToken cancellationToken = default)
         {
             if (id == null) return NotFound();
             var produto = await _context.Produtos.FindAsync(id);
             if (produto == null) return NotFound();
-            return View(produto);
+            return Ok(ProdutoResponseDtoMapping.Map(produto));
         }
 
-        [Authorize(Roles = "Admin")]
+        [HttpGet("create")]
+        [Authorize(Policy = PoliticasAutorizacao.PodeGerirProdutos)]
         // GET: formulário novo produto; dropdowns família, grupo, filtro, calibre
         public IActionResult Create()
         {
-            ViewData["FamiliaRisco"] = new SelectList(ConstantesPaiol.FamiliasParaDropdown(), "Value", "Text");
-            ViewData["GrupoCompatibilidade"] = new SelectList(ConstantesCatalogo.GruposParaDropdown(), "Value", "Text");
-            ViewData["FiltroTecnico"] = new SelectList(ConstantesCatalogo.FiltrosTecnicosParaDropdown(), "Value", "Text");
-            ViewData["Calibre"] = new SelectList(ConstantesCatalogo.CalibresParaDropdown(), "Value", "Text");
-            return View();
+            return Ok(new
+            {
+                produto = ProdutoResponseDtoMapping.Map(new Produto()),
+                familiaRisco = ConstantesPaiol.FamiliasParaDropdown(),
+                grupoCompatibilidade = ConstantesCatalogo.GruposParaDropdown(),
+                filtroTecnico = ConstantesCatalogo.FiltrosTecnicosParaDropdown(),
+                calibre = ConstantesCatalogo.CalibresParaDropdown()
+            });
         }
 
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin")]
-        // Grava novo produto
-        public async Task<IActionResult> Create([Bind("Nome,NEMPorUnidade,FamiliaRisco,GrupoCompatibilidade,FiltroTecnico,Calibre")] Produto produto)
+        [Authorize(Policy = PoliticasAutorizacao.PodeGerirProdutos)]
+        public async Task<IActionResult> Create([FromBody] Produto produto, CancellationToken cancellationToken = default)
         {
             if (ModelState.IsValid)
             {
                 _context.Add(produto);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                await _context.SaveChangesAsync(cancellationToken);
+                return CreatedAtAction(nameof(Details), new { id = produto.Id }, new { produto = ProdutoResponseDtoMapping.Map(produto) });
             }
-            ViewData["FamiliaRisco"] = new SelectList(ConstantesPaiol.FamiliasParaDropdown(), "Value", "Text", produto.FamiliaRisco);
-            ViewData["GrupoCompatibilidade"] = new SelectList(ConstantesCatalogo.GruposParaDropdown(), "Value", "Text", produto.GrupoCompatibilidade);
-            ViewData["FiltroTecnico"] = new SelectList(ConstantesCatalogo.FiltrosTecnicosParaDropdown(), "Value", "Text", produto.FiltroTecnico);
-            ViewData["Calibre"] = new SelectList(ConstantesCatalogo.CalibresParaDropdown(), "Value", "Text", produto.Calibre);
-            return View(produto);
+            return BadRequest(new
+            {
+                produto = ProdutoResponseDtoMapping.Map(produto),
+                familiaRisco = ConstantesPaiol.FamiliasParaDropdown(),
+                grupoCompatibilidade = ConstantesCatalogo.GruposParaDropdown(),
+                filtroTecnico = ConstantesCatalogo.FiltrosTecnicosParaDropdown(),
+                calibre = ConstantesCatalogo.CalibresParaDropdown(),
+                errors = ModelState
+            });
         }
 
         // GET: formulário edição com dropdowns
-        public async Task<IActionResult> Edit(int? id)
+        [HttpGet("{id:int}/edit")]
+        public async Task<IActionResult> Edit(int? id, CancellationToken cancellationToken = default)
         {
             if (id == null) return NotFound();
             var produto = await _context.Produtos.FindAsync(id);
             if (produto == null) return NotFound();
-            ViewData["FamiliaRisco"] = new SelectList(ConstantesPaiol.FamiliasParaDropdown(), "Value", "Text", produto.FamiliaRisco);
-            ViewData["GrupoCompatibilidade"] = new SelectList(ConstantesCatalogo.GruposParaDropdown(), "Value", "Text", produto.GrupoCompatibilidade);
-            ViewData["FiltroTecnico"] = new SelectList(ConstantesCatalogo.FiltrosTecnicosParaDropdown(), "Value", "Text", produto.FiltroTecnico);
-            ViewData["Calibre"] = new SelectList(ConstantesCatalogo.CalibresParaDropdown(), "Value", "Text", produto.Calibre);
-            return View(produto);
+            return Ok(new
+            {
+                produto = ProdutoResponseDtoMapping.Map(produto),
+                familiaRisco = ConstantesPaiol.FamiliasParaDropdown(),
+                grupoCompatibilidade = ConstantesCatalogo.GruposParaDropdown(),
+                filtroTecnico = ConstantesCatalogo.FiltrosTecnicosParaDropdown(),
+                calibre = ConstantesCatalogo.CalibresParaDropdown()
+            });
         }
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        // Actualiza produto
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Nome,NEMPorUnidade,FamiliaRisco,Unidade,GrupoCompatibilidade,FiltroTecnico,Calibre")] Produto produto)
+        [HttpPut("{id:int}")]
+        [Authorize(Policy = PoliticasAutorizacao.PodeGerirProdutos)]
+        public async Task<IActionResult> Edit(int id, [FromBody] Produto produto, CancellationToken cancellationToken = default)
         {
             if (id != produto.Id) return NotFound();
             if (ModelState.IsValid)
@@ -131,44 +155,49 @@ namespace Finalproj.Controllers
                 try
                 {
                     _context.Update(produto);
-                    await _context.SaveChangesAsync();
+                    await _context.SaveChangesAsync(cancellationToken);
+                    return Ok(new { produto = ProdutoResponseDtoMapping.Map(produto) });
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!await _context.Produtos.AnyAsync(e => e.Id == produto.Id))
+                    if (!await _context.Produtos.AnyAsync(e => e.Id == produto.Id, cancellationToken))
                         return NotFound();
                     throw;
                 }
-                return RedirectToAction(nameof(Gerir));
             }
-            ViewData["FamiliaRisco"] = new SelectList(ConstantesPaiol.FamiliasParaDropdown(), "Value", "Text", produto.FamiliaRisco);
-            ViewData["GrupoCompatibilidade"] = new SelectList(ConstantesCatalogo.GruposParaDropdown(), "Value", "Text", produto.GrupoCompatibilidade);
-            ViewData["FiltroTecnico"] = new SelectList(ConstantesCatalogo.FiltrosTecnicosParaDropdown(), "Value", "Text", produto.FiltroTecnico);
-            ViewData["Calibre"] = new SelectList(ConstantesCatalogo.CalibresParaDropdown(), "Value", "Text", produto.Calibre);
-            return View(produto);
+            return BadRequest(new
+            {
+                produto = ProdutoResponseDtoMapping.Map(produto),
+                familiaRisco = ConstantesPaiol.FamiliasParaDropdown(),
+                grupoCompatibilidade = ConstantesCatalogo.GruposParaDropdown(),
+                filtroTecnico = ConstantesCatalogo.FiltrosTecnicosParaDropdown(),
+                calibre = ConstantesCatalogo.CalibresParaDropdown(),
+                errors = ModelState
+            });
         }
 
         // GET: confirmação antes de apagar
-        public async Task<IActionResult> Delete(int? id)
+        [HttpGet("{id:int}/delete")]
+        [Authorize(Policy = PoliticasAutorizacao.PodeGerirProdutos)]
+        public async Task<IActionResult> Delete(int? id, CancellationToken cancellationToken = default)
         {
             if (id == null) return NotFound();
-            var produto = await _context.Produtos.FirstOrDefaultAsync(m => m.Id == id);
+            var produto = await _context.Produtos.FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
             if (produto == null) return NotFound();
-            return View(produto);
+            return Ok(ProdutoResponseDtoMapping.Map(produto));
         }
 
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        // Apaga produto
-        public async Task<IActionResult> DeleteConfirmed(int id)
+        [HttpDelete("{id:int}")]
+        [Authorize(Policy = PoliticasAutorizacao.PodeGerirProdutos)]
+        public async Task<IActionResult> DeleteConfirmed(int id, CancellationToken cancellationToken = default)
         {
             var produto = await _context.Produtos.FindAsync(id);
             if (produto != null)
             {
                 _context.Produtos.Remove(produto);
-                await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync(cancellationToken);
             }
-            return RedirectToAction(nameof(Gerir));
+            return NoContent();
         }
     }
 }

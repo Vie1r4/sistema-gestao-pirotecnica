@@ -20,3 +20,38 @@ html {
 body {
   margin-bottom: 60px;
 }
+
+/* Página de boas-vindas / Início */
+.welcome-hero {
+  min-height: 60vh;
+}
+
+.welcome-title {
+  color: #1a1a2e;
+  letter-spacing: 0.02em;
+}
+
+.welcome-subtitle {
+  max-width: 36rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.welcome-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  color: inherit;
+}
+
+.welcome-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.12) !important;
+}
+
+.welcome-card .card-title {
+  color: inherit;
+}
+
+.welcome-card-icon {
+  font-size: 2.25rem;
+  line-height: 1;
+}

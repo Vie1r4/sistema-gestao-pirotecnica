@@ -1,0 +1,251 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant light (&:where(.light, .light *));
+
+:root {
+  --background: #f8f7f5;
+  --foreground: #1c1917;
+  --card-bg: #ffffff;
+  --card-border: #e7e5e4;
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --surface: #ffffff;
+  --muted: #78716c;
+  --sidebar-bg: rgba(255, 255, 255, 0.98);
+  --header-border: #e7e5e4;
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --card-bg: #111;
+  --card-border: #1f1f1f;
+  --card-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.4);
+  --surface: #111;
+  --muted: #888;
+  --sidebar-bg: rgba(10, 10, 10, 0.95);
+  --header-border: #1a1a1a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --transition-button: 200ms ease;
+  --transition-card: 200ms ease;
+}
+
+html.light {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Barra de scroll mais discreta (Chrome, Safari, Edge) */
+html::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+html::-webkit-scrollbar-track {
+  background: transparent;
+}
+html::-webkit-scrollbar-thumb {
+  background: rgba(120, 113, 108, 0.35);
+  border-radius: 10px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+html::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 113, 108, 0.5);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.dark::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border: 3px solid var(--background);
+  background-clip: padding-box;
+}
+.dark::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border: 2px solid var(--background);
+  background-clip: padding-box;
+}
+/* Scroll suave (âncoras e scroll programático) + barra de scroll Firefox */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem; /* evita que o conteúdo fique por baixo da navbar ao fazer scroll para âncora */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 113, 108, 0.45) transparent;
+}
+.dark {
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+
+/* Em ecrã cheia (F11 ou API fullscreen): esconder a barra de scroll */
+html:fullscreen::-webkit-scrollbar,
+html:fullscreen body::-webkit-scrollbar,
+html:-webkit-full-screen::-webkit-scrollbar,
+html:-webkit-full-screen body::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+html:fullscreen,
+html:-webkit-full-screen,
+html:-moz-full-screen {
+  scrollbar-width: none !important;
+}
+html:fullscreen body,
+html:-webkit-full-screen body,
+html:-moz-full-screen body {
+  scrollbar-width: none !important;
+}
+
+.font-heading {
+  font-family: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+}
+
+/* Transições suaves para botões (200ms) */
+[data-button],
+button:not([data-no-transition]),
+a[role="button"],
+.btn-transition {
+  transition: background-color var(--transition-button), color var(--transition-button),
+    border-color var(--transition-button), box-shadow var(--transition-button),
+    transform var(--transition-button), opacity var(--transition-button);
+}
+
+/* Cards: hover scale + borda a iluminar */
+.card-hover {
+  transition: transform var(--transition-card), box-shadow var(--transition-card),
+    border-color var(--transition-card);
+}
+.card-hover:hover {
+  transform: scale(1.01);
+}
+.card-hover:hover {
+  border-color: rgba(249, 115, 22, 0.35);
+  box-shadow: 0 4px 20px -8px rgba(249, 115, 22, 0.25);
+}
+.dark .card-hover:hover {
+  border-color: rgba(249, 115, 22, 0.4);
+  box-shadow: 0 8px 24px -8px rgba(249, 115, 22, 0.2);
+}
+
+/* --- Página inicial: ar premium / executivo --- */
+.home-hero-bg {
+  background-color: #fafaf9;
+  background-image:
+    radial-gradient(ellipse 100% 80% at 50% -20%, rgba(255, 237, 213, 0.5), transparent 55%),
+    radial-gradient(ellipse 80% 50% at 80% 50%, rgba(251, 211, 141, 0.08), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 20% 80%, rgba(254, 215, 170, 0.06), transparent 45%);
+}
+.dark .home-hero-bg {
+  background-color: #050505;
+  background-image:
+    radial-gradient(ellipse 100% 80% at 50% -20%, rgba(249, 115, 22, 0.06), transparent 55%),
+    radial-gradient(ellipse 80% 50% at 80% 50%, rgba(249, 115, 22, 0.03), transparent 50%);
+}
+
+/* Textura de grain sutil (premium / executivo) */
+.home-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  mix-blend-mode: overlay;
+}
+.home-grain::before {
+  content: "";
+  position: absolute;
+  inset: -100%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+.dark .home-grain {
+  opacity: 0.2;
+}
+
+/* Grid discreto (estilo Next/Vercel) */
+.home-grid {
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+.dark .home-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+}
+
+/* Wordmark premium: letter-spacing executivo */
+.home-wordmark {
+  letter-spacing: 0.02em;
+}
+@media (min-width: 768px) {
+  .home-wordmark {
+    letter-spacing: 0.04em;
+  }
+}
+
+/* Partículas / faíscas no hero (identidade pirotécnica) */
+.home-sparks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.home-spark {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 237, 213, 0.95), rgba(249, 115, 22, 0.6));
+  animation: home-spark-float 8s ease-in-out infinite;
+}
+.home-spark--gold {
+  background: radial-gradient(circle at 30% 30%, rgba(255, 250, 205, 0.9), rgba(251, 191, 36, 0.5));
+}
+.dark .home-spark {
+  background: radial-gradient(circle at 30% 30%, rgba(255, 200, 100, 0.6), rgba(249, 115, 22, 0.45));
+}
+.dark .home-spark--gold {
+  background: radial-gradient(circle at 30% 30%, rgba(255, 220, 120, 0.5), rgba(251, 191, 36, 0.35));
+}
+/* Apenas transform + opacity = GPU-friendly, mantém o site fluido */
+@keyframes home-spark-float {
+  0%, 100% {
+    opacity: 0.45;
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    opacity: 0.8;
+    transform: translate(4px, -6px) scale(1.05);
+  }
+  50% {
+    opacity: 0.5;
+    transform: translate(-2px, -3px) scale(0.98);
+  }
+  75% {
+    opacity: 0.85;
+    transform: translate(5px, 3px) scale(1.02);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-spark {
+    animation: none;
+    opacity: 0.5;
+  }
+}
