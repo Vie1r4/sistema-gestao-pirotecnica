@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,10 +15,9 @@ import {
 } from "@/app/lib/encomendas";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
-import { safeParseJson } from "@/app/lib/api";
-import { postAceitar, postConcluir } from "@/app/lib/encomendasApi";
+import { fetchEncomendaDetalheParaPagina, postAceitar, postConcluir } from "@/app/lib/encomendasApi";
 import type { Cliente } from "@/app/lib/clientes";
-import { textoClassificacao, textoCalibre, textoGrupo, type Produto } from "@/app/lib/produtos";
+import { textoCalibre, textoGrupo, type Produto } from "@/app/lib/produtos";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 
 function mapApiToEncomendaDetalhe(data: Record<string, unknown>): EncomendaComClienteEItens | null {
@@ -81,10 +80,6 @@ function mapApiToEncomendaDetalhe(data: Record<string, unknown>): EncomendaComCl
   };
 }
 
-import { apiPath } from "@/app/lib/apiConfig";
-
-const API_ENCOMENDAS = apiPath("api/encomendas");
-
 const btnPrimary =
   "data-button rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
 
@@ -106,6 +101,7 @@ export default function EncomendaDetalhePage() {
   const { user } = useUser();
   const userId = user?.id ?? user?.email ?? "";
   const canGerirEncomendas = (user?.permissions ?? []).includes("encomendas.gerir");
+  const canGerirServicos = (user?.permissions ?? []).includes("servicos.gerir");
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const aceitarRef = useRef(false);
   const concluirRef = useRef(false);
@@ -137,17 +133,17 @@ export default function EncomendaDetalhePage() {
         router.replace("/login");
         throw new Error("Sessão expirada.");
       }
-      const res = await fetch(`${API_ENCOMENDAS}/${numId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status === 401) {
-        router.replace("/login");
-        throw new Error("Sessão expirada.");
+      try {
+        const data = await fetchEncomendaDetalheParaPagina(token, numId);
+        if (!data) return null;
+        return mapApiToEncomendaDetalhe(data);
+      } catch (e) {
+        if (e instanceof Error && e.message === "UNAUTHORIZED") {
+          router.replace("/login");
+          throw new Error("Sessão expirada.");
+        }
+        throw e;
       }
-      if (res.status === 404) return null;
-      if (!res.ok) throw new Error(`Erro ${res.status}`);
-      const data = (await safeParseJson(res)) as Record<string, unknown>;
-      return mapApiToEncomendaDetalhe(data);
     },
     staleTime: 30 * 1000,
     retry: 2,
@@ -233,7 +229,6 @@ export default function EncomendaDetalhePage() {
   };
 
   const { cliente, itens, stockPorProduto, estado } = encomenda;
-  const algumSemStock = itens.some((i) => (stockPorProduto.get(i.produtoId) ?? 0) < i.quantidadePedida);
   const currentUserId = userId && userId !== "current-user" ? userId : null;
   const podeEditar = podeEditarEncomenda(encomenda, currentUserId, canGerirEncomendas);
 
@@ -435,11 +430,25 @@ export default function EncomendaDetalhePage() {
                 Serviços no terreno
               </h2>
               <p className="mt-2 text-sm text-[#57534e] dark:text-gray-400">
-                Serviços associados a esta encomenda serão listados aqui quando o módulo Serviços estiver ligado.
+                Com a encomenda concluída, pode registar um serviço (evento no terreno) associado a este pedido. O formulário abre já com esta encomenda selecionada.
               </p>
-              <Link href="/servicos" className="mt-3 inline-block text-sm text-[#f97316] hover:underline">
-                Ir para Serviços →
-              </Link>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                {canGerirServicos ? (
+                  <Link
+                    href={`/servicos/novo?encomendaId=${encodeURIComponent(id)}`}
+                    className={btnPrimary}
+                  >
+                    Realizar serviço com esta encomenda
+                  </Link>
+                ) : (
+                  <p className="text-sm text-[#78716c] dark:text-gray-500">
+                    Para criar serviços é necessária a permissão de gestão de serviços.
+                  </p>
+                )}
+                <Link href="/servicos" className={`${btnSecondary} inline-block text-center`}>
+                  Lista de serviços
+                </Link>
+              </div>
             </motion.section>
           )}
 

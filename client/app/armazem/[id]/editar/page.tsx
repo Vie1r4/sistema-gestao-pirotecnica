@@ -247,8 +247,6 @@ export default function EditarPaiolPage() {
     );
   }
 
-  const docsExistentes = (paiol.documentosExtras ?? []).filter((d) => !removerDocIds.has(d.id));
-
   return (
     <div className="min-h-screen bg-[#f8f7f5] text-gray-900 dark:bg-[#0a0a0a] dark:text-white">
       <Navbar />

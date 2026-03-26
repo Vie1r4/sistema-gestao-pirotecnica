@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import { getToken } from "@/app/lib/auth";
@@ -10,11 +11,9 @@ import { useUser } from "@/app/context/UserContext";
 import { parseApiErrorBody } from "@/app/lib/apiErrors";
 import { textoClassificacao, CLASSIFICACOES_RISCO, GRUPOS_COMPATIBILIDADE, FILTROS_TECNICOS, CALIBRES } from "@/app/lib/produtos";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
+import { fetchEntradaRegistarForm, type PaiolOption, type ProdutoOption } from "@/app/lib/entradaPaiolApi";
 
 import { apiPath } from "@/app/lib/apiConfig";
-
-const API_ENTRADA = apiPath("api/entrada-paiol");
-const API_PRODUTOS = apiPath("api/produtos");
 
 const cardClass =
   "card-hover rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111] sm:p-8";
@@ -30,21 +29,15 @@ const btnPrimary =
 const btnSecondary =
   "data-button rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition-[border-color,background-color,color] duration-200 hover:bg-gray-50 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
 
-type PaiolOption = { id: number; nome: string; estado?: string; perfilRisco?: string };
-type ProdutoOption = { id: number; nome: string; familiaRisco?: string; nemPorUnidade: number; grupoCompatibilidade?: string; filtroTecnico?: string; calibre?: string };
-
 function RegistarEntradaContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const { user } = useUser();
   const canGerirArmazem = (user?.permissions ?? []).includes("armazem.gerir");
   const [mounted, setMounted] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [loading, setLoading] = useState(false);
   const loadingRef = useRef(false);
-  const [loadingForm, setLoadingForm] = useState(true);
-  const [paiois, setPaiois] = useState<PaiolOption[]>([]);
-  const [produtos, setProdutos] = useState<ProdutoOption[]>([]);
   const paiolIdParam = searchParams.get("paiolId") ?? "";
   const [form, setForm] = useState({
     paiolId: paiolIdParam,
@@ -66,72 +59,38 @@ function RegistarEntradaContent() {
     setMounted(true);
   }, [paiolIdParam]);
 
-  useEffect(() => {
-    if (!mounted) return;
-    const token = getToken();
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
-    const auth = { Authorization: `Bearer ${token}` };
-    const params = new URLSearchParams();
-    if (form.paiolId) params.set("paiolId", form.paiolId);
-    if (filtros.classificacao) params.set("classificacao", filtros.classificacao);
-    if (filtros.grupoCompatibilidade) params.set("grupoCompatibilidade", filtros.grupoCompatibilidade);
-    if (filtros.filtroTecnico) params.set("filtroTecnico", filtros.filtroTecnico);
-    if (filtros.calibre) params.set("calibre", filtros.calibre);
-    setLoadingForm(true);
+  const authToken = getToken();
 
-    const mapProduto = (p: Record<string, unknown>) => ({
-      id: Number(p.Id ?? p.id ?? 0),
-      nome: String(p.Nome ?? p.nome ?? ""),
-      familiaRisco: (p.FamiliaRisco ?? p.familiaRisco) as string | undefined,
-      nemPorUnidade: Number(p.NEMPorUnidade ?? p.nemPorUnidade ?? 0),
-      grupoCompatibilidade: (p.GrupoCompatibilidade ?? p.grupoCompatibilidade) as string | undefined,
-      filtroTecnico: (p.FiltroTecnico ?? p.filtroTecnico) as string | undefined,
-      calibre: (p.Calibre ?? p.calibre) as string | undefined,
-    });
+  const { data: formData, isLoading: loadingForm } = useQuery({
+    queryKey: [
+      "armazem",
+      "entrada-registar",
+      form.paiolId,
+      filtros.classificacao,
+      filtros.grupoCompatibilidade,
+      filtros.filtroTecnico,
+      filtros.calibre,
+    ],
+    queryFn: async () => {
+      const t = getToken();
+      if (!t) {
+        router.replace("/login");
+        throw new Error("no-token");
+      }
+      return fetchEntradaRegistarForm(t, {
+        paiolId: form.paiolId,
+        classificacao: filtros.classificacao,
+        grupoCompatibilidade: filtros.grupoCompatibilidade,
+        filtroTecnico: filtros.filtroTecnico,
+        calibre: filtros.calibre,
+      });
+    },
+    enabled: mounted && !!authToken,
+    staleTime: 20 * 1000,
+  });
 
-    Promise.all([
-      fetch(API_ENTRADA, { headers: auth }).then(async (res) => {
-        if (res.status === 401) return null;
-        const data: unknown = await res.json();
-        return typeof data === "object" && data !== null ? (data as Record<string, unknown>) : null;
-      }),
-      fetch(`${API_ENTRADA}/registar?${params.toString()}`, { headers: auth }).then(async (res) => {
-        if (res.status === 401) return null;
-        const data: unknown = await res.json();
-        return typeof data === "object" && data !== null ? (data as Record<string, unknown>) : null;
-      }),
-      fetch(`${API_PRODUTOS}?${params.toString()}`, { headers: auth }).then(async (res) => {
-        if (res.status === 401) return null;
-        const data: unknown = await res.json();
-        return typeof data === "object" && data !== null ? (data as Record<string, unknown>) : null;
-      }),
-    ])
-      .then(([raizRes, entradaRes, produtosRes]) => {
-        const paioisRaw = (entradaRes?.paióis ?? entradaRes?.paiois) as Array<Record<string, unknown>> | undefined;
-        setPaiois(
-          Array.isArray(paioisRaw)
-            ? paioisRaw.map((p) => ({
-                id: Number(p.Id ?? p.id ?? 0),
-                nome: String(p.Nome ?? p.nome ?? ""),
-                estado: (p.Estado ?? p.estado) as string | undefined,
-                perfilRisco: (p.PerfilRisco ?? p.perfilRisco) as string | undefined,
-              }))
-            : []
-        );
-        const fromEntrada = (entradaRes?.produtos ?? entradaRes?.Produtos) as Array<Record<string, unknown>> | undefined;
-        const fromCatalog = (produtosRes?.items ?? produtosRes?.Items) as Array<Record<string, unknown>> | undefined;
-        const list = Array.isArray(fromCatalog) ? fromCatalog : Array.isArray(fromEntrada) ? fromEntrada : [];
-        setProdutos(list.map(mapProduto));
-      })
-      .catch(() => {
-        setPaiois([]);
-        setProdutos([]);
-      })
-      .finally(() => setLoadingForm(false));
-  }, [mounted, form.paiolId, filtros.classificacao, filtros.grupoCompatibilidade, filtros.filtroTecnico, filtros.calibre, router]);
+  const paiois: PaiolOption[] = formData?.paiois ?? [];
+  const produtos: ProdutoOption[] = formData?.produtos ?? [];
 
   const paioisAtivos = paiois.filter((p) => (p.estado ?? "Ativo") === "Ativo");
   let produtosFiltrados = produtos;
@@ -140,39 +99,14 @@ function RegistarEntradaContent() {
   if (filtros.filtroTecnico) produtosFiltrados = produtosFiltrados.filter((p) => p.filtroTecnico === filtros.filtroTecnico);
   if (filtros.calibre) produtosFiltrados = produtosFiltrados.filter((p) => p.calibre === filtros.calibre);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (loadingRef.current) return;
-    loadingRef.current = true;
-    setLoading(true);
-    setMessage(null);
-    if (!form.paiolId) {
-      setMessage({ type: "error", text: "Selecione um paiol." });
-      loadingRef.current = false;
-      setLoading(false);
-      return;
-    }
-    if (!form.produtoId) {
-      setMessage({ type: "error", text: "Selecione um produto." });
-      loadingRef.current = false;
-      setLoading(false);
-      return;
-    }
-    const qty = Number(form.quantidade);
-    if (!Number.isFinite(qty) || qty <= 0) {
-      setMessage({ type: "error", text: "A quantidade deve ser um número positivo." });
-      loadingRef.current = false;
-      setLoading(false);
-      return;
-    }
-    const token = getToken();
-    if (!token) {
-      loadingRef.current = false;
-      setLoading(false);
-      router.replace("/login");
-      return;
-    }
-    try {
+  const registarMutation = useMutation({
+    mutationFn: async () => {
+      const token = getToken();
+      if (!token) {
+        router.replace("/login");
+        throw new Error("Sessão expirada.");
+      }
+      const qty = Number(form.quantidade);
       const body = {
         PaiolId: Number(form.paiolId),
         ProdutoId: Number(form.produtoId),
@@ -181,35 +115,63 @@ function RegistarEntradaContent() {
         DataFabrico: form.dataFabrico ? new Date(form.dataFabrico).toISOString().slice(0, 10) : null,
         DataValidade: form.dataValidade ? new Date(form.dataValidade).toISOString().slice(0, 10) : null,
       };
-      const res = await fetch(`${API_ENTRADA}/registar`, {
+      const res = await fetch(`${apiPath("api/entrada-paiol")}/registar`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
       });
       if (res.status === 401) {
-        loadingRef.current = false;
-        setLoading(false);
         router.replace("/login");
-        return;
+        throw new Error("Sessão expirada.");
       }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const parsed = parseApiErrorBody(data);
-        setMessage({ type: "error", text: parsed.message });
-        loadingRef.current = false;
-        setLoading(false);
-        return;
+        throw new Error(parseApiErrorBody(data).message);
       }
-      const sucesso = (data as { entradaSucesso?: string }).entradaSucesso;
+      return data as { entradaSucesso?: string };
+    },
+    onSuccess: (data) => {
+      const sucesso = data.entradaSucesso;
       setMessage({ type: "success", text: sucesso ?? "Entrada registada." });
+      queryClient.invalidateQueries({ queryKey: ["armazem"] });
       setTimeout(() => router.push(canGerirArmazem ? "/armazem/movimentos?tipo=Entradas" : "/armazem"), 1500);
+    },
+    onError: (err: Error) => {
+      setMessage({ type: "error", text: err.message || "Erro de rede. Tente novamente." });
+    },
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loadingRef.current || registarMutation.isPending) return;
+    loadingRef.current = true;
+    setMessage(null);
+    if (!form.paiolId) {
+      setMessage({ type: "error", text: "Selecione um paiol." });
+      loadingRef.current = false;
+      return;
+    }
+    if (!form.produtoId) {
+      setMessage({ type: "error", text: "Selecione um produto." });
+      loadingRef.current = false;
+      return;
+    }
+    const qty = Number(form.quantidade);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      setMessage({ type: "error", text: "A quantidade deve ser um número positivo." });
+      loadingRef.current = false;
+      return;
+    }
+    try {
+      await registarMutation.mutateAsync();
     } catch {
-      setMessage({ type: "error", text: "Erro de rede. Tente novamente." });
+      /* onError já define mensagem */
     } finally {
       loadingRef.current = false;
-      setLoading(false);
     }
   };
+
+  const loading = registarMutation.isPending;
 
   if (!mounted) {
     return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -18,25 +18,32 @@ const btnPrimary =
 import { apiPath } from "@/app/lib/apiConfig";
 import { setTokens } from "@/app/lib/auth";
 
-const API_LOGIN = apiPath("api/auth/login");
-const API_EXISTEM_UTILIZADORES = apiPath("api/auth/existem-utilizadores");
-
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [semContas, setSemContas] = useState<boolean | null>(null);
+  /** Erro de rede/API não deve mostrar “criar primeiro utilizador” (origem ≠ BD). */
+  const [estadoContas, setEstadoContas] = useState<
+    "a carregar" | "semContas" | "comContas" | "erro"
+  >("a carregar");
 
   useEffect(() => {
-    fetch(API_EXISTEM_UTILIZADORES)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: { existem?: boolean } | null) => {
-        if (data && typeof data.existem === "boolean") setSemContas(!data.existem);
-        else setSemContas(true);
+    const url = apiPath("api/auth/existem-utilizadores");
+    fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error("http");
+        return res.json() as Promise<{ existem?: boolean }>;
       })
-      .catch(() => setSemContas(true));
+      .then((data) => {
+        if (data && typeof data.existem === "boolean") {
+          setEstadoContas(data.existem ? "comContas" : "semContas");
+        } else {
+          setEstadoContas("erro");
+        }
+      })
+      .catch(() => setEstadoContas("erro"));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,7 +56,7 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      const res = await fetch(API_LOGIN, {
+      const res = await fetch(apiPath("api/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), password }),
@@ -111,7 +118,21 @@ export default function LoginPage() {
             Iniciar sessão
           </h1>
 
-          {semContas === true && (
+          {estadoContas === "erro" && (
+            <div
+              role="alert"
+              className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200"
+            >
+              <p className="font-medium">Não foi possível contactar a API.</p>
+              <p className="mt-1 text-red-800 dark:text-red-300">
+                Confirme que o backend está a correr e que a rede/firewall permitem este dispositivo
+                a alcançar a API. Só após a API responder é que o sistema pode indicar se ainda não
+                existem contas.
+              </p>
+            </div>
+          )}
+
+          {estadoContas === "semContas" && (
             <div
               role="alert"
               className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"

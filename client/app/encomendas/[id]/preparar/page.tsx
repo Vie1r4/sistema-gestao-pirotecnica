@@ -66,7 +66,7 @@ export default function PrepararEncomendaPage() {
     if (!base) return null;
     return { ...base, stockPorProduto: stockPorProdutoMap };
   }, [apiData?.encomenda, stockPorProdutoMap]);
-  const paiois = apiData?.paiois ?? [];
+  const paiois = useMemo(() => apiData?.paiois ?? [], [apiData?.paiois]);
 
   useEffect(() => {
     setMounted(true);

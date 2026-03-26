@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useRef } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,12 +8,8 @@ import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import { getToken } from "@/app/lib/auth";
 import { useToastStore } from "@/app/stores/useToastStore";
-import { fetchDeleteGet } from "@/app/lib/paiolApi";
+import { deletePaiol, fetchDeleteGet } from "@/app/lib/paiolApi";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
-
-import { apiPath } from "@/app/lib/apiConfig";
-
-const API_PAIOL = apiPath("api/paiol");
 
 const cardClass =
   "card-hover rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111] sm:p-8";
@@ -65,12 +61,7 @@ export default function EliminarPaiolPage() {
     mutationFn: async () => {
       const token = getToken();
       if (!token) throw new Error("Sessão expirada.");
-      const res = await fetch(`${API_PAIOL}/${numId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status === 401) throw new Error("Não autenticado");
-      if (res.status !== 204 && !res.ok) throw new Error("Falha ao eliminar");
+      await deletePaiol(token, numId);
     },
     onSuccess: () => {
       useToastStore.getState().show("Paiol eliminado.", "success");

@@ -14,8 +14,6 @@ import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 import { apiPath } from "@/app/lib/apiConfig";
 
 const ITENS_POR_PAGINA = 20;
-const API_MOVIMENTOS_URL = apiPath("api/paiol/movimentos");
-
 const inputClass =
   "rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#f97316] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-white";
 
@@ -199,7 +197,7 @@ async function fetchMovimentos(
   if (paiolIdParam) params.set("paiolId", paiolIdParam);
   params.set("pagina", String(pagina));
   params.set("itensPorPagina", String(ITENS_POR_PAGINA));
-  const res = await fetch(`${API_MOVIMENTOS_URL}?${params.toString()}`, {
+  const res = await fetch(`${apiPath("api/paiol/movimentos")}?${params.toString()}`, {
     method: "GET",
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -241,10 +239,6 @@ function MovimentosContent() {
   });
 
   const paiois = apiData?.paiois ?? [];
-  const entradas = apiData?.entradas ?? [];
-  const saidas = apiData?.saidas ?? [];
-  const nomesEntradas = apiData?.nomesEntradas ?? {};
-  const nomesSaidas = apiData?.nomesSaidas ?? {};
   const totalRegistos = apiData?.totalRegistos ?? 0;
   const totalPaginas = Math.max(1, Math.ceil(totalRegistos / ITENS_POR_PAGINA));
   const error = queryError instanceof Error ? queryError.message : queryError ? "Erro ao carregar movimentos." : null;
@@ -258,6 +252,8 @@ function MovimentosContent() {
   };
 
   const entradasDisplay = useMemo<EntradaDisplay[]>(() => {
+    const entradas = apiData?.entradas ?? [];
+    const nomesEntradas = apiData?.nomesEntradas ?? {};
     return entradas.map((e) => {
       const nemU = e.produto?.nemPorUnidade ?? e.produto?.NemPorUnidade;
       const nem = nemU != null ? (e.quantidade * Number(nemU)).toFixed(2) : "—";
@@ -276,9 +272,11 @@ function MovimentosContent() {
         registadoPor,
       };
     });
-  }, [entradas, nomesEntradas]);
+  }, [apiData]);
 
   const saidasDisplay = useMemo<SaidaDisplay[]>(() => {
+    const saidas = apiData?.saidas ?? [];
+    const nomesSaidas = apiData?.nomesSaidas ?? {};
     return saidas.map((s) => {
       const retiradoPor = s.funcionarioRetirouUserId
         ? (nomesSaidas[s.funcionarioRetirouUserId] ?? s.funcionarioRetirouUserId)
@@ -295,7 +293,7 @@ function MovimentosContent() {
         encomendaId: s.encomendaId ?? null,
       };
     });
-  }, [saidas, nomesSaidas]);
+  }, [apiData]);
 
   const columnsEntradas = useMemo(() => entradasColumns(), []);
   const columnsSaidas = useMemo(

@@ -1,21 +1,18 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import {
   textoClassificacao,
-  textoGrupo,
-  textoFiltroTecnico,
-  textoCalibre,
   CLASSIFICACOES_RISCO,
   GRUPOS_COMPATIBILIDADE,
   FILTROS_TECNICOS,
   CALIBRES,
 } from "@/app/lib/produtos";
-import type { EncomendaItemCriarViewModel } from "@/app/lib/encomendas";
 import { getToken } from "@/app/lib/auth";
 import {
   fetchAdicionarItens,
@@ -57,6 +54,7 @@ function filtrarProdutos<T extends { nome?: string; familiaRisco?: string; grupo
 const MIN_QUANTIDADE = 0.0001;
 
 function AdicionarItensContent() {
+  const queryClient = useQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
   const clienteId = searchParams.get("clienteId") ?? "";
@@ -72,18 +70,149 @@ function AdicionarItensContent() {
   const [observacoes, setObservacoes] = useState("");
   const [mensagem, setMensagem] = useState<"ItemAdicionado" | "Erro" | "ErroStock" | null>(null);
   const [erroRegistar, setErroRegistar] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [isAdding, setIsAdding] = useState(false);
-  const [removingProdutoId, setRemovingProdutoId] = useState<number | null>(null);
-  const submittingRef = useRef(false);
-  const addingRef = useRef(false);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [apiCliente, setApiCliente] = useState<{ id: number; nome: string } | null>(null);
-  const [apiProdutos, setApiProdutos] = useState<Array<{ id: number; nome: string; [k: string]: unknown }>>([]);
-  const [apiDraftItens, setApiDraftItens] = useState<Array<{ produtoId: number; produtoNome?: string; quantidade: number }>>([]);
-  const [useApi, setUseApi] = useState(false);
-  const [loadingApi, setLoadingApi] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const prevClienteRef = useRef(clienteId);
+
+  const filterKey = useMemo(
+    () => ({
+      pesquisa: pesquisa || undefined,
+      classificacao: classificacao || undefined,
+      grupoCompatibilidade: grupoCompatibilidade || undefined,
+      filtroTecnico: filtroTecnico || undefined,
+      calibre: calibre || undefined,
+    }),
+    [pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre]
+  );
+
+  const [debouncedFilters, setDebouncedFilters] = useState(filterKey);
+
+  useEffect(() => {
+    if (clienteId !== prevClienteRef.current) {
+      prevClienteRef.current = clienteId;
+      const t = setTimeout(() => setDebouncedFilters(filterKey), 0);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(() => setDebouncedFilters(filterKey), 400);
+    return () => clearTimeout(t);
+  }, [clienteId, filterKey]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setPesquisa(searchParams.get("pesquisa") ?? "");
+      setClassificacao(searchParams.get("classificacao") ?? "");
+      setGrupoCompatibilidade(searchParams.get("grupoCompatibilidade") ?? "");
+      setFiltroTecnico(searchParams.get("filtroTecnico") ?? "");
+      setCalibre(searchParams.get("calibre") ?? "");
+    }, 0);
+    return () => clearTimeout(t);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setMounted(true), 0);
+    return () => clearTimeout(t);
+  }, []);
+
+  const cIdNum = clienteId ? parseInt(clienteId, 10) : NaN;
+  const validId = Boolean(clienteId && !Number.isNaN(cIdNum) && cIdNum >= 1);
+  const token = getToken();
+
+  const {
+    data: apiData,
+    isLoading: loadingApi,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ["encomendas", "adicionar-itens", cIdNum, debouncedFilters],
+    queryFn: async () => {
+      const t = getToken();
+      if (!t) throw new Error("no-token");
+      return fetchAdicionarItens(t, cIdNum, debouncedFilters);
+    },
+    enabled: mounted && !!token && validId,
+    retry: 1,
+  });
+
+  const loadError = isError && error instanceof Error ? error.message : null;
+
+  const filtrosMutacao = useMemo(
+    () => ({
+      pesquisa: pesquisa || undefined,
+      classificacao: classificacao || undefined,
+      grupoCompatibilidade: grupoCompatibilidade || undefined,
+      filtroTecnico: filtroTecnico || undefined,
+      calibre: calibre || undefined,
+    }),
+    [pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre]
+  );
+
+  const addMutation = useMutation({
+    mutationFn: async (vars: { produtoId: number; quantidade: number }) => {
+      const t = getToken();
+      if (!t) throw new Error("no-token");
+      return postAdicionarItem(t, {
+        clienteId: cIdNum,
+        produtoId: vars.produtoId,
+        quantidade: vars.quantidade,
+        ...filtrosMutacao,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["encomendas", "adicionar-itens", cIdNum] });
+      setQuantidade("");
+      setProdutoId("");
+      setMensagem("ItemAdicionado");
+    },
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: async (produtoId: number) => {
+      const t = getToken();
+      if (!t) throw new Error("no-token");
+      return postRemoverItem(t, {
+        clienteId: cIdNum,
+        produtoId,
+        ...filtrosMutacao,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["encomendas", "adicionar-itens", cIdNum] });
+    },
+  });
+
+  const submeterMutation = useMutation({
+    mutationFn: async () => {
+      const t = getToken();
+      if (!t) throw new Error("Sessão expirada. Faça login novamente.");
+      return postSubmeter(t, {
+        clienteId: cIdNum,
+        dataEntrega: dataEntrega.trim() || null,
+        observacoes: observacoes.trim() || null,
+      });
+    },
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["encomendas"] });
+      const id = res.encomenda?.id;
+      if (id != null) router.push(`/encomendas/${id}?criada=1`);
+      else {
+        setMensagem("Erro");
+        setErroRegistar("Resposta inválida do servidor.");
+      }
+    },
+    onError: (err: Error) => {
+      setMensagem("Erro");
+      const msg = err.message;
+      setErroRegistar(
+        msg === "Failed to fetch"
+          ? "Não foi possível contactar a API. Confirme que o backend está a correr (NEXT_PUBLIC_API_URL)."
+          : msg
+      );
+    },
+  });
+
+  const apiCliente =
+    apiData?.cliente && (apiData.cliente.id || apiData.cliente.nome) ? apiData.cliente : null;
+  const apiProdutos = apiData?.produtosFiltrados ?? [];
+  const apiDraftItens = apiData?.itensRascunho ?? [];
+  const useApi = !isError && apiData != null;
 
   const cliente = apiCliente ? { id: String(apiCliente.id), nome: apiCliente.nome } : null;
   const listaProdutosBruta = apiProdutos.map((p) => ({ ...p, id: String(p.id), nome: p.nome }));
@@ -95,75 +224,6 @@ function AdicionarItensContent() {
     filtroTecnico,
     calibre
   );
-
-  useEffect(() => {
-    setPesquisa(searchParams.get("pesquisa") ?? "");
-    setClassificacao(searchParams.get("classificacao") ?? "");
-    setGrupoCompatibilidade(searchParams.get("grupoCompatibilidade") ?? "");
-    setFiltroTecnico(searchParams.get("filtroTecnico") ?? "");
-    setCalibre(searchParams.get("calibre") ?? "");
-  }, [searchParams]);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const cIdNum = clienteId ? parseInt(clienteId, 10) : NaN;
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isInitialLoad = useRef(true);
-
-  useEffect(() => {
-    const validId = mounted && clienteId && !Number.isNaN(cIdNum) && cIdNum >= 1;
-    if (!validId) {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = null;
-      setLoadingApi(false);
-      return;
-    }
-    const token = getToken();
-    if (!token) {
-      setUseApi(false);
-      setLoadingApi(false);
-      return;
-    }
-
-    const doFetch = () => {
-      setLoadingApi(true);
-      setLoadError(null);
-      fetchAdicionarItens(token, cIdNum, {
-        pesquisa: pesquisa || undefined,
-        classificacao: classificacao || undefined,
-        grupoCompatibilidade: grupoCompatibilidade || undefined,
-        filtroTecnico: filtroTecnico || undefined,
-        calibre: calibre || undefined,
-      })
-        .then((data) => {
-          const c = data.cliente ?? null;
-          setApiCliente(c && (c.id || c.nome) ? c : null);
-          setApiProdutos(data.produtosFiltrados ?? []);
-          setApiDraftItens(data.itensRascunho ?? []);
-          setUseApi(true);
-        })
-        .catch((err) => {
-          setUseApi(false);
-          const msg = err instanceof Error ? err.message : "Erro de rede.";
-          setLoadError(msg === "Failed to fetch"
-            ? "Não foi possível contactar a API. Confirme que o backend está a correr (NEXT_PUBLIC_API_URL)."
-            : msg);
-        })
-        .finally(() => setLoadingApi(false));
-    };
-
-    const delayMs = isInitialLoad.current ? 0 : 400;
-    if (isInitialLoad.current) isInitialLoad.current = false;
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(doFetch, delayMs);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = null;
-    };
-  }, [mounted, clienteId, cIdNum, pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre]);
 
   if (!mounted) {
     return (
@@ -258,72 +318,41 @@ function AdicionarItensContent() {
 
   const handleAdicionarItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (addingRef.current || isAdding) return;
+    if (addMutation.isPending) return;
     const q = parseFloat(quantidade.replace(",", "."));
     if (!produtoId || Number.isNaN(q) || q < MIN_QUANTIDADE) {
       setMensagem("Erro");
       return;
     }
-    const token = getToken();
-    if (!token) {
+    const t = getToken();
+    if (!t) {
       setMensagem("Erro");
       return;
     }
-    addingRef.current = true;
-    setIsAdding(true);
     setMensagem(null);
     try {
-      const res = await postAdicionarItem(token, {
-        clienteId: cIdNum,
-        produtoId: parseInt(produtoId, 10),
-        quantidade: q,
-        pesquisa: pesquisa || undefined,
-        classificacao: classificacao || undefined,
-        grupoCompatibilidade: grupoCompatibilidade || undefined,
-        filtroTecnico: filtroTecnico || undefined,
-        calibre: calibre || undefined,
-      });
-      setApiDraftItens(res.draft?.itens ?? []);
-      setQuantidade("");
-      setProdutoId("");
-      setMensagem("ItemAdicionado");
+      await addMutation.mutateAsync({ produtoId: parseInt(produtoId, 10), quantidade: q });
     } catch {
       setMensagem("Erro");
-    } finally {
-      addingRef.current = false;
-      setIsAdding(false);
     }
   };
 
   const handleRemoverItem = async (produtoIdRemover: string) => {
-    const token = getToken();
-    if (!token) return;
+    const t = getToken();
+    if (!t) return;
     const idNum = parseInt(produtoIdRemover, 10);
-    if (removingProdutoId != null) return;
-    setRemovingProdutoId(idNum);
+    if (removeMutation.isPending) return;
     try {
-      const res = await postRemoverItem(token, {
-        clienteId: cIdNum,
-        produtoId: idNum,
-        pesquisa: pesquisa || undefined,
-        classificacao: classificacao || undefined,
-        grupoCompatibilidade: grupoCompatibilidade || undefined,
-        filtroTecnico: filtroTecnico || undefined,
-        calibre: calibre || undefined,
-      });
-      setApiDraftItens(res.draft?.itens ?? []);
-    } catch (_) {}
-    finally {
-      setRemovingProdutoId(null);
-    }
+      await removeMutation.mutateAsync(idNum);
+    } catch { /* ignore */ }
   };
 
   const handleRegistarEncomenda = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submittingRef.current) return;
+    if (submeterMutation.isPending) return;
     setErroRegistar(null);
-    const token = getToken();
-    if (!token) {
+    const t = getToken();
+    if (!t) {
       setMensagem("Erro");
       setErroRegistar("Sessão expirada. Faça login novamente.");
       return;
@@ -333,30 +362,11 @@ function AdicionarItensContent() {
       setErroRegistar("Adicione pelo menos um produto à encomenda antes de registar.");
       return;
     }
-    submittingRef.current = true;
-    setSubmitting(true);
     setMensagem(null);
     try {
-      const res = await postSubmeter(token, {
-        clienteId: cIdNum,
-        dataEntrega: dataEntrega.trim() || null,
-        observacoes: observacoes.trim() || null,
-      });
-      const id = res.encomenda?.id;
-      if (id != null) router.push(`/encomendas/${id}?criada=1`);
-      else {
-        setMensagem("Erro");
-        setErroRegistar("Resposta inválida do servidor.");
-      }
-    } catch (err) {
-      setMensagem("Erro");
-      const msg = err instanceof Error ? err.message : "Erro ao registar encomenda.";
-      setErroRegistar(msg === "Failed to fetch"
-        ? "Não foi possível contactar a API. Confirme que o backend está a correr (NEXT_PUBLIC_API_URL)."
-        : msg);
-    } finally {
-      submittingRef.current = false;
-      setSubmitting(false);
+      await submeterMutation.mutateAsync();
+    } catch {
+      /* onError da mutation define mensagem */
     }
   };
 
@@ -515,8 +525,8 @@ function AdicionarItensContent() {
                         required
                       />
                     </div>
-                    <button type="submit" className={btnPrimary} disabled={isAdding}>
-                      {isAdding ? "A adicionar…" : "Adicionar à encomenda"}
+                    <button type="submit" className={btnPrimary} disabled={addMutation.isPending}>
+                      {addMutation.isPending ? "A adicionar…" : "Adicionar à encomenda"}
                     </button>
                   </form>
                   <p className="mt-2 text-xs text-[#57534e] dark:text-gray-400">
@@ -552,10 +562,10 @@ function AdicionarItensContent() {
                           <button
                             type="button"
                             onClick={() => handleRemoverItem(item.produtoId)}
-                            disabled={removingProdutoId === parseInt(item.produtoId, 10)}
+                            disabled={removeMutation.isPending && removeMutation.variables === parseInt(item.produtoId, 10)}
                             className="text-red-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed dark:text-red-400"
                           >
-                            {removingProdutoId === parseInt(item.produtoId, 10) ? "A remover…" : "Remover"}
+                            {removeMutation.isPending && removeMutation.variables === parseInt(item.produtoId, 10) ? "A remover…" : "Remover"}
                           </button>
                         </li>
                       ))}
@@ -584,8 +594,8 @@ function AdicionarItensContent() {
                           className={`${inputClass} mt-1 w-full`}
                         />
                       </div>
-                      <button type="submit" className={`${btnPrimary} w-full`} disabled={submitting}>
-                        {submitting ? "A registar…" : "Registar encomenda"}
+                      <button type="submit" className={`${btnPrimary} w-full`} disabled={submeterMutation.isPending}>
+                        {submeterMutation.isPending ? "A registar…" : "Registar encomenda"}
                       </button>
                     </form>
                   )}

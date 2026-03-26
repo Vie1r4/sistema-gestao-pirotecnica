@@ -19,10 +19,9 @@ import {
 import { format, parseISO } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useRef } from "react";
-import { getToken } from "@/app/lib/auth";
 import { getGestorDashboard, type MovimentoRecenteDto } from "@/app/lib/homeGestor";
-import { corEstado } from "@/app/lib/encomendas";
-import { fadeInUp, transitionSmooth, staggerContainer, staggerItem } from "@/app/lib/animations";
+import { transitionSmooth, staggerContainer, staggerItem } from "@/app/lib/animations";
+import { useLiveDateTime } from "@/app/hooks/useLiveDateTime";
 
 const ROLE_COLORS: Record<string, string> = {
   Admin: "bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-300",
@@ -38,15 +37,6 @@ const AREAS_PIE: { key: string; label: string; color: string }[] = [
   { key: "funcionarios", label: "Funcionários", color: "#06b6d4" },
 ];
 
-function useLiveDateTime() {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(t);
-  }, []);
-  return now;
-}
-
 function useCountUp(value: number, enabled: boolean, durationMs = 800) {
   const [display, setDisplay] = useState(0);
   useEffect(() => {
@@ -54,7 +44,6 @@ function useCountUp(value: number, enabled: boolean, durationMs = 800) {
       setDisplay(value);
       return;
     }
-    let start = 0;
     const startTime = performance.now();
     const step = (time: number) => {
       const elapsed = time - startTime;
@@ -201,7 +190,7 @@ export default function DashboardGestor({
       total,
       mesKey: mes,
     }));
-  }, [data?.encomendasPorMes]);
+  }, [data]);
 
   const ultimosMovimentos: MovimentoRecenteDto[] = useMemo(() => {
     if (!data) return [];
@@ -216,7 +205,7 @@ export default function DashboardGestor({
   const encomendasPendentesLista = useMemo(() => {
     if (!data?.ultimasEncomendas) return [];
     return data.ultimasEncomendas.filter((e) => e.estado === "Pendente").slice(0, 5);
-  }, [data?.ultimasEncomendas]);
+  }, [data]);
 
   const temAlertas = data && (data.paioisEmManutencao?.length > 0);
   const roleBadgeClass = ROLE_COLORS[roleLabel] ?? "bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200";

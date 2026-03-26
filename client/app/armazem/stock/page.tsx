@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useMemo } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import { textoClassificacao, textoGrupo, textoFiltroTecnico, textoCalibre, CLASSIFICACOES_RISCO, GRUPOS_COMPATIBILIDADE, FILTROS_TECNICOS, CALIBRES } from "@/app/lib/produtos";
@@ -15,60 +15,67 @@ type ProdutoLinha = { id: string; nome: string; familiaRisco?: string; grupoComp
 const inputClass =
   "rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-[#f97316] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-white dark:placeholder-gray-500";
 
+function mapStockData(data: Awaited<ReturnType<typeof fetchStock>>): {
+  items: ProdutoLinha[];
+  stockMap: Map<string, number>;
+} {
+  const items = (data.items ?? []) as Array<Record<string, unknown>>;
+  const produtosLinha: ProdutoLinha[] = items.map((p) => {
+    const id = p.id ?? p.Id;
+    const nome = p.nome ?? p.Nome;
+    const nem = p.nemPorUnidade ?? p.NEMPorUnidade;
+    return {
+      id: String(id ?? ""),
+      nome: String(nome ?? ""),
+      familiaRisco: (p.familiaRisco ?? p.FamiliaRisco) as string | undefined,
+      grupoCompatibilidade: (p.grupoCompatibilidade ?? p.GrupoCompatibilidade) as string | undefined,
+      filtroTecnico: (p.filtroTecnico ?? p.FiltroTecnico) as string | undefined,
+      calibre: (p.calibre ?? p.Calibre) as string | undefined,
+      nemPorUnidade: Number(nem ?? 0),
+    };
+  });
+  const stockRaw = (data.stockPorProduto ?? {}) as Record<string, number>;
+  const stockMap = new Map<string, number>();
+  for (const [k, v] of Object.entries(stockRaw)) stockMap.set(String(k), Number(v));
+  return { items: produtosLinha, stockMap };
+}
+
 function StockContent() {
-  const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [pesquisa, setPesquisa] = useState("");
   const [classificacao, setClassificacao] = useState("");
   const [grupoCompatibilidade, setGrupoCompatibilidade] = useState("");
   const [filtroTecnico, setFiltroTecnico] = useState("");
   const [calibre, setCalibre] = useState("");
-  const [apiData, setApiData] = useState<{ items: ProdutoLinha[]; stockMap: Map<string, number> } | null>(null);
-  const [loadingApi, setLoadingApi] = useState(true);
+  const token = getToken();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (!mounted) return;
-    const token = getToken();
-    if (!token) {
-      setLoadingApi(false);
-      return;
-    }
-    setLoadingApi(true);
-    fetchStock(token, {
+  const filterKey = useMemo(
+    () => ({
       pesquisa: pesquisa || undefined,
       classificacao: classificacao || undefined,
       grupoCompatibilidade: grupoCompatibilidade || undefined,
       filtroTecnico: filtroTecnico || undefined,
       calibre: calibre || undefined,
-    })
-      .then((data) => {
-        const items = (data.items ?? []) as Array<Record<string, unknown>>;
-        const produtosLinha: ProdutoLinha[] = items.map((p) => {
-          const id = p.id ?? p.Id;
-          const nome = p.nome ?? p.Nome;
-          const nem = p.nemPorUnidade ?? p.NEMPorUnidade;
-          return {
-            id: String(id ?? ""),
-            nome: String(nome ?? ""),
-            familiaRisco: (p.familiaRisco ?? p.FamiliaRisco) as string | undefined,
-            grupoCompatibilidade: (p.grupoCompatibilidade ?? p.GrupoCompatibilidade) as string | undefined,
-            filtroTecnico: (p.filtroTecnico ?? p.FiltroTecnico) as string | undefined,
-            calibre: (p.calibre ?? p.Calibre) as string | undefined,
-            nemPorUnidade: Number(nem ?? 0),
-          };
-        });
-        const stockRaw = (data.stockPorProduto ?? {}) as Record<string, number>;
-        const stockMap = new Map<string, number>();
-        for (const [k, v] of Object.entries(stockRaw)) stockMap.set(String(k), Number(v));
-        setApiData({ items: produtosLinha, stockMap });
-      })
-      .catch(() => setApiData(null))
-      .finally(() => setLoadingApi(false));
-  }, [mounted, pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre]);
+    }),
+    [pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre]
+  );
+
+  const { data: apiData, isLoading: loadingApi } = useQuery({
+    queryKey: ["armazem", "stock", filterKey],
+    queryFn: async () => {
+      const t = getToken();
+      if (!t) throw new Error("no-token");
+      const raw = await fetchStock(t, filterKey);
+      return mapStockData(raw);
+    },
+    enabled: mounted && !!token,
+    staleTime: 30 * 1000,
+    retry: 1,
+  });
 
   if (!mounted) {
     return (

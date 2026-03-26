@@ -11,8 +11,6 @@ import {
 } from "@/app/lib/auth";
 import { apiPath } from "@/app/lib/apiConfig";
 
-const API_ME = apiPath("api/auth/me");
-
 export type CurrentUser = {
   id: string;
   email: string | null;
@@ -47,31 +45,31 @@ function parseMeData(data: Record<string, unknown>): CurrentUser {
 function useRefreshTokenScheduler() {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function scheduleRefresh() {
-    const token = getToken();
-    const refreshToken = getRefreshToken();
-    if (!token || !refreshToken) return;
-    const exp = getTokenExpirationSeconds(token);
-    if (exp == null) return;
-    const nowSec = Date.now() / 1000;
-    const refreshAtSec = exp - 5 * 60; // 5 min before expiry
-    const delayMs = Math.max(0, (refreshAtSec - nowSec) * 1000);
-    if (delayMs <= 0) {
-      refreshAccessToken().then((newToken) => {
-        if (newToken) scheduleRefresh();
-        else logout();
-      });
-      return;
-    }
-    timeoutRef.current = setTimeout(() => {
-      refreshAccessToken().then((newToken) => {
-        if (newToken) scheduleRefresh();
-        else logout();
-      });
-    }, delayMs);
-  }
-
   useEffect(() => {
+    function scheduleRefresh() {
+      const token = getToken();
+      const refreshToken = getRefreshToken();
+      if (!token || !refreshToken) return;
+      const exp = getTokenExpirationSeconds(token);
+      if (exp == null) return;
+      const nowSec = Date.now() / 1000;
+      const refreshAtSec = exp - 5 * 60; // 5 min before expiry
+      const delayMs = Math.max(0, (refreshAtSec - nowSec) * 1000);
+      if (delayMs <= 0) {
+        refreshAccessToken().then((newToken) => {
+          if (newToken) scheduleRefresh();
+          else logout();
+        });
+        return;
+      }
+      timeoutRef.current = setTimeout(() => {
+        refreshAccessToken().then((newToken) => {
+          if (newToken) scheduleRefresh();
+          else logout();
+        });
+      }, delayMs);
+    }
+
     if (!getToken() || !getRefreshToken()) return;
     scheduleRefresh();
     return () => {
@@ -93,7 +91,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     queryFn: async (): Promise<CurrentUser | null> => {
       const token = getToken();
       if (!token) return null;
-      const res = await fetch(API_ME, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(apiPath("api/auth/me"), { headers: { Authorization: `Bearer ${token}` } });
       if (res.status === 401 || !res.ok) return null;
       const raw = (await res.json()) as Record<string, unknown>;
       return parseMeData(raw);

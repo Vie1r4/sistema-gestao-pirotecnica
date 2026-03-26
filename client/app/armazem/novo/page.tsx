@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import MapaCoordenadas from "@/app/components/MapaCoordenadas";
@@ -19,14 +19,11 @@ import {
   type PerfilRiscoPaiol,
   type EstadoPaiol,
 } from "@/app/lib/armazem";
-import { fetchCreate } from "@/app/lib/paiolApi";
 import { parseApiErrorBody } from "@/app/lib/apiErrors";
 import { useToastStore } from "@/app/stores/useToastStore";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 
 import { apiPath } from "@/app/lib/apiConfig";
-
-const API_PAIOL = apiPath("api/paiol");
 
 const cardClass =
   "card-hover rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111] sm:p-8";
@@ -67,26 +64,11 @@ export default function NovoPaiolPage() {
   const queryClient = useQueryClient();
   const token = getToken();
 
-  const { data: createOptionsData } = useQuery({
-    queryKey: ["armazem", "paiol", "create"],
-    queryFn: () => fetchCreate(token!),
-    staleTime: 5 * 60 * 1000,
-    enabled: mounted && !!token,
-  });
-
-  const createOptions = createOptionsData
-    ? {
-        perfisRisco: createOptionsData.perfisRisco ?? [],
-        estados: createOptionsData.estados ?? [],
-        cargosDisponiveis: createOptionsData.cargosDisponiveis ?? [],
-      }
-    : null;
-
   const createMutation = useMutation({
     mutationFn: async (fd: FormData) => {
       const t = getToken();
       if (!t) throw new Error("Sessão expirada.");
-      const res = await fetch(API_PAIOL, {
+      const res = await fetch(apiPath("api/paiol"), {
         method: "POST",
         headers: { Authorization: `Bearer ${t}` },
         body: fd,

@@ -3,10 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { fetchUtilizadorParaEditar, updateUtilizador, type EditarUtilizadorModel } from "@/app/lib/admin";
 import { getToken } from "@/app/lib/auth";
-import { AdminPageHeader, AdminCard, buildBreadcrumbs } from "@/app/admin/_components";
+import { AdminPageHeader, buildBreadcrumbs } from "@/app/admin/_components";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 
 const cardClass =
@@ -27,12 +28,11 @@ export default function EditarUtilizadorPage() {
   const params = useParams();
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const id = params.id as string;
   const [mounted, setMounted] = useState(false);
   const [model, setModel] = useState<EditarUtilizadorModel | null>(null);
   const [funcionariosDisponiveis, setFuncionariosDisponiveis] = useState<{ id: number; nomeCompleto: string }[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
   const [message, setMessage] = useState<{ type: "error"; text: string } | null>(null);
 
@@ -40,26 +40,48 @@ export default function EditarUtilizadorPage() {
     setMounted(true);
   }, []);
 
+  const { data: editData, isLoading: loading } = useQuery({
+    queryKey: ["admin", "utilizador", id],
+    queryFn: async () => {
+      const token = getToken();
+      if (!token) {
+        router.replace("/login");
+        throw new Error("no-token");
+      }
+      return fetchUtilizadorParaEditar(token, id);
+    },
+    enabled: mounted && !!id,
+    retry: 1,
+  });
+
   useEffect(() => {
-    if (!mounted || !id) return;
-    const token = getToken();
-    if (!token) {
-      router.replace("/login");
-      return;
+    if (loading) return;
+    if (editData) {
+      setModel(editData.model);
+      setFuncionariosDisponiveis(editData.funcionariosDisponiveis);
+    } else {
+      setModel(null);
+      setFuncionariosDisponiveis([]);
     }
-    setLoading(true);
-    fetchUtilizadorParaEditar(token, id)
-      .then((data) => {
-        if (data) {
-          setModel(data.model);
-          setFuncionariosDisponiveis(data.funcionariosDisponiveis);
-        } else {
-          setModel(null);
-        }
-      })
-      .catch(() => setModel(null))
-      .finally(() => setLoading(false));
-  }, [mounted, id, router]);
+  }, [editData, loading]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (m: EditarUtilizadorModel) => {
+      const token = getToken();
+      if (!token) {
+        router.replace("/login");
+        throw new Error("Sessão expirada.");
+      }
+      await updateUtilizador(token, id, m);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "utilizadores"] });
+      router.push("/admin/utilizadores");
+    },
+    onError: (e: Error) => {
+      setMessage({ type: "error", text: e.message || "Erro ao guardar." });
+    },
+  });
 
   const toggleRole = (nome: string) => {
     if (!model) return;
@@ -73,26 +95,18 @@ export default function EditarUtilizadorPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submittingRef.current) return;
+    if (submittingRef.current || saveMutation.isPending) return;
     if (!model) return;
-    const token = getToken();
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
     setMessage(null);
     submittingRef.current = true;
-    setSubmitting(true);
     try {
-      await updateUtilizador(token, id, model);
-      router.push("/admin/utilizadores");
-    } catch (e) {
-      setMessage({ type: "error", text: e instanceof Error ? e.message : "Erro ao guardar." });
+      await saveMutation.mutateAsync(model);
     } finally {
       submittingRef.current = false;
-      setSubmitting(false);
     }
   };
+
+  const submitting = saveMutation.isPending;
 
   if (!mounted || loading) {
     return (

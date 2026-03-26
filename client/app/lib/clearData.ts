@@ -40,7 +40,7 @@ function clearLocalAndRedirect(): void {
     for (const key of SESSION_KEYS) {
       sessionStorage.removeItem(key);
     }
-  } catch (_) {}
+  } catch {}
   window.location.href = "/";
 }
 
@@ -54,7 +54,7 @@ export async function clearAllDataAndRedirect(): Promise<void> {
   if (token) {
     try {
       await clearAllDataApi(token);
-    } catch (_) {
+    } catch {
       // API em baixo, 403 ou CORS: mesmo assim limpamos o cliente
     }
   }
@@ -71,7 +71,7 @@ export async function homeLimparDadosAndRedirect(): Promise<void> {
   if (token) {
     try {
       await postLimparDados(token);
-    } catch (_) {
+    } catch {
       // API em baixo ou CORS: mesmo assim limpamos o cliente
     }
   }

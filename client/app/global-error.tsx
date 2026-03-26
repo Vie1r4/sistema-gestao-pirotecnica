@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 /**
  * Error boundary que substitui o layout completo quando ocorre um erro (incluindo no root layout).
  * Inclui html/body porque em caso de erro o layout não é renderizado.
@@ -11,6 +13,7 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  void error;
   return (
     <html lang="pt">
       <body style={{ margin: 0, fontFamily: "system-ui, sans-serif", background: "#f8f7f5" }}>
@@ -58,7 +61,7 @@ export default function GlobalError({
               >
                 Tentar novamente
               </button>
-              <a
+              <Link
                 href="/"
                 style={{
                   padding: "0.5rem 1rem",
@@ -70,7 +73,7 @@ export default function GlobalError({
                 }}
               >
                 Voltar ao início
-              </a>
+              </Link>
             </div>
           </div>
         </div>

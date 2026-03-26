@@ -110,10 +110,20 @@ export type ServicoEquipa = {
   funcionarioId: string;
 };
 
+/** 0 = papelada/pedido gerado internamente; 1 = registo definitivo autorizado pelas entidades. */
+export type OrigemRegistoServicoLicenca = 0 | 1;
+
+export const ORIGEM_LICENCA_SERVICO = {
+  pedidoGerado: 0 as const,
+  autorizacaoDefinitiva: 1 as const,
+};
+
 export type ServicoLicenca = {
   id: string;
   servicoId: string;
   tipoLicenca: TipoLicencaServico;
+  /** 0 pedido/papelada; 1 autorização definitiva (omissão na API antiga = 1). */
+  origemRegisto?: OrigemRegistoServicoLicenca;
   nomePersonalizado?: string;
   numeroDocumento?: string;
   dataEmissao?: string;
@@ -154,7 +164,13 @@ export type ResumoMaterialServicoViewModel = {
 export type LicencaServicoLinhaViewModel = {
   tipo: TipoLicencaServico;
   obrigatorio: boolean;
-  estado: number; // 0 em falta, 1 tem número sem ficheiro, 2 completo
+  /** Compat: max(estadoPedido, estadoDefinitiva). */
+  estado: number;
+  estadoPedido: number;
+  estadoDefinitiva: number;
+  licencaPedido?: ServicoLicenca;
+  licencaDefinitiva?: ServicoLicenca;
+  /** Preferência: definitiva; compat com API antiga. */
   licenca?: ServicoLicenca;
   nomeExibicao: string;
 };
@@ -268,13 +284,48 @@ function mapApiDetalheToServicoDetalhe(data: {
     };
   });
 
-  const licencasEvento = (data.licencasEvento ?? []).map((l: Record<string, unknown>) => ({
-    tipo: (l.tipo ?? l.Tipo) as TipoLicencaServico,
-    obrigatorio: Boolean(l.obrigatorio ?? l.Obrigatorio),
-    estado: Number(l.estado ?? l.Estado ?? 0),
-    licenca: l.licenca ?? l.Licenca,
-    nomeExibicao: String((l as { nomeExibicao?: string; NomeExibicao?: string }).nomeExibicao ?? (l as { nomeExibicao?: string; NomeExibicao?: string }).NomeExibicao ?? ""),
-  })) as LicencaServicoLinhaViewModel[];
+  const mapVmLic = (raw: unknown): ServicoLicenca | undefined => {
+    if (!raw || typeof raw !== "object") return undefined;
+    const x = raw as Record<string, unknown>;
+    return {
+      id: mapId(x.id ?? x.Id),
+      servicoId: mapId(x.servicoId ?? x.ServicoId),
+      tipoLicenca: (x.tipoLicenca ?? x.TipoLicenca) as TipoLicencaServico,
+      origemRegisto: (x.origemRegisto ?? x.OrigemRegisto) != null ? (Number(x.origemRegisto ?? x.OrigemRegisto) as OrigemRegistoServicoLicenca) : undefined,
+      nomePersonalizado: (x.nomePersonalizado ?? x.NomePersonalizado) as string | undefined,
+      numeroDocumento: (x.numeroDocumento ?? x.NumeroDocumento) as string | undefined,
+      dataEmissao: (x.dataEmissao ?? x.DataEmissao) as string | undefined,
+      dataValidade: (x.dataValidade ?? x.DataValidade) as string | undefined,
+      observacoes: (x.observacoes ?? x.Observacoes) as string | undefined,
+    };
+  };
+
+  const licencasEvento = (data.licencasEvento ?? []).map((l: Record<string, unknown>) => {
+    const ped = mapVmLic(l.licencaPedido ?? l.LicencaPedido);
+    const def = mapVmLic(l.licencaDefinitiva ?? l.LicencaDefinitiva);
+    const estadoPedido = Number(l.estadoPedido ?? l.EstadoPedido ?? 0);
+    const estadoDefinitiva = Number(l.estadoDefinitiva ?? l.EstadoDefinitiva ?? 0);
+    const estadoLegacy = Number(l.estado ?? l.Estado ?? 0);
+    const estado =
+      l.estadoPedido != null || l.EstadoPedido != null || l.estadoDefinitiva != null || l.EstadoDefinitiva != null
+        ? Math.max(estadoPedido, estadoDefinitiva)
+        : estadoLegacy;
+    return {
+      tipo: (l.tipo ?? l.Tipo) as TipoLicencaServico,
+      obrigatorio: Boolean(l.obrigatorio ?? l.Obrigatorio),
+      estado,
+      estadoPedido: l.estadoPedido != null || l.EstadoPedido != null ? estadoPedido : estadoLegacy,
+      estadoDefinitiva: l.estadoDefinitiva != null || l.EstadoDefinitiva != null ? estadoDefinitiva : estadoLegacy,
+      licencaPedido: ped,
+      licencaDefinitiva: def,
+      licenca: def ?? ped ?? mapVmLic(l.licenca ?? l.Licenca),
+      nomeExibicao: String(
+        (l as { nomeExibicao?: string; NomeExibicao?: string }).nomeExibicao ??
+          (l as { nomeExibicao?: string; NomeExibicao?: string }).NomeExibicao ??
+          ""
+      ),
+    } as LicencaServicoLinhaViewModel;
+  });
 
   return {
     ...mapApiServicoToList(data.servico),
@@ -282,16 +333,21 @@ function mapApiDetalheToServicoDetalhe(data: {
     cliente: cliente ? { id: mapId(cliente.id ?? cliente.Id), nome: String(cliente.nome ?? cliente.Nome ?? "") } as Cliente : null,
     encomenda: encomenda ? { id: mapId(encomenda.id ?? encomenda.Id), estado: (encomenda.estado ?? encomenda.Estado) as string } as Encomenda : null,
     responsavelTecnico: resp ? { id: mapId(resp.id ?? resp.Id), nomeCompleto: String(resp.nomeCompleto ?? resp.NomeCompleto ?? "") } as Funcionario : null,
+    // API GET detalhe devolve Equipa como lista de FuncionarioResponseDto (id, nomeCompleto no topo),
+    // não como { funcionarioId, funcionario }.
     equipa: (equipa ?? []).map((e: Record<string, unknown>) => {
-      const fid = mapId(e.funcionarioId ?? e.FuncionarioId);
-      const f = (e.funcionario ?? e.Funcionario) as Record<string, unknown> | undefined;
-      const funcionarioFromApi = f
-        ? ({ id: fid, nomeCompleto: String(f.nomeCompleto ?? f.NomeCompleto ?? "") } as Funcionario)
-        : null;
+      const nested = (e.funcionario ?? e.Funcionario) as Record<string, unknown> | undefined;
+      const src = nested ?? e;
+      const fid = mapId(e.funcionarioId ?? e.FuncionarioId) || mapId(src.id ?? src.Id);
+      const nomeCompleto = String(
+        (nested
+          ? (nested.nomeCompleto ?? nested.NomeCompleto)
+          : (e.nomeCompleto ?? e.NomeCompleto)) ?? ""
+      );
       return {
         servicoId: id,
         funcionarioId: fid,
-        funcionario: funcionarioFromApi,
+        funcionario: { id: fid, nomeCompleto } as Funcionario,
       };
     }),
     documentosExtras: (documentosExtras ?? []).map((d: Record<string, unknown>) => ({
@@ -304,6 +360,10 @@ function mapApiDetalheToServicoDetalhe(data: {
       id: mapId(l.id ?? l.Id),
       servicoId: id,
       tipoLicenca: (l.tipoLicenca ?? l.TipoLicenca) as TipoLicencaServico,
+      origemRegisto:
+        (l.origemRegisto ?? l.OrigemRegisto) != null
+          ? (Number(l.origemRegisto ?? l.OrigemRegisto) as OrigemRegistoServicoLicenca)
+          : ORIGEM_LICENCA_SERVICO.autorizacaoDefinitiva,
       numeroDocumento: (l.numeroDocumento ?? l.NumeroDocumento) as string | undefined,
       dataEmissao: (l.dataEmissao ?? l.DataEmissao) as string | undefined,
       dataValidade: (l.dataValidade ?? l.DataValidade) as string | undefined,

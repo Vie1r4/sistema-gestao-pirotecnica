@@ -1,61 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "../../components/Navbar";
-import type { Funcionario, CargoFuncionario } from "../../lib/funcionarios";
+import type { Funcionario } from "../../lib/funcionarios";
 import { getToken } from "../../lib/auth";
 import { useUser } from "@/app/context/UserContext";
-import { safeParseJson } from "../../lib/api";
 import { fadeInUp, transitionSmooth } from "../../lib/animations";
-
-import { apiPath } from "@/app/lib/apiConfig";
-
-const API_BASE = apiPath("api/funcionarios");
-
-function mapApiItemToFuncionario(item: Record<string, unknown>, contaEmailConfirmada?: boolean): Funcionario {
-  const nome = (item.nomeCompleto ?? item.NomeCompleto ?? item.nome ?? "") as string;
-  // A API de detalhe devolve HasCartaoCidadao, HasDocumentoADR, etc. (não os caminhos); usar esses para mostrar a secção Documentos
-  const hasCc = Boolean(item.hasCartaoCidadao ?? item.HasCartaoCidadao ?? item.cartaoCidadaoCaminho ?? item.CartaoCidadaoCaminho);
-  const hasAdr = Boolean(item.hasDocumentoADR ?? item.HasDocumentoADR ?? item.documentoADDRCaminho ?? item.DocumentoADDRCaminho);
-  const hasLic = Boolean(item.hasLicencaOperador ?? item.HasLicencaOperador ?? item.licencaOperadorCaminho ?? item.LicencaOperadorCaminho);
-  const hasOutros = Boolean(item.hasOutros ?? item.HasOutros ?? item.outrosCaminho ?? item.OutrosCaminho);
-  const apiExtras = (item.documentosExtras ?? item.DocumentosExtras ?? []) as Record<string, unknown>[];
-  const extras = apiExtras.map((ex) => ({
-    id: String(ex.id ?? ex.Id ?? ""),
-    nome: String(ex.nome ?? ex.Nome ?? ""),
-  }));
-  const documentos: Funcionario["documentos"] =
-    hasCc || hasAdr || hasLic || hasOutros || extras.length > 0
-      ? {
-          cartaoCidadao: hasCc ? "cc" : undefined,
-          adr: hasAdr ? "adr" : undefined,
-          licencaOperador: hasLic ? "licenca" : undefined,
-          outros: hasOutros ? "outros" : undefined,
-          extras,
-        }
-      : undefined;
-  return {
-    id: String(item.id ?? item.Id ?? ""),
-    nomeCompleto: nome,
-    nif: (item.nif ?? item.NIF) as string | undefined,
-    email: (item.email ?? item.Email) as string | undefined,
-    telefone: (item.telefone ?? item.Telefone) as string | undefined,
-    morada: (item.morada ?? item.Morada) as string | undefined,
-    nss: (item.nss ?? item.NSS) as string | undefined,
-    iban: (item.iban ?? item.IBAN) as string | undefined,
-    cargo: (item.cargo ?? item.Cargo ?? "Comercial") as CargoFuncionario,
-    notas: (item.notas ?? item.Notas) as string | undefined,
-    dataRegisto: String(item.dataRegisto ?? item.DataRegisto ?? new Date().toISOString()),
-    contaAssociada: Boolean(item.userId ?? item.UserId),
-    emailConfirmado: contaEmailConfirmada ?? (item.emailConfirmado as boolean | undefined),
-    userId: (item.userId ?? item.UserId) as string | undefined,
-    documentos,
-  };
-}
+import { fetchFuncionarioPorId } from "@/app/lib/funcionariosApi";
 
 const cardClass =
   "card-hover rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111] sm:p-8";
@@ -71,7 +25,7 @@ const btnSecondary =
 const btnDanger =
   "data-button rounded-xl border border-red-300 px-4 py-2 text-sm font-medium text-red-700 transition-[border-color,background-color,color] duration-200 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950";
 
-function DocLink({ label, fileName }: { label: string; fileName: string }) {
+function DocLink({ label }: { label: string; fileName?: string }) {
   return (
     <div className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-[#222] px-3 py-2">
       <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
@@ -118,23 +72,7 @@ export default function FuncionarioDetalhePage() {
         router.replace("/login");
         throw new Error("Sessão expirada.");
       }
-      const res = await fetch(`${API_BASE}/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        if (res.status === 401) {
-          router.replace("/login");
-          throw new Error("Sessão expirada.");
-        }
-        const text = await res.text();
-        throw new Error(res.status === 404 ? "Funcionário não encontrado." : text || `Erro ${res.status}`);
-      }
-      const value = (await safeParseJson(res)) as unknown;
-      const data = value as { item?: Record<string, unknown>; contaEmailConfirmada?: boolean };
-      const raw = data?.item ?? data;
-      if (raw && typeof raw === "object")
-        return mapApiItemToFuncionario(raw as Record<string, unknown>, data.contaEmailConfirmada);
-      return null;
+      return fetchFuncionarioPorId(token, id, { onUnauthorized: () => router.replace("/login") });
     },
     staleTime: 30 * 1000,
     retry: 2,

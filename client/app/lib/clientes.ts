@@ -38,8 +38,6 @@ export type ClienteDetalheApi = {
   totalHistorico?: number;
 };
 
-const API_CLIENTES = apiPath("api/clientes");
-
 /** Mapeia objeto da API (camelCase ou PascalCase) para Cliente (id sempre string). */
 export function mapApiToCliente(p: Record<string, unknown>): Cliente {
   const docs = (p.documentosExtras ?? p.DocumentosExtras) as Array<Record<string, unknown>> | undefined;
@@ -73,7 +71,7 @@ export async function fetchClientes(
   const params = new URLSearchParams();
   if (opts?.pesquisa) params.set("pesquisa", opts.pesquisa);
   if (opts?.ordenar) params.set("ordenar", opts.ordenar);
-  const res = await fetch(`${API_CLIENTES}?${params.toString()}`, {
+  const res = await fetch(`${apiPath("api/clientes")}?${params.toString()}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(res.status === 401 ? "Não autenticado" : `Erro ${res.status}`);
@@ -96,8 +94,8 @@ export async function fetchClienteDetalhe(
   if (Number.isNaN(numId)) return null;
   const url =
     historicoPagina != null && historicoPagina > 1
-      ? `${API_CLIENTES}/${numId}?historicoPagina=${historicoPagina}`
-      : `${API_CLIENTES}/${numId}`;
+      ? `${apiPath("api/clientes")}/${numId}?historicoPagina=${historicoPagina}`
+      : `${apiPath("api/clientes")}/${numId}`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -123,7 +121,7 @@ export async function fetchClienteEdit(
 ): Promise<{ item: Cliente; tiposCliente: string[] } | null> {
   const numId = parseInt(id, 10);
   if (Number.isNaN(numId)) return null;
-  const res = await fetch(`${API_CLIENTES}/${numId}/edit`, {
+  const res = await fetch(`${apiPath("api/clientes")}/${numId}/edit`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (res.status === 404) return null;
@@ -142,7 +140,7 @@ export async function fetchClienteDelete(
 ): Promise<Cliente | null> {
   const numId = parseInt(id, 10);
   if (Number.isNaN(numId)) return null;
-  const res = await fetch(`${API_CLIENTES}/${numId}/delete`, {
+  const res = await fetch(`${apiPath("api/clientes")}/${numId}/delete`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (res.status === 404) return null;
@@ -156,7 +154,7 @@ export async function createClienteApi(
   token: string,
   fd: FormData
 ): Promise<{ id: number; cliente: Cliente }> {
-  const res = await fetch(API_CLIENTES, {
+  const res = await fetch(apiPath("api/clientes"), {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
     body: fd,
@@ -178,7 +176,7 @@ export async function updateClienteApi(
 ): Promise<void> {
   const numId = parseInt(id, 10);
   if (Number.isNaN(numId)) throw new Error("Id inválido");
-  const res = await fetch(`${API_CLIENTES}/${numId}`, {
+  const res = await fetch(`${apiPath("api/clientes")}/${numId}`, {
     method: "PUT",
     headers: { Authorization: `Bearer ${token}` },
     body: fd,
@@ -193,7 +191,7 @@ export async function updateClienteApi(
 export async function deleteClienteApi(token: string, id: string): Promise<void> {
   const numId = parseInt(id, 10);
   if (Number.isNaN(numId)) throw new Error("Id inválido");
-  const res = await fetch(`${API_CLIENTES}/${numId}`, {
+  const res = await fetch(`${apiPath("api/clientes")}/${numId}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -203,7 +201,7 @@ export async function deleteClienteApi(token: string, id: string): Promise<void>
 
 /** URL para abrir documento extra (com token não funciona em nova janela; use fetchDocumentoUrl). */
 export function documentoClienteUrl(clienteId: string, extraId: string): string {
-  return `${API_CLIENTES}/${clienteId}/documentos/${extraId}`;
+  return `${apiPath("api/clientes")}/${clienteId}/documentos/${extraId}`;
 }
 
 /** Faz fetch do ficheiro com Authorization e devolve blob URL para abrir no browser. */

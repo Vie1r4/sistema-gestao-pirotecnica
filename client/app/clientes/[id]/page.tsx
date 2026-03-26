@@ -6,7 +6,7 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
-import { fetchClienteDetalhe, fetchDocumentoClienteBlobUrl, type Cliente } from "@/app/lib/clientes";
+import { fetchClienteDetalhe, fetchDocumentoClienteBlobUrl } from "@/app/lib/clientes";
 import { getToken } from "@/app/lib/auth";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 
@@ -18,9 +18,6 @@ const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300";
 
 const btnPrimary =
   "data-button rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
-
-const btnSecondary =
-  "data-button rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-[border-color,background-color,color] duration-200 hover:bg-gray-50 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
 
 const btnDanger =
   "data-button rounded-xl border border-red-300 px-4 py-2 text-sm font-medium text-red-700 transition-[border-color,background-color,color] duration-200 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950";

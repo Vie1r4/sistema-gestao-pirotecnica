@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense, useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -10,13 +10,8 @@ import Navbar, { CONTENT_OFFSET_TOP } from "../components/Navbar";
 import { DataTable } from "../components/ui/DataTable";
 import type { Funcionario, CargoFuncionario } from "../lib/funcionarios";
 import { getToken } from "../lib/auth";
-import { useUser } from "@/app/context/UserContext";
-import { safeParseJson } from "../lib/api";
+import { fetchFuncionariosLista } from "../lib/funcionariosApi";
 import { fadeInUp, transitionSmooth } from "../lib/animations";
-
-import { apiPath } from "@/app/lib/apiConfig";
-
-const API_FUNCIONARIOS = apiPath("api/funcionarios");
 
 const btnPrimary =
   "data-button rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
@@ -100,8 +95,6 @@ function FuncionariosContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const { user } = useUser();
-  const canGerirFuncionarios = (user?.permissions ?? []).includes("funcionarios.gerir");
   const eliminado = searchParams.get("eliminado") === "1";
   const columns = useMemo(() => funcionariosColumns(), []);
 
@@ -118,27 +111,16 @@ function FuncionariosContent() {
         if (pathname !== "/login") router.replace("/login");
         throw new Error("Sessão expirada. Faça login novamente.");
       }
-      const res = await fetch(API_FUNCIONARIOS, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        if (res.status === 401) {
+      try {
+        const { items: arr, userIdsConfirmados } = await fetchFuncionariosLista(token);
+        return arr.map((item) => mapApiToFuncionario(item, userIdsConfirmados));
+      } catch (e) {
+        if (e instanceof Error && e.message === "UNAUTHORIZED") {
           router.replace("/login");
           throw new Error("Sessão expirada. Faça login novamente.");
         }
-        throw new Error(
-          res.status === 404
-            ? "Recurso não encontrado."
-            : "Erro ao carregar funcionários."
-        );
+        throw e;
       }
-      const data = (await safeParseJson(res)) as unknown;
-      const dataObj = data as { items?: unknown[]; userIdsConfirmados?: string[] } | null;
-      const arr = Array.isArray(dataObj?.items) ? dataObj.items : [];
-      const userIdsConfirmados = Array.isArray(dataObj?.userIdsConfirmados) ? dataObj.userIdsConfirmados : [];
-      return arr.map((item) =>
-        mapApiToFuncionario(item as Record<string, unknown>, userIdsConfirmados)
-      );
     },
     staleTime: 30 * 1000,
     retry: 3,

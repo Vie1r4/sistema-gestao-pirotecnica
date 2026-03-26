@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import { getToken } from "@/app/lib/auth";
@@ -44,56 +45,68 @@ function NovoServicoContent() {
   const [responsavelTecnicoId, setResponsavelTecnicoId] = useState("");
   const [equipaIds, setEquipaIds] = useState<Set<string>>(new Set());
   const [observacoes, setObservacoes] = useState("");
-  const [submitting, setSubmitting] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const [encomendasDisponiveis, setEncomendasDisponiveis] = useState<EncomendaOpt[]>([]);
-  const [responsaveis, setResponsaveis] = useState<FuncionarioOpt[]>([]);
-  const [funcionariosEquipa, setFuncionariosEquipa] = useState<FuncionarioOpt[]>([]);
-  const [loadingForm, setLoadingForm] = useState(true);
-  const submittingRef = useRef(false);
+  const token = getToken();
+  const encomendaPreselect = encomendaIdParam ? parseInt(encomendaIdParam, 10) : undefined;
 
   useEffect(() => {
-    setMounted(true);
+    const t = setTimeout(() => setMounted(true), 0);
+    return () => clearTimeout(t);
   }, []);
 
-  useEffect(() => {
-    if (!mounted) return;
-    const token = getToken();
-    if (!token) {
-      setEncomendasDisponiveis([]);
-      setResponsaveis([]);
-      setFuncionariosEquipa([]);
-      setLoadingForm(false);
-      return;
-    }
-    setLoadingForm(true);
-    servicosApi
-      .fetchServicosCreate(token, encomendaIdParam ? parseInt(encomendaIdParam, 10) : undefined)
-      .then((res) => {
-        setEncomendasDisponiveis((res.encomendas ?? []).map((e) => ({ id: e.id, texto: e.texto ?? "" })));
-        setResponsaveis(
-          (res.responsaveisTecnicos as Record<string, unknown>[] ?? []).map((f) => ({
-            id: (f.id ?? f.Id) as number,
-            nomeCompleto: String(f.nomeCompleto ?? f.NomeCompleto ?? ""),
-          }))
-        );
-        setFuncionariosEquipa(
-          (res.funcionariosEquipa as Record<string, unknown>[] ?? []).map((f) => ({
-            id: (f.id ?? f.Id) as number,
-            nomeCompleto: String(f.nomeCompleto ?? f.NomeCompleto ?? ""),
-          }))
-        );
-      })
-      .catch(() => {
-        setEncomendasDisponiveis([]);
-        setResponsaveis([]);
-        setFuncionariosEquipa([]);
-      })
-      .finally(() => setLoadingForm(false));
-  }, [mounted, encomendaIdParam]);
+  const { data: createData, isLoading: loadingForm } = useQuery({
+    queryKey: ["servicos", "create", encomendaPreselect ?? "none"],
+    queryFn: async () => {
+      const t = getToken();
+      if (!t) throw new Error("no-token");
+      return servicosApi.fetchServicosCreate(t, encomendaPreselect);
+    },
+    enabled: mounted && !!token,
+    retry: false,
+  });
+
+  const encomendasDisponiveis = useMemo<EncomendaOpt[]>(() => {
+    if (!createData) return [];
+    return (createData.encomendas ?? []).map((e) => ({ id: e.id, texto: e.texto ?? "" }));
+  }, [createData]);
+
+  const responsaveis = useMemo<FuncionarioOpt[]>(() => {
+    if (!createData) return [];
+    return (createData.responsaveisTecnicos as Record<string, unknown>[] ?? []).map((f) => ({
+      id: (f.id ?? f.Id) as number,
+      nomeCompleto: String(f.nomeCompleto ?? f.NomeCompleto ?? ""),
+    }));
+  }, [createData]);
+
+  const funcionariosEquipa = useMemo<FuncionarioOpt[]>(() => {
+    if (!createData) return [];
+    return (createData.funcionariosEquipa as Record<string, unknown>[] ?? []).map((f) => ({
+      id: (f.id ?? f.Id) as number,
+      nomeCompleto: String(f.nomeCompleto ?? f.NomeCompleto ?? ""),
+    }));
+  }, [createData]);
+
+  const createMutation = useMutation({
+    mutationFn: async (fd: FormData) => {
+      const t = getToken();
+      if (!t) throw new Error("Sessão inválida. Faça login.");
+      return servicosApi.postServico(t, fd);
+    },
+    onSuccess: (res) => {
+      const servico = res.servico as { id?: number; Id?: number };
+      const newId = servico?.id ?? servico?.Id;
+      if (newId != null) router.push(`/servicos/${String(newId)}`);
+      else setErro("Resposta inválida do servidor.");
+    },
+    onError: (err: Error) => {
+      setErro(err.message || "Erro ao criar serviço.");
+    },
+  });
 
   useEffect(() => {
-    if (encomendaIdParam && !encomendaId) setEncomendaId(encomendaIdParam);
+    if (!encomendaIdParam || encomendaId) return;
+    const t = setTimeout(() => setEncomendaId(encomendaIdParam), 0);
+    return () => clearTimeout(t);
   }, [encomendaIdParam, encomendaId]);
 
   const toggleEquipa = (id: string) => {
@@ -107,53 +120,37 @@ function NovoServicoContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submittingRef.current) return;
+    if (createMutation.isPending) return;
     setErro(null);
     if (!encomendaId || !dataServico || !publicoPrivado) {
       setErro("Preencha Encomenda, Data do serviço e Público/Privado.");
       return;
     }
-    const enc = encomendasDisponiveis.find((e) => String(e.id) === encomendaId);
+    const enc = encomendasDisponiveis.find((en) => String(en.id) === encomendaId);
     if (!enc) {
       setErro("Encomenda inválida ou já utilizada noutro serviço.");
       return;
     }
-    const token = getToken();
-    if (!token) {
+    const t = getToken();
+    if (!t) {
       setErro("Sessão inválida. Faça login.");
       return;
     }
-    submittingRef.current = true;
-    setSubmitting(true);
-    try {
-      const fd = new FormData();
-      fd.append("Servico.EncomendaId", encomendaId);
-      fd.append("Servico.DataServico", dataServico);
-      fd.append("Servico.PublicoPrivado", publicoPrivado);
-      if (local.trim()) fd.append("Servico.Local", local.trim());
-      if (distrito.trim()) fd.append("Servico.Distrito", distrito.trim());
-      if (cidade.trim()) fd.append("Servico.Cidade", cidade.trim());
-      if (municipio.trim()) fd.append("Servico.Municipio", municipio.trim());
-      if (coordenadasLat) fd.append("Servico.CoordenadasLat", coordenadasLat);
-      if (coordenadasLng) fd.append("Servico.CoordenadasLng", coordenadasLng);
-      if (raioPublico) fd.append("Servico.RaioPublico", raioPublico);
-      if (responsavelTecnicoId) fd.append("Servico.ResponsavelTecnicoId", responsavelTecnicoId);
-      if (observacoes.trim()) fd.append("Servico.Observacoes", observacoes.trim());
-      Array.from(equipaIds).forEach((fid) => fd.append("EquipaIds", fid));
-      const res = await servicosApi.postServico(token, fd);
-      const servico = res.servico as { id?: number; Id?: number };
-      const newId = servico?.id ?? servico?.Id;
-      if (newId != null) {
-        router.push(`/servicos/${String(newId)}`);
-        return;
-      }
-      setErro("Resposta inválida do servidor.");
-    } catch (err) {
-      setErro((err as Error).message || "Erro ao criar serviço.");
-    } finally {
-      submittingRef.current = false;
-      setSubmitting(false);
-    }
+    const fd = new FormData();
+    fd.append("Servico.EncomendaId", encomendaId);
+    fd.append("Servico.DataServico", dataServico);
+    fd.append("Servico.PublicoPrivado", publicoPrivado);
+    if (local.trim()) fd.append("Servico.Local", local.trim());
+    if (distrito.trim()) fd.append("Servico.Distrito", distrito.trim());
+    if (cidade.trim()) fd.append("Servico.Cidade", cidade.trim());
+    if (municipio.trim()) fd.append("Servico.Municipio", municipio.trim());
+    if (coordenadasLat) fd.append("Servico.CoordenadasLat", coordenadasLat);
+    if (coordenadasLng) fd.append("Servico.CoordenadasLng", coordenadasLng);
+    if (raioPublico) fd.append("Servico.RaioPublico", raioPublico);
+    if (responsavelTecnicoId) fd.append("Servico.ResponsavelTecnicoId", responsavelTecnicoId);
+    if (observacoes.trim()) fd.append("Servico.Observacoes", observacoes.trim());
+    Array.from(equipaIds).forEach((fid) => fd.append("EquipaIds", fid));
+    await createMutation.mutateAsync(fd);
   };
 
   if (!mounted || loadingForm) {
@@ -361,8 +358,8 @@ function NovoServicoContent() {
             </div>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <button type="submit" disabled={submitting || encomendasDisponiveis.length === 0} className={btnPrimary}>
-                {submitting ? "A guardar…" : "Criar serviço"}
+              <button type="submit" disabled={createMutation.isPending || encomendasDisponiveis.length === 0} className={btnPrimary}>
+                {createMutation.isPending ? "A guardar…" : "Criar serviço"}
               </button>
               <Link href="/servicos" className={btnSecondary}>
                 Cancelar

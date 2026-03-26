@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { safeParseJson } from "@/app/lib/api";
+import { apiPath } from "@/app/lib/apiConfig";
+import { setTokens } from "@/app/lib/auth";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 
 const inputClass =
@@ -15,16 +16,7 @@ const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300";
 const btnPrimary =
   "data-button w-full rounded-xl bg-[#f97316] px-5 py-3 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
 
-const btnSecondary =
-  "data-button w-full rounded-xl border border-gray-300 px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
-
-import { apiPath } from "@/app/lib/apiConfig";
-import { setTokens } from "@/app/lib/auth";
-
-const API_REGISTAR = apiPath("api/auth/registar-primeiro-utilizador");
-
 export default function RegistarPrimeiroUtilizadorPage() {
-  const router = useRouter();
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -50,7 +42,7 @@ export default function RegistarPrimeiroUtilizadorPage() {
     }
     setLoading(true);
     try {
-      const res = await fetch(API_REGISTAR, {
+      const res = await fetch(apiPath("api/auth/registar-primeiro-utilizador"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

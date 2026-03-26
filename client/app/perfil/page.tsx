@@ -2,18 +2,14 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "../components/Navbar";
 import ThemeToggle from "../components/ThemeToggle";
 import { getToken, logout } from "../lib/auth";
 import { useUser } from "@/app/context/UserContext";
-import { postAlterarPassword } from "../lib/home";
+import { postAlterarPassword, getPerfil, putPerfil } from "../lib/home";
 import { fadeInUp, transitionSmooth } from "../lib/animations";
-
-import { apiPath } from "@/app/lib/apiConfig";
-
-const API_PERFIL = apiPath("api/home/perfil");
 
 const cardClass =
   "card-hover rounded-2xl border border-[#e7e5e4] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:border-[#1f1f1f] dark:bg-[#111] dark:shadow-none sm:p-8";
@@ -49,53 +45,58 @@ function identificacaoFromUser(user: { id?: string; email?: string | null; nome?
 }
 
 export default function PerfilPage() {
-  const router = useRouter();
-  const { user, refetch } = useUser();
+  const queryClient = useQueryClient();
+  const { user, refetch: refetchUser } = useUser();
+  const [mounted, setMounted] = useState(false);
   const [identificacao, setIdentificacao] = useState<Identificacao | null>(null);
   const [dadosPessoais, setDadosPessoais] = useState({ nome: "", telefone: "" });
-  const [perfilLoading, setPerfilLoading] = useState(true);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      if (user) {
-        setIdentificacao(identificacaoFromUser(user));
-        setDadosPessoais((d) => ({ ...d, nome: user.nome ?? "" }));
-      }
-      setPerfilLoading(false);
+    setMounted(true);
+  }, []);
+
+  const hasToken = mounted && !!getToken();
+
+  const { data: perfilRaw, isLoading: perfilLoading } = useQuery({
+    queryKey: ["home", "perfil"],
+    queryFn: async () => {
+      const token = getToken();
+      if (!token) return null;
+      return getPerfil(token) as Promise<{
+        model?: { nome?: string; telefone?: string; email?: string; userName?: string; roles?: string[]; dataRegisto?: string };
+      }>;
+    },
+    enabled: hasToken,
+    staleTime: 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (!mounted) return;
+    const data = perfilRaw;
+    const model = data?.model;
+    if (model) {
+      const nome = (model.nome ?? (model as Record<string, unknown>).Nome ?? "") as string;
+      const telefone = (model.telefone ?? (model as Record<string, unknown>).Telefone ?? "") as string;
+      const email = (model.email ?? (model as Record<string, unknown>).Email ?? "") as string;
+      const roles = ((model.roles ?? (model as Record<string, unknown>).Roles) as string[] | undefined) ?? [];
+      const dataRegisto = (model.dataRegisto ?? (model as Record<string, unknown>).DataRegisto) as string | undefined;
+      const userName = (model.userName ?? (model as Record<string, unknown>).UserName ?? email) as string;
+      setDadosPessoais({ nome: nome || "", telefone: telefone || "" });
+      setIdentificacao({
+        email: email || "",
+        userName: userName || email || "",
+        role: roles.length > 0 ? roles.join(", ") : "Utilizador",
+        dataCriacao: dataRegisto ? new Date(dataRegisto).toLocaleDateString("pt-PT") : new Date().toLocaleDateString("pt-PT"),
+      });
       return;
     }
-    fetch(API_PERFIL, { headers: { Authorization: `Bearer ${token}` } })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: { model?: { nome?: string; telefone?: string; email?: string; userName?: string; roles?: string[]; dataRegisto?: string } } | null) => {
-        const model = data?.model;
-        if (model) {
-          const nome = (model.nome ?? (model as Record<string, unknown>).Nome ?? "") as string;
-          const telefone = (model.telefone ?? (model as Record<string, unknown>).Telefone ?? "") as string;
-          const email = (model.email ?? (model as Record<string, unknown>).Email ?? "") as string;
-          const roles = ((model.roles ?? (model as Record<string, unknown>).Roles) as string[] | undefined) ?? [];
-          const dataRegisto = (model.dataRegisto ?? (model as Record<string, unknown>).DataRegisto) as string | undefined;
-          const userName = (model.userName ?? (model as Record<string, unknown>).UserName ?? email) as string;
-          setDadosPessoais({ nome: nome || "", telefone: telefone || "" });
-          setIdentificacao({
-            email: email || "",
-            userName: userName || email || "",
-            role: roles.length > 0 ? roles.join(", ") : "Utilizador",
-            dataCriacao: dataRegisto ? new Date(dataRegisto).toLocaleDateString("pt-PT") : new Date().toLocaleDateString("pt-PT"),
-          });
-        } else if (user) {
-          setIdentificacao(identificacaoFromUser(user));
-          setDadosPessoais((d) => ({ ...d, nome: user.nome ?? "" }));
-        }
-      })
-      .catch(() => {
-        if (user) {
-          setIdentificacao(identificacaoFromUser(user));
-          setDadosPessoais((d) => ({ ...d, nome: user.nome ?? "" }));
-        }
-      })
-      .finally(() => setPerfilLoading(false));
-  }, [user]);
+    if (user) {
+      setIdentificacao(identificacaoFromUser(user));
+      setDadosPessoais((d) => ({ ...d, nome: user.nome ?? "" }));
+    } else if (!hasToken) {
+      setIdentificacao(null);
+    }
+  }, [mounted, perfilRaw, user, hasToken]);
 
   const [passwordForm, setPasswordForm] = useState({
     atual: "",
@@ -105,41 +106,50 @@ export default function PerfilPage() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
-  const [savingPerfil, setSavingPerfil] = useState(false);
   const savingPerfilRef = useRef(false);
+
+  const savePerfilMutation = useMutation({
+    mutationFn: async () => {
+      const token = getToken();
+      if (!token) throw new Error("Sessão inválida.");
+      return putPerfil(token, {
+        nome: dadosPessoais.nome?.trim() || null,
+        telefone: dadosPessoais.telefone?.trim() || null,
+      });
+    },
+    onSuccess: (data) => {
+      if (data.perfilGuardado) {
+        queryClient.invalidateQueries({ queryKey: ["home", "perfil"] });
+        refetchUser();
+        setMessage({ type: "success", text: "Dados guardados. O seu nome e telefone foram atualizados." });
+        setTimeout(() => setMessage(null), 4000);
+      } else {
+        setMessage({ type: "error", text: "Não foi possível guardar. Tente novamente." });
+      }
+    },
+    onError: () => {
+      setMessage({ type: "error", text: "Erro de ligação. Tente novamente." });
+    },
+  });
 
   const handleSavePerfil = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (savingPerfilRef.current) return;
+    if (savingPerfilRef.current || savePerfilMutation.isPending) return;
     const token = getToken();
     if (!token) {
       setMessage({ type: "error", text: "Sessão inválida. Inicie sessão novamente." });
       return;
     }
     savingPerfilRef.current = true;
-    setSavingPerfil(true);
     setMessage(null);
     try {
-      const res = await fetch(API_PERFIL, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ nome: dadosPessoais.nome?.trim() || null, telefone: dadosPessoais.telefone?.trim() || null }),
-      });
-      const data = (await res.json()) as { perfilGuardado?: boolean; model?: { nome?: string } & Record<string, unknown> };
-      if (res.ok && data.perfilGuardado) {
-        refetch();
-        setMessage({ type: "success", text: "Dados guardados. O seu nome e telefone foram atualizados." });
-      } else {
-        setMessage({ type: "error", text: "Não foi possível guardar. Tente novamente." });
-      }
-    } catch {
-      setMessage({ type: "error", text: "Erro de ligação. Tente novamente." });
+      await savePerfilMutation.mutateAsync();
     } finally {
       savingPerfilRef.current = false;
-      setSavingPerfil(false);
     }
-    setTimeout(() => setMessage(null), 4000);
   };
+
+  const savingPerfil = savePerfilMutation.isPending;
 
   const [savingPassword, setSavingPassword] = useState(false);
   const savingPasswordRef = useRef(false);

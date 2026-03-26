@@ -4,15 +4,13 @@
 
 import { apiPath } from "./apiConfig";
 
-const API_HOME = apiPath("api/home");
-
 function authHeaders(token: string): HeadersInit {
   return { Authorization: `Bearer ${token}` };
 }
 
 /** GET api/home — mensagem da página inicial */
 export async function getHomeMessage(token: string): Promise<{ message: string }> {
-  const res = await fetch(API_HOME, { headers: authHeaders(token) });
+  const res = await fetch(apiPath("api/home"), { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Falha ao obter página inicial");
   return res.json() as Promise<{ message: string }>;
 }
@@ -26,21 +24,21 @@ export type HomeStats = {
 };
 
 export async function getHomeStats(token: string): Promise<HomeStats> {
-  const res = await fetch(`${API_HOME}/stats`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/home")}/stats`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Falha ao obter estatísticas");
   return res.json() as Promise<HomeStats>;
 }
 
 /** GET api/home/privacy — mensagem de privacidade */
 export async function getPrivacy(token: string): Promise<{ message: string }> {
-  const res = await fetch(`${API_HOME}/privacy`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/home")}/privacy`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Falha ao obter política de privacidade");
   return res.json() as Promise<{ message: string }>;
 }
 
 /** GET api/home/error — dados do erro (AllowAnonymous) */
 export async function getError(): Promise<{ requestId?: string; isDevelopment?: boolean }> {
-  const res = await fetch(`${API_HOME}/error`);
+  const res = await fetch(`${apiPath("api/home")}/error`);
   if (!res.ok) throw new Error("Falha ao obter dados de erro");
   const data = (await res.json()) as { requestId?: string; isDevelopment?: boolean };
   return { requestId: data.requestId, isDevelopment: data.isDevelopment };
@@ -48,14 +46,14 @@ export async function getError(): Promise<{ requestId?: string; isDevelopment?: 
 
 /** GET api/home/limpar-dados — mensagem de confirmação */
 export async function getLimparDados(token: string): Promise<{ message: string }> {
-  const res = await fetch(`${API_HOME}/limpar-dados`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/home")}/limpar-dados`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Falha ao obter confirmação de limpeza");
   return res.json() as Promise<{ message: string }>;
 }
 
 /** POST api/home/limpar-dados — confirma limpeza; servidor termina sessão */
 export async function postLimparDados(token: string): Promise<{ signedOut: boolean; message: string }> {
-  const res = await fetch(`${API_HOME}/limpar-dados`, {
+  const res = await fetch(`${apiPath("api/home")}/limpar-dados`, {
     method: "POST",
     headers: authHeaders(token),
   });
@@ -65,7 +63,7 @@ export async function postLimparDados(token: string): Promise<{ signedOut: boole
 
 /** GET api/home/preferencias — tema (Light/Dark) guardado no servidor */
 export async function getPreferencias(token: string): Promise<{ tema: string }> {
-  const res = await fetch(`${API_HOME}/preferencias`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/home")}/preferencias`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Falha ao obter preferências");
   return res.json() as Promise<{ tema: string }>;
 }
@@ -75,7 +73,7 @@ export async function postPreferencias(
   token: string,
   tema: "Light" | "Dark"
 ): Promise<{ temaGuardado: boolean; tema: string }> {
-  const res = await fetch(`${API_HOME}/preferencias`, {
+  const res = await fetch(`${apiPath("api/home")}/preferencias`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders(token) },
     body: JSON.stringify({ tema }),
@@ -95,7 +93,7 @@ export async function postAlterarPassword(
   token: string,
   payload: AlterarPasswordPayload
 ): Promise<{ passwordAlterada: boolean }> {
-  const res = await fetch(`${API_HOME}/alterar-password`, {
+  const res = await fetch(`${apiPath("api/home")}/alterar-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders(token) },
     body: JSON.stringify({
@@ -114,4 +112,26 @@ export async function postAlterarPassword(
     Array.isArray(v) ? v : (v && typeof v === "object" && "errors" in v && Array.isArray((v as { errors: string[] }).errors) ? (v as { errors: string[] }).errors : [])
   );
   throw new Error(messages.filter(Boolean).join(" ") || "Erro ao alterar palavra-passe");
+}
+
+/** GET api/home/perfil */
+export async function getPerfil(token: string): Promise<unknown> {
+  const res = await fetch(apiPath("api/home/perfil"), { headers: authHeaders(token) });
+  if (!res.ok) throw new Error("Falha ao carregar perfil");
+  return res.json();
+}
+
+/** PUT api/home/perfil */
+export async function putPerfil(
+  token: string,
+  body: { nome: string | null; telefone: string | null }
+): Promise<{ perfilGuardado?: boolean }> {
+  const res = await fetch(apiPath("api/home/perfil"), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => ({}))) as { perfilGuardado?: boolean };
+  if (!res.ok) throw new Error("Não foi possível guardar.");
+  return data;
 }

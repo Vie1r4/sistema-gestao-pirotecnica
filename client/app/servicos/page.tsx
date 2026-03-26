@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -85,9 +85,18 @@ function ServicosContent() {
 
   const setFiltros = (updates: { clienteId?: string; dataDesde?: string; dataAte?: string; pagina?: number }) => {
     const p = new URLSearchParams(searchParams.toString());
-    if (updates.clienteId !== undefined) (updates.clienteId ? p.set("clienteId", updates.clienteId) : p.delete("clienteId"));
-    if (updates.dataDesde !== undefined) (updates.dataDesde ? p.set("dataDesde", updates.dataDesde) : p.delete("dataDesde"));
-    if (updates.dataAte !== undefined) (updates.dataAte ? p.set("dataAte", updates.dataAte) : p.delete("dataAte"));
+    if (updates.clienteId !== undefined) {
+      if (updates.clienteId) p.set("clienteId", updates.clienteId);
+      else p.delete("clienteId");
+    }
+    if (updates.dataDesde !== undefined) {
+      if (updates.dataDesde) p.set("dataDesde", updates.dataDesde);
+      else p.delete("dataDesde");
+    }
+    if (updates.dataAte !== undefined) {
+      if (updates.dataAte) p.set("dataAte", updates.dataAte);
+      else p.delete("dataAte");
+    }
     if (updates.pagina !== undefined) p.set("pagina", String(updates.pagina));
     router.push(`/servicos?${p.toString()}`);
   };

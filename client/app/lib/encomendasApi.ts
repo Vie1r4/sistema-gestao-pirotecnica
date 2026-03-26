@@ -4,10 +4,9 @@
  * Para o fluxo de criação (draft no servidor) usar credentials: 'include' para manter sessão.
  */
 
+import { safeParseJson } from "./api";
 import { apiPath } from "./apiConfig";
 import { parseApiErrorBody } from "./apiErrors";
-
-const API_ENCOMENDAS = apiPath("api/encomendas");
 
 function authHeaders(token: string): HeadersInit {
   return { Authorization: `Bearer ${token}` };
@@ -36,7 +35,7 @@ export async function fetchList(
   if (estado) params.set("estado", estado);
   params.set("pagina", String(pagina));
   params.set("itensPorPagina", String(itensPorPagina));
-  const res = await fetch(`${API_ENCOMENDAS}?${params}`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/encomendas")}?${params}`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error(`Lista encomendas: ${res.status}`);
   return res.json();
 }
@@ -47,7 +46,7 @@ export async function fetchCreate(
   clienteId?: number
 ): Promise<{ clientes: Array<{ id: number; nome: string }>; model: { clienteId: number } }> {
   const q = clienteId != null ? `?clienteId=${clienteId}` : "";
-  const res = await fetch(`${API_ENCOMENDAS}/create${q}`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/encomendas")}/create${q}`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error(`Create: ${res.status}`);
   return res.json();
 }
@@ -57,7 +56,7 @@ export async function postCreate(
   token: string,
   body: { clienteId: number }
 ): Promise<{ nextStep: string; clienteId: number }> {
-  const res = await fetch(`${API_ENCOMENDAS}/create`, {
+  const res = await fetch(`${apiPath("api/encomendas")}/create`, {
     method: "POST",
     headers: jsonHeaders(token),
     body: JSON.stringify({ clienteId: Number(body.clienteId) }),
@@ -95,7 +94,7 @@ export async function fetchAdicionarItens(
   if (filtros.grupoCompatibilidade) params.set("grupoCompatibilidade", filtros.grupoCompatibilidade);
   if (filtros.filtroTecnico) params.set("filtroTecnico", filtros.filtroTecnico);
   if (filtros.calibre) params.set("calibre", filtros.calibre);
-  const res = await fetch(`${API_ENCOMENDAS}/adicionar-itens?${params}`, {
+  const res = await fetch(`${apiPath("api/encomendas")}/adicionar-itens?${params}`, {
     headers: authHeaders(token),
     credentials: "include",
   });
@@ -137,7 +136,7 @@ export async function postAdicionarItem(
   if (params.grupoCompatibilidade) q.set("grupoCompatibilidade", params.grupoCompatibilidade);
   if (params.filtroTecnico) q.set("filtroTecnico", params.filtroTecnico);
   if (params.calibre) q.set("calibre", params.calibre);
-  const res = await fetch(`${API_ENCOMENDAS}/adicionar-item?${q}`, {
+  const res = await fetch(`${apiPath("api/encomendas")}/adicionar-item?${q}`, {
     method: "POST",
     headers: authHeaders(token),
     credentials: "include",
@@ -170,7 +169,7 @@ export async function postRemoverItem(
   if (params.grupoCompatibilidade) q.set("grupoCompatibilidade", params.grupoCompatibilidade);
   if (params.filtroTecnico) q.set("filtroTecnico", params.filtroTecnico);
   if (params.calibre) q.set("calibre", params.calibre);
-  const res = await fetch(`${API_ENCOMENDAS}/remover-item?${q}`, {
+  const res = await fetch(`${apiPath("api/encomendas")}/remover-item?${q}`, {
     method: "POST",
     headers: authHeaders(token),
     credentials: "include",
@@ -184,7 +183,7 @@ export async function postSubmeter(
   token: string,
   body: { clienteId: number; dataEntrega?: string | null; observacoes?: string | null }
 ): Promise<{ encomenda: { id: number; [k: string]: unknown }; encomendaCriada: boolean }> {
-  const res = await fetch(`${API_ENCOMENDAS}/submeter`, {
+  const res = await fetch(`${apiPath("api/encomendas")}/submeter`, {
     method: "POST",
     headers: jsonHeaders(token),
     body: JSON.stringify({
@@ -207,7 +206,7 @@ export async function postSubmeter(
 
 /** POST api/encomendas/{id}/aceitar */
 export async function postAceitar(token: string, id: number): Promise<{ encomenda: Record<string, unknown>; encomendaAceite: boolean }> {
-  const res = await fetch(`${API_ENCOMENDAS}/${id}/aceitar`, { method: "POST", headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/encomendas")}/${id}/aceitar`, { method: "POST", headers: authHeaders(token) });
   const d = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {
     const msg = (d.error ?? d.Error) as string | undefined;
@@ -222,7 +221,7 @@ export async function postAceitar(token: string, id: number): Promise<{ encomend
 
 /** GET api/encomendas/{id}/rejeitar — dados para formulário */
 export async function fetchRejeitar(token: string, id: number): Promise<Record<string, unknown>> {
-  const res = await fetch(`${API_ENCOMENDAS}/${id}/rejeitar`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/encomendas")}/${id}/rejeitar`, { headers: authHeaders(token) });
   if (!res.ok) {
     const d = await res.json().catch(() => ({}));
     throw new Error((d as { error?: string }).error ?? `Rejeitar GET: ${res.status}`);
@@ -236,7 +235,7 @@ export async function postRejeitar(
   id: number,
   body?: { motivoRejeicao?: string }
 ): Promise<{ encomenda: Record<string, unknown>; encomendaRejeitada: boolean }> {
-  const res = await fetch(`${API_ENCOMENDAS}/${id}/rejeitar`, {
+  const res = await fetch(`${apiPath("api/encomendas")}/${id}/rejeitar`, {
     method: "POST",
     headers: jsonHeaders(token),
     body: JSON.stringify(body ?? {}),
@@ -258,7 +257,7 @@ export async function fetchPreparar(
   paióis: Array<{ id: number; nome: string }>;
   stockPaiolProduto: Record<string, number>;
 }> {
-  const res = await fetch(`${API_ENCOMENDAS}/${id}/preparar`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/encomendas")}/${id}/preparar`, { headers: authHeaders(token) });
   if (!res.ok) {
     const d = await res.json().catch(() => ({}));
     throw new Error((d as { error?: string }).error ?? `Preparar: ${res.status}`);
@@ -274,7 +273,7 @@ export async function postRegistarPreparacao(
   id: number,
   retiradas: RetiradaPreparacaoInput[]
 ): Promise<{ encomendaPreparacao: boolean }> {
-  const res = await fetch(`${API_ENCOMENDAS}/${id}/registar-preparacao`, {
+  const res = await fetch(`${apiPath("api/encomendas")}/${id}/registar-preparacao`, {
     method: "POST",
     headers: jsonHeaders(token),
     body: JSON.stringify(retiradas),
@@ -288,7 +287,7 @@ export async function postRegistarPreparacao(
 
 /** POST api/encomendas/{id}/concluir */
 export async function postConcluir(token: string, id: number): Promise<{ encomenda: Record<string, unknown>; encomendaConcluida: boolean }> {
-  const res = await fetch(`${API_ENCOMENDAS}/${id}/concluir`, { method: "POST", headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/encomendas")}/${id}/concluir`, { method: "POST", headers: authHeaders(token) });
   if (!res.ok) {
     const d = await res.json().catch(() => ({}));
     throw new Error((d as { error?: string }).error ?? `Concluir: ${res.status}`);
@@ -301,10 +300,22 @@ export async function fetchEncomendaDetalhe(
   token: string,
   id: number
 ): Promise<{ encomenda: Record<string, unknown>; stockPorProduto?: Record<string, number> }> {
-  const res = await fetch(`${API_ENCOMENDAS}/${id}`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/encomendas")}/${id}`, { headers: authHeaders(token) });
   if (res.status === 404) throw new Error("NOT_FOUND");
   if (!res.ok) throw new Error(`Detalhe: ${res.status}`);
   return res.json();
+}
+
+/** GET api/encomendas/{id} — detalhe para a página (404 → null; 401 → UNAUTHORIZED). */
+export async function fetchEncomendaDetalheParaPagina(
+  token: string,
+  id: number
+): Promise<Record<string, unknown> | null> {
+  const res = await fetch(`${apiPath("api/encomendas")}/${id}`, { headers: authHeaders(token) });
+  if (res.status === 401) throw new Error("UNAUTHORIZED");
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Erro ${res.status}`);
+  return safeParseJson(res) as Promise<Record<string, unknown>>;
 }
 
 /** PUT api/encomendas/{id} — atualizar encomenda (data entrega, observações, itens). Apenas Pendente ou Aceite. */
@@ -322,7 +333,7 @@ export async function putEncomenda(
     observacoes: body.observacoes?.trim()?.slice(0, 2000) ?? null,
     itens: body.itens.map((i) => ({ produtoId: i.produtoId, quantidade: Number(i.quantidade) })),
   };
-  const res = await fetch(`${API_ENCOMENDAS}/${id}`, {
+  const res = await fetch(`${apiPath("api/encomendas")}/${id}`, {
     method: "PUT",
     headers: jsonHeaders(token),
     body: JSON.stringify(payload),

@@ -1,17 +1,34 @@
 /**
  * Base URL da API do backend.
- * Definir NEXT_PUBLIC_API_URL no .env (ex.: https://localhost:7225 para dev, https://api.seudominio.pt para prod).
- * Em desenvolvimento, sem variável definida, usa https://localhost:7225.
+ *
+ * - **NEXT_PUBLIC_API_URL** no `.env` tem prioridade (ex.: produção ou porta personalizada).
+ * - Sem variável: em **localhost** no browser usa `https://localhost:7225`.
+ * - Se abrir o site pelo **IP da LAN** (ex.: `http://192.168.x.x:3000` no telemóvel), usa
+ *   automaticamente `http://<mesmo-host>:5078` — o telemóvel não pode usar `localhost` para
+ *   chegar ao PC. A API em Development deve escutar em `0.0.0.0` e não redirecionar HTTP→HTTPS.
+ *
+ * CORS em Development já aceita origens em IPs privados na porta 3000.
  */
-const base =
-  typeof process.env.NEXT_PUBLIC_API_URL === "string" && process.env.NEXT_PUBLIC_API_URL.trim() !== ""
-    ? process.env.NEXT_PUBLIC_API_URL.trim().replace(/\/$/, "")
-    : "https://localhost:7225";
 
-export const API_BASE_URL = base;
+const DEFAULT_HTTPS_PORT = 7225;
+const DEFAULT_HTTP_PORT = 5078;
 
-/** URL completa para um path da API (ex.: apiPath("api/encomendas") => "https://localhost:7225/api/encomendas") */
+export function getApiBaseUrl(): string {
+  const fromEnv = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (fromEnv) return fromEnv.replace(/\/$/, "");
+
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname !== "localhost" && hostname !== "127.0.0.1") {
+      return `http://${hostname}:${DEFAULT_HTTP_PORT}`;
+    }
+  }
+
+  return `https://localhost:${DEFAULT_HTTPS_PORT}`;
+}
+
+/** URL completa para um path da API */
 export function apiPath(path: string): string {
   const p = path.startsWith("/") ? path.slice(1) : path;
-  return `${base}/${p}`;
+  return `${getApiBaseUrl()}/${p}`;
 }

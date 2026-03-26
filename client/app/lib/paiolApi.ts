@@ -4,10 +4,50 @@
 
 import { apiPath } from "./apiConfig";
 
-const API_PAIOL = apiPath("api/paiol");
-
 function authHeaders(token: string): HeadersInit {
   return { Authorization: `Bearer ${token}` };
+}
+
+/** GET api/paiol — lista com ocupação (Armazém / gestão sem permissão admin). */
+export async function fetchListaPaiol(token: string): Promise<unknown> {
+  const res = await fetch(apiPath("api/paiol"), { headers: authHeaders(token) });
+  if (res.status === 401) throw new Error("UNAUTHORIZED");
+  if (!res.ok) throw new Error(res.status === 404 ? "Não encontrado" : `Erro ${res.status}`);
+  return res.json();
+}
+
+/** GET api/paiol/{id} — detalhe (404/403 → null; 401 → UNAUTHORIZED). */
+export async function fetchPaiolDetalheJson(
+  token: string,
+  id: number
+): Promise<Record<string, unknown> | null> {
+  const res = await fetch(`${apiPath("api/paiol")}/${id}`, { headers: authHeaders(token) });
+  if (res.status === 401) throw new Error("UNAUTHORIZED");
+  if (res.status === 404 || res.status === 403) return null;
+  if (!res.ok) throw new Error(`Erro ${res.status}`);
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
+/** DELETE api/paiol/{id} — eliminar paiol (Admin). */
+export async function deletePaiol(token: string, id: number): Promise<void> {
+  const res = await fetch(`${apiPath("api/paiol")}/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (res.status === 401) throw new Error("Não autenticado");
+  if (res.status !== 204 && !res.ok) throw new Error("Falha ao eliminar");
+}
+
+/** GET api/paiol/{id}/conteudo — stock no paiol + metadados */
+export async function fetchConteudoPaiol(
+  token: string,
+  id: number
+): Promise<Record<string, unknown> | null> {
+  const res = await fetch(`${apiPath("api/paiol")}/${id}/conteudo`, { headers: authHeaders(token) });
+  if (res.status === 401) throw new Error("UNAUTH");
+  if (res.status === 404 || res.status === 403) return null;
+  if (!res.ok) throw new Error(`Erro ${res.status}`);
+  return res.json() as Promise<Record<string, unknown>>;
 }
 
 /** GET api/paiol/stock — catálogo com coluna stock (produtos + stockPorProduto) */
@@ -36,14 +76,14 @@ export async function fetchStock(
   if (filters?.filtroTecnico) params.set("filtroTecnico", filters.filtroTecnico);
   if (filters?.calibre) params.set("calibre", filters.calibre);
   const q = params.toString();
-  const res = await fetch(`${API_PAIOL}/stock${q ? `?${q}` : ""}`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/paiol")}/stock${q ? `?${q}` : ""}`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Falha ao carregar stock");
   return res.json();
 }
 
 /** GET api/paiol/gestao — lista de paióis com ocupação (Admin) */
 export async function fetchGestao(token: string): Promise<Array<Record<string, unknown>>> {
-  const res = await fetch(`${API_PAIOL}/gestao`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/paiol")}/gestao`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Falha ao carregar gestão");
   return res.json();
 }
@@ -55,7 +95,7 @@ export async function fetchCreate(token: string): Promise<{
   estados: string[];
   cargosDisponiveis: string[];
 }> {
-  const res = await fetch(`${API_PAIOL}/create`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/paiol")}/create`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Falha ao carregar formulário");
   return res.json();
 }
@@ -68,14 +108,14 @@ export async function fetchEdit(token: string, id: number): Promise<{
   cargosDisponiveis: string[];
   cargosSelecionados: string[];
 }> {
-  const res = await fetch(`${API_PAIOL}/${id}/edit`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/paiol")}/${id}/edit`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Falha ao carregar dados para editar");
   return res.json();
 }
 
 /** PUT api/paiol/{id} — atualizar paiol (FormData) */
 export async function putEdit(token: string, id: number, formData: FormData): Promise<{ paiol: Record<string, unknown> }> {
-  const res = await fetch(`${API_PAIOL}/${id}`, {
+  const res = await fetch(`${apiPath("api/paiol")}/${id}`, {
     method: "PUT",
     headers: authHeaders(token),
     body: formData,
@@ -89,14 +129,14 @@ export async function putEdit(token: string, id: number, formData: FormData): Pr
 
 /** GET api/paiol/{id}/delete — dados do paiol para página eliminar (Admin) */
 export async function fetchDeleteGet(token: string, id: number): Promise<Record<string, unknown>> {
-  const res = await fetch(`${API_PAIOL}/${id}/delete`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/paiol")}/${id}/delete`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Falha ao carregar");
   return res.json();
 }
 
 /** GET api/paiol/{id}/documentos/{extraId} — obtém ficheiro e abre numa nova janela */
 export async function openDocumento(token: string, paiolId: number, extraId: number): Promise<void> {
-  const res = await fetch(`${API_PAIOL}/${paiolId}/documentos/${extraId}`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/paiol")}/${paiolId}/documentos/${extraId}`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Documento não encontrado");
   const blob = await res.blob();
   const contentType = res.headers.get("content-type") ?? "application/octet-stream";

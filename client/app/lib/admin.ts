@@ -5,8 +5,6 @@
 
 import { apiPath } from "./apiConfig";
 
-const API_ADMIN = apiPath("api/admin");
-
 export type UtilizadorComRoles = {
   id: string;
   userName: string;
@@ -83,7 +81,7 @@ function authHeaders(token: string): HeadersInit {
 
 /** GET api/admin/stats — estatísticas para o dashboard admin */
 export async function fetchAdminStats(token: string): Promise<AdminStats> {
-  const res = await fetch(`${API_ADMIN}/stats`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/admin")}/stats`, { headers: authHeaders(token) });
   if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
   if (!res.ok) throw new Error(`Erro ${res.status}`);
   const raw = (await res.json()) as Record<string, unknown>;
@@ -111,7 +109,7 @@ export async function fetchAdminLogs(
   params.set("pagina", String(pagina));
   params.set("itensPorPagina", String(itensPorPagina));
   if (acao) params.set("acao", acao);
-  const res = await fetch(`${API_ADMIN}/logs?${params}`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/admin")}/logs?${params}`, { headers: authHeaders(token) });
   if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
   if (!res.ok) throw new Error(`Erro ${res.status}`);
   const raw = (await res.json()) as Record<string, unknown>;
@@ -133,7 +131,7 @@ export async function fetchAdminLogs(
 
 /** GET api/admin — confirma acesso à área admin. */
 export async function fetchAdminDashboard(token: string): Promise<{ message: string }> {
-  const res = await fetch(API_ADMIN, {
+  const res = await fetch(apiPath("api/admin"), {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
@@ -144,7 +142,7 @@ export async function fetchAdminDashboard(token: string): Promise<{ message: str
 
 /** GET api/admin/utilizadores — lista de utilizadores com roles e funcionário associado. */
 export async function fetchUtilizadores(token: string): Promise<UtilizadorComRoles[]> {
-  const res = await fetch(`${API_ADMIN}/utilizadores`, {
+  const res = await fetch(`${apiPath("api/admin")}/utilizadores`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
@@ -159,7 +157,7 @@ export async function fetchUtilizadorParaEditar(
   token: string,
   id: string
 ): Promise<{ model: EditarUtilizadorModel; funcionariosDisponiveis: FuncionarioDisponivel[] } | null> {
-  const res = await fetch(`${API_ADMIN}/utilizadores/${encodeURIComponent(id)}`, {
+  const res = await fetch(`${apiPath("api/admin")}/utilizadores/${encodeURIComponent(id)}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (res.status === 404) return null;
@@ -197,7 +195,7 @@ export async function updateUtilizador(
   id: string,
   model: EditarUtilizadorModel
 ): Promise<void> {
-  const res = await fetch(`${API_ADMIN}/utilizadores/${encodeURIComponent(id)}`, {
+  const res = await fetch(`${apiPath("api/admin")}/utilizadores/${encodeURIComponent(id)}`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -222,7 +220,7 @@ export async function updateUtilizador(
 
 /** DELETE api/admin/utilizadores/{id} — eliminar utilizador (não permite eliminar a própria conta). */
 export async function deleteUtilizador(token: string, id: string): Promise<void> {
-  const res = await fetch(`${API_ADMIN}/utilizadores/${encodeURIComponent(id)}`, {
+  const res = await fetch(`${apiPath("api/admin")}/utilizadores/${encodeURIComponent(id)}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -238,7 +236,7 @@ export async function deleteUtilizador(token: string, id: string): Promise<void>
 
 /** POST api/admin/clear-all-data — apaga todos os dados e contas (apenas testes). Requer Admin. */
 export async function clearAllDataApi(token: string): Promise<void> {
-  const res = await fetch(`${API_ADMIN}/clear-all-data`, {
+  const res = await fetch(`${apiPath("api/admin")}/clear-all-data`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
   });

@@ -1,54 +1,16 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "../../../components/Navbar";
 import { getToken } from "../../../lib/auth";
 import { useUser } from "@/app/context/UserContext";
-import { safeParseJson } from "../../../lib/api";
-import type { Funcionario, CargoFuncionario } from "../../../lib/funcionarios";
+import type { Funcionario } from "../../../lib/funcionarios";
 import { fadeInUp, transitionSmooth } from "../../../lib/animations";
-
-import { apiPath } from "@/app/lib/apiConfig";
-
-const API_BASE = apiPath("api/funcionarios");
-const AUTH_ME = apiPath("api/auth/me");
-
-function mapApiItemToFuncionario(item: Record<string, unknown>, contaEmailConfirmada?: boolean): Funcionario {
-  const nome = (item.nomeCompleto ?? item.NomeCompleto ?? item.nome ?? "") as string;
-  const cartaoCidadao = (item.cartaoCidadaoCaminho ?? item.CartaoCidadaoCaminho) as string | undefined;
-  const adr = (item.documentoADDRCaminho ?? item.DocumentoADDRCaminho) as string | undefined;
-  const licencaOperador = (item.licencaOperadorCaminho ?? item.LicencaOperadorCaminho) as string | undefined;
-  const outros = (item.outrosCaminho ?? item.OutrosCaminho) as string | undefined;
-  const apiExtras = (item.documentosExtras ?? item.DocumentosExtras ?? []) as Record<string, unknown>[];
-  const extras = apiExtras.map((ex) => ({
-    id: String(ex.id ?? ex.Id ?? ""),
-    nome: String(ex.nome ?? ex.Nome ?? ""),
-  }));
-  const documentos: Funcionario["documentos"] =
-    cartaoCidadao || adr || licencaOperador || outros || extras.length > 0
-      ? { cartaoCidadao, adr, licencaOperador, outros, extras }
-      : undefined;
-  return {
-    id: String(item.id ?? item.Id ?? ""),
-    nomeCompleto: nome,
-    nif: (item.nif ?? item.NIF) as string | undefined,
-    email: (item.email ?? item.Email) as string | undefined,
-    telefone: (item.telefone ?? item.Telefone) as string | undefined,
-    morada: (item.morada ?? item.Morada) as string | undefined,
-    nss: (item.nss ?? item.NSS) as string | undefined,
-    iban: (item.iban ?? item.IBAN) as string | undefined,
-    cargo: (item.cargo ?? item.Cargo ?? "Comercial") as CargoFuncionario,
-    notas: (item.notas ?? item.Notas) as string | undefined,
-    dataRegisto: String(item.dataRegisto ?? item.DataRegisto ?? new Date().toISOString()),
-    contaAssociada: Boolean(item.userId ?? item.UserId),
-    emailConfirmado: contaEmailConfirmada ?? (item.emailConfirmado as boolean | undefined),
-    userId: (item.userId ?? item.UserId) as string | undefined,
-    documentos,
-  };
-}
+import { fetchFuncionarioPorId, postDesassociarConta } from "@/app/lib/funcionariosApi";
 
 const cardClass =
   "card-hover rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111] sm:p-8";
@@ -62,52 +24,57 @@ const btnDanger =
 export default function DesassociarContaPage() {
   const params = useParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const id = params.id as string;
   const { user } = useUser();
   const currentUserId = user?.id ?? user?.email ?? null;
   const canGerirFuncionarios = (user?.permissions ?? []).includes("funcionarios.gerir");
-  const [mounted, setMounted] = useState(false);
-  const [funcionario, setFuncionario] = useState<Funcionario | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const submittingRef = useRef(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const {
+    data: funcionario,
+    isLoading: loading,
+    error: queryError,
+  } = useQuery({
+    queryKey: ["funcionarios", id],
+    queryFn: async (): Promise<Funcionario | null> => {
+      const token = getToken();
+      if (!token) {
+        router.replace("/login");
+        throw new Error("Sessão expirada.");
+      }
+      return fetchFuncionarioPorId(token, id, { onUnauthorized: () => router.replace("/login") });
+    },
+    enabled: !!id && !!getToken(),
+    staleTime: 30 * 1000,
+    retry: 1,
+  });
 
-  useEffect(() => {
-    if (!id || !mounted) return;
-    const token = getToken();
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
-    const headers = { Authorization: `Bearer ${token}` };
+  const loadError = queryError instanceof Error ? queryError.message : queryError ? String(queryError) : null;
 
-    fetch(`${API_BASE}/${id}`, { headers })
-      .then(async (res) => {
-        if (res.status === 401) {
-          router.replace("/login");
-          return null;
-        }
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(res.status === 404 ? "Funcionário não encontrado." : text || `Erro ${res.status}`);
-        }
-        const data = (await safeParseJson(res)) as { item?: Record<string, unknown>; contaEmailConfirmada?: boolean };
-        const raw = data?.item ?? data;
-        return raw && typeof raw === "object" ? mapApiItemToFuncionario(raw as Record<string, unknown>, data.contaEmailConfirmada) : null;
-      })
-      .then((f) => setFuncionario(f ?? null))
-      .catch((err: unknown) => {
-        setLoadError(err instanceof Error ? err.message : "Erro ao carregar.");
-        setFuncionario(null);
-      })
-      .finally(() => setLoading(false));
-  }, [id, mounted, router]);
+  const desassociarMutation = useMutation({
+    mutationFn: async () => {
+      const token = getToken();
+      if (!token) throw new Error("Sessão expirada.");
+      await postDesassociarConta(token, id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["funcionarios", id] });
+      setMessage({ type: "success", text: "Conta desassociada. A ficha do funcionário mantém-se." });
+      setTimeout(() => router.push(`/funcionarios/${id}`), 1200);
+    },
+    onError: (err: Error) => {
+      const msg = err.message;
+      if (msg === "Sessão expirada.") {
+        router.replace("/login");
+        return;
+      }
+      setMessage({
+        type: "error",
+        text: msg === "Failed to fetch" ? "Não foi possível contactar o servidor." : msg,
+      });
+    },
+  });
 
   const isOwnAccount =
     !!funcionario?.contaAssociada &&
@@ -115,7 +82,7 @@ export default function DesassociarContaPage() {
     (funcionario.userId === currentUserId || funcionario.email === currentUserId);
 
   const handleConfirmar = async () => {
-    if (submittingRef.current) return;
+    if (desassociarMutation.isPending) return;
     if (!funcionario || !funcionario.contaAssociada) return;
     if (isOwnAccount) {
       setMessage({ type: "error", text: "Não é permitido desassociar a sua própria conta." });
@@ -127,37 +94,14 @@ export default function DesassociarContaPage() {
       return;
     }
     setMessage(null);
-    submittingRef.current = true;
-    setSubmitting(true);
     try {
-      const res = await fetch(`${API_BASE}/${id}/desassociar`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = (await safeParseJson(res).catch(() => ({}))) as { error?: string };
-      if (res.ok) {
-        setMessage({ type: "success", text: "Conta desassociada. A ficha do funcionário mantém-se." });
-        setTimeout(() => router.push(`/funcionarios/${id}`), 1200);
-        return;
-      }
-      if (res.status === 400 && data.error) {
-        setMessage({ type: "error", text: data.error });
-        return;
-      }
-      if (res.status === 403) {
-        setMessage({ type: "error", text: "Sem permissão para desassociar contas." });
-        return;
-      }
-      setMessage({ type: "error", text: data.error || "Ocorreu um erro ao desassociar a conta." });
+      await desassociarMutation.mutateAsync();
     } catch {
-      setMessage({ type: "error", text: "Não foi possível contactar o servidor." });
-    } finally {
-      submittingRef.current = false;
-      setSubmitting(false);
+      /* mensagem em onError da mutation */
     }
   };
 
-  if (!mounted || loading) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#fafafa] dark:bg-[#0a0a0a]">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent" />
@@ -236,10 +180,10 @@ export default function DesassociarContaPage() {
               <button
                 type="button"
                 onClick={handleConfirmar}
-                disabled={submitting || !!message?.text || isOwnAccount}
+                disabled={desassociarMutation.isPending || !!message?.text || isOwnAccount}
                 className={btnDanger}
               >
-                {submitting ? "A processar…" : "Confirmar desassociação"}
+                {desassociarMutation.isPending ? "A processar…" : "Confirmar desassociação"}
               </button>
               <Link href={`/funcionarios/${id}`} className={btnSecondary}>Cancelar</Link>
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -10,8 +10,8 @@ import MapaCoordenadas from "@/app/components/MapaCoordenadas";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { fetchServicoDetalheFromApi } from "@/app/lib/servicos";
-import type { ServicoDetalhe } from "@/app/lib/servicos";
-import { textoClassificacao, textoCalibre, textoGrupo } from "@/app/lib/produtos";
+import type { ServicoDetalhe, ServicoLicenca } from "@/app/lib/servicos";
+import { textoCalibre, textoGrupo } from "@/app/lib/produtos";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 
 const btnSecondary =
@@ -44,6 +44,14 @@ export default function ServicoDetalhePage() {
     retry: 2,
     enabled: !!id && !!getToken(),
   });
+
+  const equipaOrdenada = useMemo(() => {
+    const eq = servico?.equipa;
+    if (!eq?.length) return [];
+    return [...eq].sort((a, b) =>
+      (a.funcionario?.nomeCompleto ?? "").localeCompare(b.funcionario?.nomeCompleto ?? "", "pt", { sensitivity: "base" })
+    );
+  }, [servico?.equipa]);
 
   const copyCoords = () => {
     if (servico?.coordenadasLat != null && servico?.coordenadasLng != null && typeof window !== "undefined") {
@@ -138,73 +146,128 @@ export default function ServicoDetalhePage() {
             </div>
           </motion.div>
 
-          {/* Dados do serviço */}
+          {/* Dados do serviço + Equipa (mesmo cartão) */}
           <motion.section
             initial={fadeInUp.initial}
             animate={fadeInUp.animate}
             transition={{ ...transitionSmooth, delay: 0.05 }}
-            className="mt-8 rounded-2xl border border-[#e7e5e4] bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111]"
+            className="mt-8 overflow-hidden rounded-2xl border border-[#e7e5e4] bg-white shadow-sm dark:border-[#1f1f1f] dark:bg-[#111]"
           >
-            <h2 className="mb-4 text-lg font-semibold">Dados do serviço</h2>
-            <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
-              <dt className="text-[#57534e] dark:text-gray-400">Cliente</dt>
-              <dd>{servico.cliente?.nome ?? servico.clienteId}</dd>
-              <dt className="text-[#57534e] dark:text-gray-400">Data</dt>
-              <dd>{new Date(servico.dataServico).toLocaleDateString("pt-PT")}</dd>
-              <dt className="text-[#57534e] dark:text-gray-400">Público / Privado</dt>
-              <dd>{servico.publicoPrivado ?? "—"}</dd>
-              {servico.raioPublico != null && (
-                <>
-                  <dt className="text-[#57534e] dark:text-gray-400">Raio público</dt>
-                  <dd>{servico.raioPublico} m</dd>
-                </>
-              )}
-              {servico.local && (
-                <>
-                  <dt className="text-[#57534e] dark:text-gray-400">Local</dt>
-                  <dd>{servico.local}</dd>
-                </>
-              )}
-              {localizacaoPartes.length > 0 && (
-                <>
-                  <dt className="text-[#57534e] dark:text-gray-400">Localização</dt>
-                  <dd>{localizacaoPartes.join(" · ")}</dd>
-                </>
-              )}
-              {servico.coordenadasLat != null && servico.coordenadasLng != null && (
-                <>
-                  <dt className="text-[#57534e] dark:text-gray-400">Coordenadas</dt>
-                  <dd className="flex flex-wrap items-center gap-2">
-                    <span>
-                      {Number(servico.coordenadasLat).toFixed(4)}° N, {Number(servico.coordenadasLng).toFixed(4)}° W
-                    </span>
-                    {googleMapsUrl && (
-                      <a
-                        href={googleMapsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[#f97316] hover:underline"
-                      >
-                        Abrir no Google Maps
-                      </a>
-                    )}
-                    <button
-                      type="button"
-                      onClick={copyCoords}
-                      className="rounded-lg border border-gray-300 px-2 py-1 text-xs dark:border-[#333]"
-                    >
-                      {coordsCopied ? "Copiado" : "Copiar"}
-                    </button>
+            <div className="border-b border-[#e7e5e4] bg-[#fafaf9] px-5 py-4 sm:px-6 dark:border-[#222] dark:bg-[#141414]">
+              <h2 className="text-lg font-semibold tracking-tight text-[#1c1917] dark:text-white">Dados do serviço</h2>
+            </div>
+            <div className="flex flex-col lg:flex-row lg:items-stretch">
+              <div className="min-w-0 flex-1 px-5 py-5 sm:px-6 sm:py-6">
+                <dl className="grid gap-x-6 gap-y-3.5 text-sm sm:grid-cols-[minmax(0,7.5rem)_1fr] sm:gap-y-3">
+                  <dt className="text-[#57534e] dark:text-gray-400 sm:pt-0.5">Cliente</dt>
+                  <dd className="text-[#1c1917] dark:text-gray-100">{servico.cliente?.nome ?? servico.clienteId}</dd>
+                  <dt className="text-[#57534e] dark:text-gray-400 sm:pt-0.5">Data</dt>
+                  <dd className="text-[#1c1917] dark:text-gray-100">
+                    {new Date(servico.dataServico).toLocaleDateString("pt-PT")}
                   </dd>
-                </>
-              )}
-              {servico.observacoes && (
-                <>
-                  <dt className="text-[#57534e] dark:text-gray-400">Observações</dt>
-                  <dd className="whitespace-pre-wrap">{servico.observacoes}</dd>
-                </>
-              )}
-            </dl>
+                  <dt className="text-[#57534e] dark:text-gray-400 sm:pt-0.5">Público / Privado</dt>
+                  <dd className="text-[#1c1917] dark:text-gray-100">{servico.publicoPrivado ?? "—"}</dd>
+                  {servico.raioPublico != null && (
+                    <>
+                      <dt className="text-[#57534e] dark:text-gray-400 sm:pt-0.5">Raio público</dt>
+                      <dd className="text-[#1c1917] dark:text-gray-100">{servico.raioPublico} m</dd>
+                    </>
+                  )}
+                  {servico.local && (
+                    <>
+                      <dt className="text-[#57534e] dark:text-gray-400 sm:pt-0.5">Local</dt>
+                      <dd className="text-[#1c1917] dark:text-gray-100">{servico.local}</dd>
+                    </>
+                  )}
+                  {localizacaoPartes.length > 0 && (
+                    <>
+                      <dt className="text-[#57534e] dark:text-gray-400 sm:pt-0.5">Localização</dt>
+                      <dd className="text-[#1c1917] dark:text-gray-100">{localizacaoPartes.join(" · ")}</dd>
+                    </>
+                  )}
+                  {servico.coordenadasLat != null && servico.coordenadasLng != null && (
+                    <>
+                      <dt className="text-[#57534e] dark:text-gray-400 sm:pt-0.5">Coordenadas</dt>
+                      <dd className="flex flex-wrap items-center gap-2 text-[#1c1917] dark:text-gray-100">
+                        <span className="font-mono text-[0.8125rem]">
+                          {Number(servico.coordenadasLat).toFixed(4)}° N, {Number(servico.coordenadasLng).toFixed(4)}° W
+                        </span>
+                        {googleMapsUrl && (
+                          <a
+                            href={googleMapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[#f97316] hover:underline"
+                          >
+                            Abrir no Google Maps
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={copyCoords}
+                          className="rounded-lg border border-gray-300 px-2 py-1 text-xs dark:border-[#333]"
+                        >
+                          {coordsCopied ? "Copiado" : "Copiar"}
+                        </button>
+                      </dd>
+                    </>
+                  )}
+                  {servico.observacoes && (
+                    <>
+                      <dt className="self-start text-[#57534e] dark:text-gray-400 sm:pt-0.5">Observações</dt>
+                      <dd className="whitespace-pre-wrap rounded-lg bg-[#fafaf9] p-3 text-[#292524] dark:bg-[#1a1a1a] dark:text-gray-200">
+                        {servico.observacoes}
+                      </dd>
+                    </>
+                  )}
+                </dl>
+              </div>
+              <aside className="shrink-0 border-t border-[#e7e5e4] bg-[#fafaf9]/80 px-5 py-5 sm:px-6 sm:py-6 lg:w-[min(100%,18rem)] lg:border-t-0 lg:border-l lg:border-[#e7e5e4] dark:border-[#222] dark:bg-[#141414]/80">
+                <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#78716c] dark:text-gray-500">
+                  Equipa
+                </h3>
+                {equipaOrdenada.length === 0 && !servico.responsavelTecnico ? (
+                  <p className="text-sm leading-relaxed text-[#57534e] dark:text-gray-400">
+                    Nenhum funcionário foi associado a este serviço.
+                  </p>
+                ) : equipaOrdenada.length > 0 ? (
+                  <ul className="space-y-1">
+                    {equipaOrdenada.map((m, equipaIndex) => (
+                      <li
+                        key={`equipa-${equipaIndex}-${m.funcionarioId || m.funcionario?.id || "x"}`}
+                        className="flex flex-wrap items-center gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-white/80 dark:hover:bg-[#1f1f1f]/80"
+                      >
+                        <Link
+                          href={`/funcionarios/${m.funcionarioId}`}
+                          className="min-w-0 flex-1 font-medium text-[#1c1917] hover:text-[#f97316] hover:underline dark:text-white dark:hover:text-[#fdba74]"
+                        >
+                          {m.funcionario?.nomeCompleto ?? (m.funcionarioId ? `Funcionário #${m.funcionarioId}` : "—")}
+                        </Link>
+                        {String(servico.responsavelTecnicoId ?? "") === String(m.funcionarioId ?? "") && (
+                          <span className="shrink-0 rounded-md bg-white px-2 py-0.5 text-[0.7rem] font-medium text-[#57534e] ring-1 ring-[#e7e5e4] dark:bg-[#1a1a1a] dark:text-gray-300 dark:ring-[#333]">
+                            Responsável técnico
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  servico.responsavelTecnico && (
+                    <div className="rounded-lg bg-white/90 p-3 ring-1 ring-[#e7e5e4] dark:bg-[#1a1a1a] dark:ring-[#333]">
+                      <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-[#78716c] dark:text-gray-500">
+                        Responsável técnico
+                      </p>
+                      <Link
+                        href={`/funcionarios/${servico.responsavelTecnicoId}`}
+                        className="mt-1 inline-block font-medium text-[#1c1917] hover:text-[#f97316] hover:underline dark:text-white dark:hover:text-[#fdba74]"
+                      >
+                        {servico.responsavelTecnico.nomeCompleto}
+                      </Link>
+                    </div>
+                  )
+                )}
+              </aside>
+            </div>
           </motion.section>
 
           {/* Pré-visualização do mapa */}
@@ -332,10 +395,24 @@ export default function ServicoDetalhePage() {
               transition={{ ...transitionSmooth, delay: 0.12 }}
               className="mt-6 rounded-2xl border border-[#e7e5e4] bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111]"
             >
-              <h2 className="mb-4 text-lg font-semibold">Licenças do evento</h2>
+              <h2 className="mb-1 text-lg font-semibold">Licenças do evento</h2>
+              <p className="mb-4 text-sm text-[#57534e] dark:text-gray-400">
+                Duas fases: <strong className="font-medium text-[#1c1917] dark:text-white">papelada gerada</strong> no sistema e, depois, o{" "}
+                <strong className="font-medium text-[#1c1917] dark:text-white">registo definitivo</strong> autorizado pelas entidades reguladoras. A barra de
+                progresso conta só as autorizações definitivas obrigatórias.
+              </p>
+              {canGerirServicos && (
+                <div className="mb-4 rounded-xl border border-dashed border-[#fdba74]/60 bg-[#fffbeb] px-4 py-3 dark:border-[#78350f]/50 dark:bg-[#1c1410]/80">
+                  <p className="text-sm font-medium text-[#9a3412] dark:text-[#fdba74]">Assistente de preenchimento</p>
+                  <p className="mt-1 text-sm text-[#57534e] dark:text-gray-400">
+                    Na coluna «Papelada gerada», abra o registo e use o assistente para o texto das observações. Na coluna «Autorização definitiva», registe o
+                    documento oficial (n.º, validade, PDF).
+                  </p>
+                </div>
+              )}
               {servico.licencasObrigatoriasTotal > 0 && (
                 <p className="mb-2 text-sm text-[#57534e] dark:text-gray-400">
-                  {servico.licencasObrigatoriasEntregues} de {servico.licencasObrigatoriasTotal} licenças obrigatórias entregues
+                  {servico.licencasObrigatoriasEntregues} de {servico.licencasObrigatoriasTotal} autorizações definitivas obrigatórias com ficheiro
                 </p>
               )}
               <div className="mb-4 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-[#333]">
@@ -349,75 +426,83 @@ export default function ServicoDetalhePage() {
                   }}
                 />
               </div>
-              <ul className="space-y-2">
+              <ul className="space-y-5">
                 {servico.licencasEvento.map((linha) => {
-                  const icon = linha.estado === 2 ? "✅" : linha.estado === 1 ? "⚠️" : "❌";
-                  const validadeExpirada =
-                    linha.licenca?.dataValidade && new Date(linha.licenca.dataValidade) < new Date();
-                  return (
-                    <li key={linha.tipo + (linha.licenca?.id ?? "")} className="flex flex-wrap items-center gap-2 border-b border-[#f5f5f4] pb-2 dark:border-[#1a1a1a]">
-                      <span className="w-6">{icon}</span>
-                      <span className="flex-1">
-                        {linha.nomeExibicao}
-                        {linha.obrigatorio && (
-                          <span className="ml-1 rounded bg-gray-200 px-1.5 py-0.5 text-xs dark:bg-[#333]">obrigatório</span>
-                        )}
-                      </span>
-                      {linha.licenca && (
-                        <>
-                          {linha.licenca.numeroDocumento && (
-                            <span className="text-sm text-[#57534e] dark:text-gray-400">{linha.licenca.numeroDocumento}</span>
+                  const iconEstado = (e: number) => (e === 2 ? "✅" : e === 1 ? "⚠️" : "❌");
+                  const hrefLic = (origem: 0 | 1, lic?: ServicoLicenca) => {
+                    const p = new URLSearchParams({ tipo: linha.tipo });
+                    p.set("origem", String(origem));
+                    if (lic?.id) p.set("licencaId", lic.id);
+                    return `/servicos/${servico.id}/licenca?${p}`;
+                  };
+                  const renderCelula = (
+                    titulo: string,
+                    origem: 0 | 1,
+                    lic: ServicoLicenca | undefined,
+                    estado: number,
+                    badgeObrigatorio: boolean
+                  ) => {
+                    const validadeExpirada = lic?.dataValidade && new Date(lic.dataValidade) < new Date();
+                    return (
+                      <div className="min-w-0 flex-1 rounded-xl border border-[#e7e5e4] bg-[#fafaf9] p-3 dark:border-[#333] dark:bg-[#141414]">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-[#78716c] dark:text-gray-500">
+                          {titulo}
+                          {badgeObrigatorio && (
+                            <span className="ml-1.5 rounded bg-gray-200 px-1.5 py-0.5 text-[0.65rem] font-normal normal-case dark:bg-[#333]">obrigatório</span>
                           )}
-                          {linha.licenca.dataValidade && (
-                            <span className={validadeExpirada ? "text-sm text-red-600 dark:text-red-400" : "text-sm text-[#57534e] dark:text-gray-400"}>
-                              Val. {new Date(linha.licenca.dataValidade).toLocaleDateString("pt-PT")}
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <span className="text-lg leading-none">{iconEstado(estado)}</span>
+                          {lic?.numeroDocumento && (
+                            <span className="text-sm text-[#57534e] dark:text-gray-400">{lic.numeroDocumento}</span>
+                          )}
+                          {lic?.dataValidade && (
+                            <span
+                              className={
+                                validadeExpirada ? "text-sm text-red-600 dark:text-red-400" : "text-sm text-[#57534e] dark:text-gray-400"
+                              }
+                            >
+                              Val. {new Date(lic.dataValidade).toLocaleDateString("pt-PT")}
                             </span>
                           )}
-                        </>
-                      )}
-                      {canGerirServicos && (
-                        <Link
-                          href={`/servicos/${servico.id}/licenca?tipo=${linha.tipo}${linha.licenca?.id ? `&licencaId=${linha.licenca.id}` : ""}`}
-                          className="rounded-lg border border-gray-300 px-2 py-1 text-xs dark:border-[#333]"
-                        >
-                          {linha.licenca ? "Editar" : "Upload"}
-                        </Link>
-                      )}
+                          {canGerirServicos && (
+                            <Link href={hrefLic(origem, lic)} className="rounded-lg border border-gray-300 px-2 py-1 text-xs dark:border-[#333]">
+                              {lic ? "Editar" : "Adicionar"}
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  };
+
+                  if (linha.tipo === "OUTRO") {
+                    const ped = linha.licencaPedido;
+                    const def = linha.licencaDefinitiva;
+                    const key = `outro-${ped?.id ?? ""}-${def?.id ?? ""}-${linha.nomeExibicao}`;
+                    return (
+                      <li key={key} className="border-b border-[#f5f5f4] pb-4 last:border-0 dark:border-[#1a1a1a]">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-lg leading-none">{iconEstado(Math.max(linha.estadoPedido, linha.estadoDefinitiva))}</span>
+                          <span className="font-medium">{linha.nomeExibicao}</span>
+                        </div>
+                        <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                          {renderCelula("Papelada gerada", 0, ped, linha.estadoPedido, false)}
+                          {renderCelula("Autorização definitiva", 1, def, linha.estadoDefinitiva, false)}
+                        </div>
+                      </li>
+                    );
+                  }
+
+                  return (
+                    <li key={linha.tipo} className="border-b border-[#f5f5f4] pb-4 last:border-0 dark:border-[#1a1a1a]">
+                      <p className="font-medium text-[#1c1917] dark:text-white">{linha.nomeExibicao}</p>
+                      <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                        {renderCelula("1. Papelada gerada (pedido)", 0, linha.licencaPedido, linha.estadoPedido, false)}
+                        {renderCelula("2. Autorização definitiva", 1, linha.licencaDefinitiva, linha.estadoDefinitiva, linha.obrigatorio)}
+                      </div>
                     </li>
                   );
                 })}
-              </ul>
-            </motion.section>
-          )}
-
-          {/* Equipa */}
-          {servico.equipa.length > 0 && (
-            <motion.section
-              initial={fadeInUp.initial}
-              animate={fadeInUp.animate}
-              transition={{ ...transitionSmooth, delay: 0.14 }}
-              className="mt-6 rounded-2xl border border-[#e7e5e4] bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111]"
-            >
-              <h2 className="mb-4 text-lg font-semibold">Equipa</h2>
-              <ul className="space-y-2">
-                {servico.equipa
-                  .slice()
-                  .sort((a, b) => (a.funcionario?.nomeCompleto ?? "").localeCompare(b.funcionario?.nomeCompleto ?? ""))
-                  .map((m) => (
-                    <li key={m.funcionarioId}>
-                      <Link
-                        href={`/funcionarios/${m.funcionarioId}`}
-                        className="text-[#1c1917] hover:underline dark:text-white"
-                      >
-                        {m.funcionario?.nomeCompleto ?? m.funcionarioId}
-                      </Link>
-                      {servico.responsavelTecnicoId === m.funcionarioId && (
-                        <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs dark:bg-amber-900/30">
-                          Responsável técnico
-                        </span>
-                      )}
-                    </li>
-                  ))}
               </ul>
             </motion.section>
           )}

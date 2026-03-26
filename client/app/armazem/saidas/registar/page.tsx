@@ -7,15 +7,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import { getToken } from "@/app/lib/auth";
-import { useUser } from "@/app/context/UserContext";
 import { safeParseJson } from "@/app/lib/api";
 import { parseApiErrorBody } from "@/app/lib/apiErrors";
 import { useToastStore } from "@/app/stores/useToastStore";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 
 import { apiPath } from "@/app/lib/apiConfig";
-
-const API_SAIDA_PAIOL = apiPath("api/saida-paiol/registar");
 
 const cardClass =
   "card-hover rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111] sm:p-8";
@@ -46,7 +43,6 @@ function RegistarSaidaContent() {
   const queryClient = useQueryClient();
   const paiolId = searchParams.get("paiolId") ?? "";
   const produtoId = searchParams.get("produtoId") ?? "";
-  const { user } = useUser();
   const [mounted, setMounted] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [quantidade, setQuantidade] = useState("");
@@ -58,7 +54,7 @@ function RegistarSaidaContent() {
     queryKey: ["armazem", "saida-paiol", "registar", ids?.paiolNum, ids?.produtoNum],
     queryFn: async (): Promise<{ paiolNome: string; produtoNome: string; stockDisponivel: number }> => {
       if (!token || !ids) throw new Error("Parâmetros em falta");
-      const res = await fetch(`${API_SAIDA_PAIOL}?paiolId=${ids.paiolNum}&produtoId=${ids.produtoNum}`, {
+      const res = await fetch(`${apiPath("api/saida-paiol/registar")}?paiolId=${ids.paiolNum}&produtoId=${ids.produtoNum}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 401) {
@@ -83,7 +79,7 @@ function RegistarSaidaContent() {
 
   const registarMutation = useMutation({
     mutationFn: async (body: { PaiolId: number; ProdutoId: number; Quantidade: number }) => {
-      const res = await fetch(API_SAIDA_PAIOL, {
+      const res = await fetch(apiPath("api/saida-paiol/registar"), {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token!}` },
         body: JSON.stringify(body),

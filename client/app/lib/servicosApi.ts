@@ -4,8 +4,6 @@
 
 import { apiPath } from "./apiConfig";
 
-const API_SERVICOS = apiPath("api/servicos");
-
 function authHeaders(token: string): HeadersInit {
   return { Authorization: `Bearer ${token}` };
 }
@@ -38,7 +36,7 @@ export async function fetchServicos(
   if (filters?.dataAte) params.set("dataAte", filters.dataAte);
   params.set("pagina", String(pagina));
   params.set("itensPorPagina", String(itensPorPagina));
-  const res = await fetch(`${API_SERVICOS}?${params}`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/servicos")}?${params}`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error(res.status === 401 ? "Não autenticado" : `Erro ${res.status}`);
   return res.json();
 }
@@ -55,7 +53,7 @@ export async function fetchServicosCreate(
   servico: { dataServico: string; encomendaId: number };
 }> {
   const q = encomendaId != null ? `?encomendaId=${encomendaId}` : "";
-  const res = await fetch(`${API_SERVICOS}/create${q}`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/servicos")}/create${q}`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error(res.status === 401 ? "Não autenticado" : `Erro ${res.status}`);
   const data = await res.json();
   return {
@@ -72,7 +70,7 @@ export async function fetchServicosCreate(
 
 /** POST api/servicos — criar serviço (FormData) */
 export async function postServico(token: string, formData: FormData): Promise<{ servico: Record<string, unknown> }> {
-  const res = await fetch(API_SERVICOS, {
+  const res = await fetch(apiPath("api/servicos"), {
     method: "POST",
     headers: authHeaders(token),
     body: formData,
@@ -99,7 +97,7 @@ export async function fetchServicoById(
 }> {
   const numId = typeof id === "string" ? parseInt(id, 10) : id;
   if (Number.isNaN(numId)) throw new Error("Id de serviço inválido");
-  const res = await fetch(`${API_SERVICOS}/${numId}`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/servicos")}/${numId}`, { headers: authHeaders(token) });
   if (!res.ok) {
     if (res.status === 404) throw new Error("NOT_FOUND");
     throw new Error(res.status === 401 ? "Não autenticado" : `Erro ${res.status}`);
@@ -121,7 +119,7 @@ export async function fetchServicosEdit(
 }> {
   const numId = typeof id === "string" ? parseInt(id, 10) : id;
   if (Number.isNaN(numId)) throw new Error("Id de serviço inválido");
-  const res = await fetch(`${API_SERVICOS}/${numId}/edit`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/servicos")}/${numId}/edit`, { headers: authHeaders(token) });
   if (!res.ok) {
     if (res.status === 404) throw new Error("NOT_FOUND");
     throw new Error(`Erro ${res.status}`);
@@ -148,7 +146,7 @@ export async function putServico(
 ): Promise<{ servico: Record<string, unknown> }> {
   const numId = typeof id === "string" ? parseInt(id, 10) : id;
   if (Number.isNaN(numId)) throw new Error("Id de serviço inválido");
-  const res = await fetch(`${API_SERVICOS}/${numId}`, {
+  const res = await fetch(`${apiPath("api/servicos")}/${numId}`, {
     method: "PUT",
     headers: authHeaders(token),
     body: formData,
@@ -165,7 +163,7 @@ export async function fetchServicosDelete(
 ): Promise<Record<string, unknown>> {
   const numId = typeof id === "string" ? parseInt(id, 10) : id;
   if (Number.isNaN(numId)) throw new Error("Id de serviço inválido");
-  const res = await fetch(`${API_SERVICOS}/${numId}/delete`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/servicos")}/${numId}/delete`, { headers: authHeaders(token) });
   if (!res.ok) {
     if (res.status === 404) throw new Error("NOT_FOUND");
     throw new Error(`Erro ${res.status}`);
@@ -177,7 +175,7 @@ export async function fetchServicosDelete(
 export async function deleteServico(token: string, id: number | string): Promise<void> {
   const numId = typeof id === "string" ? parseInt(id, 10) : id;
   if (Number.isNaN(numId)) throw new Error("Id de serviço inválido");
-  const res = await fetch(`${API_SERVICOS}/${numId}`, {
+  const res = await fetch(`${apiPath("api/servicos")}/${numId}`, {
     method: "DELETE",
     headers: authHeaders(token),
   });
@@ -188,14 +186,14 @@ export async function deleteServico(token: string, id: number | string): Promise
 export function documentoUrl(id: number | string, extraId: number | string): string {
   const n = typeof id === "string" ? id : String(id);
   const e = typeof extraId === "string" ? extraId : String(extraId);
-  return `${API_SERVICOS}/${n}/documentos/${e}`;
+  return `${apiPath("api/servicos")}/${n}/documentos/${e}`;
 }
 
 /** GET api/servicos/{id}/licenca/{licencaId}/ficheiro — devolve ficheiro da licença */
 export function licencaFicheiroUrl(id: number | string, licencaId: number | string): string {
   const n = typeof id === "string" ? id : String(id);
   const l = typeof licencaId === "string" ? licencaId : String(licencaId);
-  return `${API_SERVICOS}/${n}/licenca/${l}/ficheiro`;
+  return `${apiPath("api/servicos")}/${n}/licenca/${l}/ficheiro`;
 }
 
 /** Baixar ficheiro com token e abrir em nova janela (blob URL) */
@@ -211,23 +209,26 @@ export async function downloadComToken(
   setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
 }
 
-/** GET api/servicos/{id}/upload-licenca?tipo=0&licencaId=1 — dados para formulário licença */
+/** GET api/servicos/{id}/upload-licenca?tipo=0&licencaId=1&origem=0|1 — dados para formulário licença */
 export async function fetchUploadLicenca(
   token: string,
   id: number | string,
   tipo: number,
-  licencaId?: number | null
+  licencaId?: number | null,
+  origem?: 0 | 1
 ): Promise<{
   servicoId: number;
   tipoLicenca: number;
   tipoNome: string;
+  origemRegisto?: number;
   licenca: Record<string, unknown>;
 }> {
   const numId = typeof id === "string" ? parseInt(id, 10) : id;
   if (Number.isNaN(numId)) throw new Error("Id de serviço inválido");
   const params = new URLSearchParams({ tipo: String(tipo) });
   if (licencaId != null) params.set("licencaId", String(licencaId));
-  const res = await fetch(`${API_SERVICOS}/${numId}/upload-licenca?${params}`, { headers: authHeaders(token) });
+  if (origem !== undefined) params.set("origem", String(origem));
+  const res = await fetch(`${apiPath("api/servicos")}/${numId}/upload-licenca?${params}`, { headers: authHeaders(token) });
   if (!res.ok) {
     if (res.status === 404) throw new Error("NOT_FOUND");
     throw new Error(`Erro ${res.status}`);
@@ -237,6 +238,7 @@ export async function fetchUploadLicenca(
     servicoId: data.servicoId ?? data.ServicoId ?? numId,
     tipoLicenca: data.tipoLicenca ?? data.TipoLicenca ?? tipo,
     tipoNome: data.tipoNome ?? data.TipoNome ?? "",
+    origemRegisto: data.origemRegisto ?? data.OrigemRegisto,
     licenca: data.licenca ?? data.Licenca ?? {},
   };
 }
@@ -247,13 +249,15 @@ export async function postUploadLicenca(
   id: number | string,
   tipo: number,
   formData: FormData,
-  licencaId?: number | null
+  licencaId?: number | null,
+  origem?: 0 | 1
 ): Promise<{ licenca: Record<string, unknown> }> {
   const numId = typeof id === "string" ? parseInt(id, 10) : id;
   if (Number.isNaN(numId)) throw new Error("Id de serviço inválido");
   const params = new URLSearchParams({ tipo: String(tipo) });
   if (licencaId != null) params.set("licencaId", String(licencaId));
-  const res = await fetch(`${API_SERVICOS}/${numId}/upload-licenca?${params}`, {
+  if (origem !== undefined) params.set("origem", String(origem));
+  const res = await fetch(`${apiPath("api/servicos")}/${numId}/upload-licenca?${params}`, {
     method: "POST",
     headers: authHeaders(token),
     body: formData,
@@ -273,7 +277,7 @@ export async function putDistanciaSeguranca(
   const numId = typeof id === "string" ? parseInt(id, 10) : id;
   const dId = typeof distanciaId === "string" ? parseInt(distanciaId, 10) : distanciaId;
   if (Number.isNaN(numId) || Number.isNaN(dId)) throw new Error("Id inválido");
-  const res = await fetch(`${API_SERVICOS}/${numId}/distancia-seguranca/${dId}`, {
+  const res = await fetch(`${apiPath("api/servicos")}/${numId}/distancia-seguranca/${dId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json", ...authHeaders(token) },
     body: JSON.stringify({ DistanciaMedida_m: distanciaMedida_m }),

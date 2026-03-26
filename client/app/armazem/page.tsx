@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense, useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -12,10 +12,7 @@ import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { labelPerfilRisco } from "@/app/lib/armazem";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
-
-import { apiPath } from "@/app/lib/apiConfig";
-
-const API_PAIOL = apiPath("api/paiol");
+import { fetchListaPaiol } from "@/app/lib/paiolApi";
 
 /** Paiol com ocupação (vindo da API) para a lista do Armazém */
 type PaiolComOcupacao = {
@@ -150,17 +147,17 @@ function ArmazemContent() {
         router.replace("/login");
         throw new Error("Sessão expirada. Faça login novamente.");
       }
-      const res = await fetch(API_PAIOL, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status === 401) {
-        router.replace("/login");
-        throw new Error("Sessão expirada. Faça login novamente.");
+      try {
+        const data = await fetchListaPaiol(token);
+        const list = Array.isArray(data) ? data : [];
+        return list.map((item: Record<string, unknown>) => mapApiToPaiolComOcupacao(item));
+      } catch (e) {
+        if (e instanceof Error && e.message === "UNAUTHORIZED") {
+          router.replace("/login");
+          throw new Error("Sessão expirada. Faça login novamente.");
+        }
+        throw e;
       }
-      if (!res.ok) throw new Error(res.status === 404 ? "Não encontrado" : `Erro ${res.status}`);
-      const data = (await res.json()) as unknown;
-      const list = Array.isArray(data) ? data : [];
-      return list.map((item: Record<string, unknown>) => mapApiToPaiolComOcupacao(item));
     },
     staleTime: 30 * 1000,
     retry: 3,

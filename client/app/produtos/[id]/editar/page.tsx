@@ -15,7 +15,6 @@ import {
   CALIBRES,
   textoClassificacao,
   validarNemPorUnidade,
-  type Produto,
 } from "@/app/lib/produtos";
 import { fetchEdit, putEdit, mapApiToProduto } from "@/app/lib/produtosApi";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";

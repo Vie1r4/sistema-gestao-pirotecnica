@@ -5,8 +5,6 @@
 import { apiPath } from "./apiConfig";
 import { parseApiErrorBody } from "./apiErrors";
 
-const API_PRODUTOS = apiPath("api/produtos");
-
 function authHeaders(token: string): HeadersInit {
   return { Authorization: `Bearer ${token}` };
 }
@@ -53,7 +51,7 @@ export async function fetchList(
   if (filters?.filtroTecnico) params.set("filtroTecnico", filters.filtroTecnico);
   if (filters?.calibre) params.set("calibre", filters.calibre);
   const q = params.toString();
-  const res = await fetch(`${API_PRODUTOS}${q ? `?${q}` : ""}`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/produtos")}${q ? `?${q}` : ""}`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Falha ao carregar produtos");
   return res.json();
 }
@@ -74,14 +72,14 @@ export async function fetchGerir(token: string, filters?: ListFilters): Promise<
   if (filters?.filtroTecnico) params.set("filtroTecnico", filters.filtroTecnico);
   if (filters?.calibre) params.set("calibre", filters.calibre);
   const q = params.toString();
-  const res = await fetch(`${API_PRODUTOS}/gerir${q ? `?${q}` : ""}`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/produtos")}/gerir${q ? `?${q}` : ""}`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Falha ao carregar produtos");
   return res.json();
 }
 
 /** GET api/produtos/{id} — detalhe */
 export async function fetchDetails(token: string, id: number): Promise<Record<string, unknown>> {
-  const res = await fetch(`${API_PRODUTOS}/${id}`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/produtos")}/${id}`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Produto não encontrado");
   return res.json();
 }
@@ -94,7 +92,7 @@ export async function fetchCreate(token: string): Promise<{
   filtroTecnico: string[];
   calibre: string[];
 }> {
-  const res = await fetch(`${API_PRODUTOS}/create`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/produtos")}/create`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Falha ao carregar formulário");
   return res.json();
 }
@@ -111,7 +109,7 @@ export async function postCreate(token: string, payload: ProdutoApiPayload): Pro
     Calibre: payload.calibre ?? null,
     GrupoCompatibilidade: payload.grupoCompatibilidade ?? null,
   };
-  const res = await fetch(API_PRODUTOS, {
+  const res = await fetch(apiPath("api/produtos"), {
     method: "POST",
     headers: jsonHeaders(token),
     body: JSON.stringify(body),
@@ -129,7 +127,7 @@ export async function fetchEdit(token: string, id: number): Promise<{
   filtroTecnico: string[];
   calibre: string[];
 }> {
-  const res = await fetch(`${API_PRODUTOS}/${id}/edit`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/produtos")}/${id}/edit`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Produto não encontrado");
   return res.json();
 }
@@ -146,7 +144,7 @@ export async function putEdit(token: string, id: number, payload: ProdutoApiPayl
     Calibre: payload.calibre ?? null,
     GrupoCompatibilidade: payload.grupoCompatibilidade ?? null,
   };
-  const res = await fetch(`${API_PRODUTOS}/${id}`, {
+  const res = await fetch(`${apiPath("api/produtos")}/${id}`, {
     method: "PUT",
     headers: jsonHeaders(token),
     body: JSON.stringify(body),
@@ -158,14 +156,14 @@ export async function putEdit(token: string, id: number, payload: ProdutoApiPayl
 
 /** GET api/produtos/{id}/delete — dados para página eliminar (Admin) */
 export async function fetchDeleteGet(token: string, id: number): Promise<Record<string, unknown>> {
-  const res = await fetch(`${API_PRODUTOS}/${id}/delete`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/produtos")}/${id}/delete`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Produto não encontrado");
   return res.json();
 }
 
 /** DELETE api/produtos/{id} — eliminar produto (Admin) */
 export async function deleteProdutoApi(token: string, id: number): Promise<void> {
-  const res = await fetch(`${API_PRODUTOS}/${id}`, { method: "DELETE", headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/produtos")}/${id}`, { method: "DELETE", headers: authHeaders(token) });
   if (!res.ok && res.status !== 204) throw new Error("Falha ao eliminar");
 }
 

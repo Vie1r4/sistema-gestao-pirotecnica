@@ -127,6 +127,7 @@ export default function EditarEncomendaPage() {
       setObservacoes(encomendaForm.observacoes);
       setItens(encomendaForm.itens);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sincronizar só quando muda o id (encomendaForm muda referência a cada render)
   }, [encomendaForm?.id]);
 
   const mutation = useMutation({

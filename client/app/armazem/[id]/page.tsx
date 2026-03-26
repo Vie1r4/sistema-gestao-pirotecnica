@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -10,12 +9,8 @@ import MapaCoordenadas from "@/app/components/MapaCoordenadas";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { type Paiol, type PaiolDocumentoExtra, labelPerfilRisco } from "@/app/lib/armazem";
-import { openDocumento } from "@/app/lib/paiolApi";
+import { fetchPaiolDetalheJson, openDocumento } from "@/app/lib/paiolApi";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
-
-import { apiPath } from "@/app/lib/apiConfig";
-
-const API_PAIOL = apiPath("api/paiol");
 
 type CargaItem = { produtoId: string; produtoNome: string; quantidade: number; nemPorUnidade: number; divisao: string };
 
@@ -110,17 +105,17 @@ export default function PaiolDetalhePage() {
         router.replace("/login");
         throw new Error("Sessão expirada.");
       }
-      const res = await fetch(`${API_PAIOL}/${numId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status === 401) {
-        router.replace("/login");
-        throw new Error("Sessão expirada.");
+      try {
+        const data = await fetchPaiolDetalheJson(token, numId);
+        if (!data) return null;
+        return mapApiToPaiolDetalhe(data, id);
+      } catch (e) {
+        if (e instanceof Error && e.message === "UNAUTHORIZED") {
+          router.replace("/login");
+          throw new Error("Sessão expirada.");
+        }
+        throw e;
       }
-      if (res.status === 404 || res.status === 403) return null;
-      if (!res.ok) throw new Error(`Erro ${res.status}`);
-      const data = (await res.json()) as Record<string, unknown>;
-      return mapApiToPaiolDetalhe(data, id);
     },
     staleTime: 30 * 1000,
     retry: 2,

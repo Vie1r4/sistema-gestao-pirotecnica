@@ -5,8 +5,6 @@
 
 import { apiPath } from "./apiConfig";
 
-const API_HOME = apiPath("api/home");
-
 function authHeaders(token: string): HeadersInit {
   return { Authorization: `Bearer ${token}` };
 }
@@ -72,7 +70,7 @@ function mapUltimaEncomenda(item: Record<string, unknown>): UltimaEncomendaDto {
 
 /** GET api/home/gestor-dashboard — dados completos do dashboard Gestor/Admin */
 export async function getGestorDashboard(token: string): Promise<GestorDashboardResponse> {
-  const res = await fetch(`${API_HOME}/gestor-dashboard`, { headers: authHeaders(token) });
+  const res = await fetch(`${apiPath("api/home")}/gestor-dashboard`, { headers: authHeaders(token) });
   if (!res.ok) {
     const text = await res.text();
     if (res.status === 401) throw new Error("Sessão expirada. Faça login novamente.");

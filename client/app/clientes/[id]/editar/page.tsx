@@ -12,7 +12,6 @@ import {
   TIPOS_CLIENTE,
   type TipoCliente,
   type ClienteDocumentoExtra,
-  type Cliente,
   validarNif,
 } from "@/app/lib/clientes";
 import { getToken } from "@/app/lib/auth";

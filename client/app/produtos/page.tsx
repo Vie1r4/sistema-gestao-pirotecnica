@@ -31,26 +31,6 @@ const btnPrimary =
 const btnSecondary =
   "data-button rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-[border-color,background-color,color] duration-200 hover:bg-gray-50 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
 
-function filtrarProdutos(
-  lista: Produto[],
-  pesquisa: string,
-  classificacao: string,
-  grupoCompatibilidade: string,
-  filtroTecnico: string,
-  calibre: string
-): Produto[] {
-  let out = [...lista];
-  if (pesquisa.trim()) {
-    const p = pesquisa.trim().toLowerCase();
-    out = out.filter((pr) => pr.nome.toLowerCase().includes(p));
-  }
-  if (classificacao) out = out.filter((pr) => pr.familiaRisco === classificacao);
-  if (grupoCompatibilidade) out = out.filter((pr) => pr.grupoCompatibilidade === grupoCompatibilidade);
-  if (filtroTecnico) out = out.filter((pr) => pr.filtroTecnico === filtroTecnico);
-  if (calibre) out = out.filter((pr) => pr.calibre === calibre);
-  return out.sort((a, b) => a.nome.localeCompare(b.nome));
-}
-
 function ProdutosContent() {
   const searchParams = useSearchParams();
   const { user } = useUser();

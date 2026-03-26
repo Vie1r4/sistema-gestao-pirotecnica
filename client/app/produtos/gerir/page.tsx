@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import { getToken } from "@/app/lib/auth";
@@ -31,26 +32,6 @@ const btnPrimary =
 const btnSecondary =
   "data-button rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-[border-color,background-color,color] duration-200 hover:bg-gray-50 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
 
-function filtrarProdutos(
-  lista: Produto[],
-  pesquisa: string,
-  classificacao: string,
-  grupoCompatibilidade: string,
-  filtroTecnico: string,
-  calibre: string
-): Produto[] {
-  let out = [...lista];
-  if (pesquisa.trim()) {
-    const p = pesquisa.trim().toLowerCase();
-    out = out.filter((pr) => pr.nome.toLowerCase().includes(p));
-  }
-  if (classificacao) out = out.filter((pr) => pr.familiaRisco === classificacao);
-  if (grupoCompatibilidade) out = out.filter((pr) => pr.grupoCompatibilidade === grupoCompatibilidade);
-  if (filtroTecnico) out = out.filter((pr) => pr.filtroTecnico === filtroTecnico);
-  if (calibre) out = out.filter((pr) => pr.calibre === calibre);
-  return out.sort((a, b) => a.nome.localeCompare(b.nome));
-}
-
 function GerirContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -62,9 +43,7 @@ function GerirContent() {
   const [grupoCompatibilidade, setGrupoCompatibilidade] = useState("");
   const [filtroTecnico, setFiltroTecnico] = useState("");
   const [calibre, setCalibre] = useState("");
-  const [lista, setLista] = useState<Produto[]>([]);
-  const [loadingApi, setLoadingApi] = useState(true);
-  const [useApi, setUseApi] = useState(false);
+  const token = getToken();
 
   useEffect(() => {
     setPesquisa(searchParams.get("pesquisa") ?? "");
@@ -85,27 +64,23 @@ function GerirContent() {
     }
   }, [mounted, canGerirProdutos, user, router]);
 
-  useEffect(() => {
-    if (!mounted) return;
-    const token = getToken();
-    if (token) {
-      setLoadingApi(true);
-      fetchGerir(token, { pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre })
-        .then((r) => {
-          setLista((r.items ?? []).map((it) => mapApiToProduto(it as Record<string, unknown>)));
-          setUseApi(true);
-        })
-        .catch(() => {
-          setLista([]);
-          setUseApi(false);
-        })
-        .finally(() => setLoadingApi(false));
-    } else {
-      setLista([]);
-      setUseApi(false);
-      setLoadingApi(false);
-    }
-  }, [mounted, pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre]);
+  const filterKey = useMemo(
+    () => ({ pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre }),
+    [pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre]
+  );
+
+  const { data: gerirData, isLoading: loadingApi } = useQuery({
+    queryKey: ["produtos", "gerir", filterKey],
+    queryFn: async () => {
+      const t = getToken();
+      if (!t) throw new Error("no-token");
+      return fetchGerir(t, filterKey);
+    },
+    enabled: mounted && !!token && canGerirProdutos,
+    staleTime: 30 * 1000,
+  });
+
+  const lista: Produto[] = (gerirData?.items ?? []).map((it) => mapApiToProduto(it as Record<string, unknown>));
 
   if (!mounted || (user !== undefined && !canGerirProdutos)) {
     return (

@@ -27,10 +27,6 @@ const navItem = {
   animate: { opacity: 1, x: 0 },
 };
 
-const navStagger = {
-  animate: { transition: { staggerChildren: 0.04, delayChildren: 0.15 } },
-};
-
 const HIDE_SIDEBAR_DELAY = 200;
 
 export default function Navbar() {

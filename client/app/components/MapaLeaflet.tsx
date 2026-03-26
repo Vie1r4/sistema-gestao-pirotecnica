@@ -126,6 +126,8 @@ export default function MapaLeaflet({
       map.remove();
       mapRef.current = null;
     };
+    // Mapa Leaflet: criar uma vez; recentrar/atualizar marcadores noutros efeitos.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- center/zoom/onMapClick aplicados noutros efeitos
   }, []);
 
   useEffect(() => {

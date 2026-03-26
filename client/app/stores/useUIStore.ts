@@ -69,12 +69,12 @@ export const useUIStore = create<UIState & UIActions>()(
         setItem: (name, value) => {
           try {
             localStorage.setItem(name, JSON.stringify(value));
-          } catch (_) {}
+          } catch {}
         },
         removeItem: (name) => {
           try {
             localStorage.removeItem(name);
-          } catch (_) {}
+          } catch {}
         },
       },
       onRehydrateStorage: () => (state) => {

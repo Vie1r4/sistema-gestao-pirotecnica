@@ -1,17 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import { getToken } from "@/app/lib/auth";
 import { type Paiol } from "@/app/lib/armazem";
+import { fetchConteudoPaiol } from "@/app/lib/paiolApi";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
-
-import { apiPath } from "@/app/lib/apiConfig";
-
-const API_PAIOL = apiPath("api/paiol");
 
 type CargaItem = { produtoId: string; produtoNome: string; quantidade: number; nemPorUnidade: number; divisao: string };
 
@@ -29,77 +27,56 @@ export default function ConteudoPaiolPage() {
   const params = useParams();
   const id = params.id as string;
   const [mounted, setMounted] = useState(false);
-  const [paiol, setPaiol] = useState<Paiol | null>(null);
-  const [carga, setCarga] = useState<CargaItem[]>([]);
-  const [loadingApi, setLoadingApi] = useState(false);
+  const numId = useMemo(() => parseInt(id, 10), [id]);
+  const token = getToken();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (!mounted || !id) return;
-    const numId = parseInt(id, 10);
-    if (Number.isNaN(numId)) {
-      setPaiol(null);
-      return;
-    }
-    const token = getToken();
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
-    setLoadingApi(true);
-    fetch(`${API_PAIOL}/${numId}/conteudo`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
-        if (res.status === 401) {
-          router.replace("/login");
-          return null;
-        }
-        if (res.status === 404 || res.status === 403) return null;
-        if (!res.ok) throw new Error(`Erro ${res.status}`);
-        return res.json();
-      })
-      .then((data: Record<string, unknown> | null) => {
-        if (!data) {
-          setPaiol(null);
-          return;
-        }
-        const p = (data.paiol ?? data.Paiol) as Record<string, unknown> | undefined;
-        if (!p) {
-          setPaiol(null);
-          return;
-        }
-        const get = (k: string) => p[k] ?? p[k.charAt(0).toUpperCase() + k.slice(1)];
-        setPaiol({
-          id: String(get("id") ?? get("Id") ?? id),
-          nome: String(get("nome") ?? get("Nome") ?? ""),
-          localizacao: (get("localizacao") ?? get("Localizacao")) as string | undefined,
-          limiteMLE: Number(get("limiteMLE") ?? get("LimiteMLE") ?? 0),
-          perfilRisco: String(get("perfilRisco") ?? get("PerfilRisco") ?? "1.1") as Paiol["perfilRisco"],
-          estado: String(get("estado") ?? get("Estado") ?? "Ativo") as Paiol["estado"],
-          cargosAcesso: [],
-          documentosExtras: [],
-          dataRegisto: new Date().toISOString(),
-        });
-        const cargaRaw = (data.carga ?? data.Carga) as Array<Record<string, unknown>> | undefined;
-        setCarga(
-          Array.isArray(cargaRaw)
-            ? cargaRaw.map((x) => ({
-                produtoId: String(x.produtoId ?? x.ProdutoId ?? ""),
-                produtoNome: String(x.produtoNome ?? x.ProdutoNome ?? ""),
-                quantidade: Number(x.quantidade ?? x.Quantidade ?? 0),
-                nemPorUnidade: Number(x.nemPorUnidade ?? x.NEMPorUnidade ?? 0),
-                divisao: String(x.divisao ?? x.Divisao ?? ""),
-              }))
-            : []
-        );
-      })
-      .catch(() => setPaiol(null))
-      .finally(() => setLoadingApi(false));
-  }, [mounted, id, router]);
+  const { data: rawData, isLoading: loadingApi } = useQuery({
+    queryKey: ["armazem", "paiol", "conteudo", numId],
+    queryFn: async () => {
+      const t = getToken();
+      if (!t) {
+        router.replace("/login");
+        throw new Error("no-token");
+      }
+      if (Number.isNaN(numId)) return null;
+      return fetchConteudoPaiol(t, numId);
+    },
+    enabled: mounted && !!token && !Number.isNaN(numId),
+    retry: 1,
+  });
+
+  const { paiol, carga } = useMemo(() => {
+    if (!rawData) return { paiol: null as Paiol | null, carga: [] as CargaItem[] };
+    const p = (rawData.paiol ?? rawData.Paiol) as Record<string, unknown> | undefined;
+    if (!p) return { paiol: null, carga: [] };
+    const get = (k: string) => p[k] ?? p[k.charAt(0).toUpperCase() + k.slice(1)];
+    const paiolMapped: Paiol = {
+      id: String(get("id") ?? get("Id") ?? id),
+      nome: String(get("nome") ?? get("Nome") ?? ""),
+      localizacao: (get("localizacao") ?? get("Localizacao")) as string | undefined,
+      limiteMLE: Number(get("limiteMLE") ?? get("LimiteMLE") ?? 0),
+      perfilRisco: String(get("perfilRisco") ?? get("PerfilRisco") ?? "1.1") as Paiol["perfilRisco"],
+      estado: String(get("estado") ?? get("Estado") ?? "Ativo") as Paiol["estado"],
+      cargosAcesso: [],
+      documentosExtras: [],
+      dataRegisto: new Date().toISOString(),
+    };
+    const cargaRaw = (rawData.carga ?? rawData.Carga) as Array<Record<string, unknown>> | undefined;
+    const cargaItems: CargaItem[] = Array.isArray(cargaRaw)
+      ? cargaRaw.map((x) => ({
+          produtoId: String(x.produtoId ?? x.ProdutoId ?? ""),
+          produtoNome: String(x.produtoNome ?? x.ProdutoNome ?? ""),
+          quantidade: Number(x.quantidade ?? x.Quantidade ?? 0),
+          nemPorUnidade: Number(x.nemPorUnidade ?? x.NEMPorUnidade ?? 0),
+          divisao: String(x.divisao ?? x.Divisao ?? ""),
+        }))
+      : [];
+    return { paiol: paiolMapped, carga: cargaItems };
+  }, [rawData, id]);
 
   if (!mounted) {
     return (
@@ -207,7 +184,6 @@ export default function ConteudoPaiolPage() {
                 </div>
               ) : (
                 <>
-                  {/* Vista em cards em ecrãs pequenos */}
                   <div className="space-y-3 lg:hidden">
                     {carga.map((item) => (
                       <div
@@ -229,7 +205,6 @@ export default function ConteudoPaiolPage() {
                       </div>
                     ))}
                   </div>
-                  {/* Tabela em ecrãs grandes */}
                   <div className="hidden overflow-x-auto lg:block">
                     <table className="w-full text-left text-sm">
                       <thead>

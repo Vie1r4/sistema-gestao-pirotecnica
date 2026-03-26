@@ -13,7 +13,7 @@ import {
   AdminSection,
   buildBreadcrumbs,
 } from "@/app/admin/_components";
-import { fadeInUp, transitionSmooth, staggerContainer, staggerItem } from "@/app/lib/animations";
+import { transitionSmooth, staggerContainer, staggerItem } from "@/app/lib/animations";
 
 type StatItem = { key: keyof AdminStats; label: string; href: string; group: string };
 

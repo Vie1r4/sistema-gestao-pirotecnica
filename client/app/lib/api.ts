@@ -4,7 +4,7 @@
  * (ex.: 404, API em baixo, URL errado).
  */
 
-import { API_BASE_URL } from "./apiConfig";
+import { getApiBaseUrl } from "./apiConfig";
 
 /**
  * Faz parse do body da Response como JSON.
@@ -18,7 +18,7 @@ export async function safeParseJson(res: Response): Promise<unknown> {
     const isHtml = text.trimStart().startsWith("<");
     throw new Error(
       isHtml
-        ? `O servidor devolveu uma página HTML em vez de JSON. Verifique se a API está a correr (${API_BASE_URL}) e se o URL está correto.`
+        ? `O servidor devolveu uma página HTML em vez de JSON. Verifique se a API está a correr (${getApiBaseUrl()}) e se o URL está correto.`
         : text || `Erro ${res.status}`
     );
   }

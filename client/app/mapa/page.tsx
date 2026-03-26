@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import { fetchServicosFromApi } from "@/app/lib/servicos";
 import { getToken } from "@/app/lib/auth";
@@ -15,7 +14,6 @@ const MapaLeaflet = dynamic(() => import("@/app/components/MapaLeaflet"), { ssr:
 const CENTRO_PT: [number, number] = [39.5, -8];
 
 export default function MapaPage() {
-  const router = useRouter();
   const [markers, setMarkers] = useState<MarcadorMapa[]>([]);
   const [mounted, setMounted] = useState(false);
 

@@ -9,12 +9,8 @@ import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { labelPerfilRisco } from "@/app/lib/armazem";
-import { fetchGestao } from "@/app/lib/paiolApi";
+import { fetchGestao, fetchListaPaiol } from "@/app/lib/paiolApi";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
-
-import { apiPath } from "@/app/lib/apiConfig";
-
-const API_PAIOL = apiPath("api/paiol");
 
 const btnPrimary =
   "data-button rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
@@ -74,14 +70,17 @@ function GestaoContent() {
       }
       const data = canGerirArmazem
         ? await fetchGestao(token)
-        : await fetch(API_PAIOL, { headers: { Authorization: `Bearer ${token}` } }).then(async (res) => {
-            if (res.status === 401) {
-              router.replace("/login");
-              throw new Error("Não autenticado");
+        : await (async () => {
+            try {
+              return await fetchListaPaiol(token);
+            } catch (e) {
+              if (e instanceof Error && e.message === "UNAUTHORIZED") {
+                router.replace("/login");
+                throw new Error("Não autenticado");
+              }
+              throw e;
             }
-            if (!res.ok) throw new Error("Erro ao carregar paióis");
-            return res.json();
-          });
+          })();
       return mapGestaoToPaiois(data);
     },
     staleTime: 30 * 1000,

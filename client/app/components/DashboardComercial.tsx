@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchList } from "@/app/lib/encomendasApi";
 import { fetchServicosFromApi } from "@/app/lib/servicos";
 import { corEstado, type EstadoEncomenda } from "@/app/lib/encomendas";
+import { useLiveDateTime } from "@/app/hooks/useLiveDateTime";
 
 type EncomendaLinha = {
   id: string;
@@ -41,6 +42,7 @@ export default function DashboardComercial({
   token: string;
   totalClientes: number;
 }) {
+  const liveNow = useLiveDateTime();
   const {
     data: encomendasData,
     isLoading: loadingEncomendas,
@@ -79,7 +81,7 @@ export default function DashboardComercial({
   const lastUpdated = Math.max(encomendasUpdatedAt ?? 0, servicosUpdatedAt ?? 0);
   const lastUpdatedText =
     lastUpdated > 0
-      ? new Date(lastUpdated).getTime() > Date.now() - 120_000
+      ? liveNow.getTime() - lastUpdated < 120_000
         ? "Atualizado agora"
         : `Atualizado às ${new Date(lastUpdated).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}`
       : null;

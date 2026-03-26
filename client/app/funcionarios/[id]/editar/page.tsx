@@ -15,12 +15,8 @@ import {
 import { getToken } from "../../../lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { useToastStore } from "@/app/stores/useToastStore";
-import { safeParseJson } from "../../../lib/api";
+import { fetchFuncionarioEditGet, putFuncionario } from "../../../lib/funcionariosApi";
 import { fadeInUp, transitionSmooth } from "../../../lib/animations";
-
-import { apiPath } from "@/app/lib/apiConfig";
-
-const API_BASE = apiPath("api/funcionarios");
 
 function mapApiItemToFuncionario(item: Record<string, unknown>): Funcionario {
   const nome = (item.nomeCompleto ?? item.NomeCompleto ?? item.nome ?? "") as string;
@@ -117,16 +113,15 @@ export default function EditarFuncionarioPage() {
         router.replace("/login");
         throw new Error("Sessão expirada.");
       }
-      const res = await fetch(`${API_BASE}/${id}/edit`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) {
-        if (res.status === 401) {
+      try {
+        return await fetchFuncionarioEditGet(token, id);
+      } catch (e) {
+        if (e instanceof Error && e.message === "UNAUTHORIZED") {
           router.replace("/login");
           throw new Error("Não autenticado");
         }
-        const text = await res.text();
-        throw new Error(res.status === 404 ? "Funcionário não encontrado." : text || `Erro ${res.status}`);
+        throw e;
       }
-      return safeParseJson(res) as Promise<{ item?: Record<string, unknown>; contaEmail?: string }>;
     },
     staleTime: 30 * 1000,
     retry: 2,
@@ -272,15 +267,7 @@ export default function EditarFuncionarioPage() {
     mutationFn: async (fd: FormData) => {
       const token = getToken();
       if (!token) throw new Error("Sessão inválida.");
-      const res = await fetch(`${API_BASE}/${id}`, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
-        body: fd,
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || `Erro ${res.status}`);
-      }
+      await putFuncionario(token, id, fd);
     },
     onSuccess: () => {
       useToastStore.getState().show("Alterações guardadas.", "success");
