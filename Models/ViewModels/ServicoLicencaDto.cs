@@ -6,6 +6,7 @@ public class ServicoLicencaDto
     public int Id { get; set; }
     public int ServicoId { get; set; }
     public TipoLicencaServico TipoLicenca { get; set; }
+    public OrigemRegistoServicoLicenca OrigemRegisto { get; set; }
     public string? NomePersonalizado { get; set; }
     public string? NumeroDocumento { get; set; }
     public DateTime? DataEmissao { get; set; }
@@ -15,12 +16,13 @@ public class ServicoLicencaDto
 
     public static ServicoLicencaDto FromEntity(ServicoLicenca? l)
     {
-        if (l == null) return new ServicoLicencaDto { ServicoId = 0, TipoLicenca = default };
+        if (l == null) return new ServicoLicencaDto { ServicoId = 0, TipoLicenca = default, OrigemRegisto = OrigemRegistoServicoLicenca.AutorizacaoDefinitiva };
         return new ServicoLicencaDto
         {
             Id = l.Id,
             ServicoId = l.ServicoId,
             TipoLicenca = l.TipoLicenca,
+            OrigemRegisto = l.OrigemRegisto,
             NomePersonalizado = l.NomePersonalizado,
             NumeroDocumento = l.NumeroDocumento,
             DataEmissao = l.DataEmissao,

@@ -118,7 +118,6 @@ namespace Finalproj.Controllers
 
             var token = GerarToken(user.Id, user.Email ?? user.UserName ?? "", nome, roles);
             var refreshToken = await CriarERegistarRefreshTokenAsync(user.Id, cancellationToken);
-            Response.Headers.Append("Access-Control-Allow-Origin", "http://localhost:3000");
             var email = user.Email ?? user.UserName ?? "";
             var nomeExibir = !string.IsNullOrEmpty(nome) ? nome : email;
             var expirationMinutes = _configuration.GetValue<int>("Jwt:ExpirationMinutes", 60);

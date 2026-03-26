@@ -208,24 +208,56 @@ public class ServicosApiController : ControllerBase
         var linhas = new List<LicencaServicoLinhaViewModel>();
         foreach (var tipo in ConstantesServicoLicenca.TodosTiposPredefinidos())
         {
-            var lic = licencasDoServico.FirstOrDefault(l => l.TipoLicenca == tipo);
             var obr = obrigatorios.Contains(tipo);
-            int estado = 0;
-            if (lic != null)
+            var licPed = licencasDoServico.FirstOrDefault(l =>
+                l.TipoLicenca == tipo && l.OrigemRegisto == OrigemRegistoServicoLicenca.PedidoGerado);
+            var licDef = licencasDoServico.FirstOrDefault(l =>
+                l.TipoLicenca == tipo && l.OrigemRegisto == OrigemRegistoServicoLicenca.AutorizacaoDefinitiva);
+            linhas.Add(new LicencaServicoLinhaViewModel
             {
-                if (!string.IsNullOrWhiteSpace(lic.FicheiroPath)) estado = 2;
-                else if (!string.IsNullOrWhiteSpace(lic.NumeroDocumento)) estado = 1;
-            }
-            linhas.Add(new LicencaServicoLinhaViewModel { Tipo = tipo, Obrigatorio = obr, Estado = estado, Licenca = lic != null ? ServicoLicencaDto.FromEntity(lic) : null });
+                Tipo = tipo,
+                Obrigatorio = obr,
+                LicencaPedido = licPed != null ? ServicoLicencaDto.FromEntity(licPed) : null,
+                LicencaDefinitiva = licDef != null ? ServicoLicencaDto.FromEntity(licDef) : null,
+                EstadoPedido = LicencaServicoLinhaViewModel.CalcularEstado(licPed),
+                EstadoDefinitiva = LicencaServicoLinhaViewModel.CalcularEstado(licDef),
+            });
         }
         foreach (var lic in licencasDoServico.Where(l => l.TipoLicenca == TipoLicencaServico.OUTRO))
         {
-            int estado = string.IsNullOrWhiteSpace(lic.FicheiroPath) ? (string.IsNullOrWhiteSpace(lic.NumeroDocumento) ? 0 : 1) : 2;
-            linhas.Add(new LicencaServicoLinhaViewModel { Tipo = TipoLicencaServico.OUTRO, Obrigatorio = false, Estado = estado, Licenca = ServicoLicencaDto.FromEntity(lic) });
+            var vm = new LicencaServicoLinhaViewModel
+            {
+                Tipo = TipoLicencaServico.OUTRO,
+                Obrigatorio = false,
+            };
+            if (lic.OrigemRegisto == OrigemRegistoServicoLicenca.PedidoGerado)
+            {
+                vm.LicencaPedido = ServicoLicencaDto.FromEntity(lic);
+                vm.EstadoPedido = LicencaServicoLinhaViewModel.CalcularEstado(lic);
+            }
+            else
+            {
+                vm.LicencaDefinitiva = ServicoLicencaDto.FromEntity(lic);
+                vm.EstadoDefinitiva = LicencaServicoLinhaViewModel.CalcularEstado(lic);
+            }
+            linhas.Add(vm);
         }
 
         var totalObr = obrigatorios.Count;
-        var entreguesObr = linhas.Count(l => l.Obrigatorio && l.Estado == 2);
+        var entreguesObr = linhas.Count(l => l.Obrigatorio && l.EstadoDefinitiva == 2);
+
+        // Objeto anónimo evita serialização frágil de propriedades calculadas no ViewModel.
+        var licencasEventoDto = linhas.Select(l => new
+        {
+            tipo = l.Tipo,
+            nomeExibicao = l.NomeExibicao,
+            tooltip = l.Tooltip,
+            obrigatorio = l.Obrigatorio,
+            estadoPedido = l.EstadoPedido,
+            estadoDefinitiva = l.EstadoDefinitiva,
+            licencaPedido = l.LicencaPedido,
+            licencaDefinitiva = l.LicencaDefinitiva,
+        }).ToList();
 
         return Ok(new
         {
@@ -235,7 +267,7 @@ public class ServicosApiController : ControllerBase
             distanciasSeguranca,
             paiolParaRota,
             distanciaPaiolKm,
-            licencasEvento = linhas,
+            licencasEvento = licencasEventoDto,
             licencasObrigatoriasTotal = totalObr,
             licencasObrigatoriasEntregues = entreguesObr
         });
@@ -345,22 +377,31 @@ public class ServicosApiController : ControllerBase
     // GET: api/servicos/5/upload-licenca?tipo=0&licencaId=1 (dados para o formulário)
     [HttpGet("{id:int}/upload-licenca")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
-    public async Task<IActionResult> GetUploadLicenca(int id, int tipo, int? licencaId, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> GetUploadLicenca(int id, int tipo, int? licencaId, [FromQuery] int origem = 1, CancellationToken cancellationToken = default)
     {
         var servico = await _context.Servicos.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
         if (servico == null) return NotFound();
         var tipoEnum = (TipoLicencaServico)tipo;
+        var origemEnum = origem is 0 or 1 ? (OrigemRegistoServicoLicenca)origem : OrigemRegistoServicoLicenca.AutorizacaoDefinitiva;
+
         ServicoLicenca? lic = null;
         if (licencaId.HasValue)
             lic = await _context.ServicoLicencas.FirstOrDefaultAsync(l => l.Id == licencaId.Value && l.ServicoId == id, cancellationToken);
+        else if (tipoEnum != TipoLicencaServico.OUTRO)
+            lic = await _context.ServicoLicencas.FirstOrDefaultAsync(l =>
+                l.ServicoId == id && l.TipoLicenca == tipoEnum && l.OrigemRegisto == origemEnum, cancellationToken);
+
         if (lic == null && licencaId.HasValue) return NotFound();
 
-        var licencaDto = lic != null ? ServicoLicencaDto.FromEntity(lic) : new ServicoLicencaDto { ServicoId = id, TipoLicenca = tipoEnum };
+        var licencaDto = lic != null
+            ? ServicoLicencaDto.FromEntity(lic)
+            : new ServicoLicencaDto { ServicoId = id, TipoLicenca = tipoEnum, OrigemRegisto = origemEnum };
         return Ok(new
         {
             servicoId = id,
             tipoLicenca = tipo,
             tipoNome = ConstantesServicoLicenca.Nome(tipoEnum),
+            origemRegisto = (int)origemEnum,
             licenca = licencaDto
         });
     }
@@ -368,10 +409,12 @@ public class ServicosApiController : ControllerBase
     // POST: api/servicos/5/upload-licenca
     [HttpPost("{id:int}/upload-licenca")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
-    public async Task<IActionResult> UploadLicenca(int id, [FromQuery] int tipo, [FromQuery] int? licencaId, [FromForm] UploadLicencaDto dto, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> UploadLicenca(int id, [FromQuery] int tipo, [FromQuery] int? licencaId, [FromForm] UploadLicencaDto dto, [FromQuery] int origem = 1, CancellationToken cancellationToken = default)
     {
         var tipoEnum = (TipoLicencaServico)tipo;
         var model = dto.Licenca;
+        var origemEnum = origem is 0 or 1 ? (OrigemRegistoServicoLicenca)origem : OrigemRegistoServicoLicenca.AutorizacaoDefinitiva;
+
         ServicoLicenca? lic = licencaId.HasValue
             ? await _context.ServicoLicencas.FirstOrDefaultAsync(l => l.Id == licencaId.Value && l.ServicoId == id, cancellationToken)
             : null;
@@ -386,10 +429,36 @@ public class ServicosApiController : ControllerBase
         }
         else
         {
+            if (tipoEnum != TipoLicencaServico.OUTRO)
+            {
+                var existe = await _context.ServicoLicencas.AnyAsync(l =>
+                    l.ServicoId == id && l.TipoLicenca == tipoEnum && l.OrigemRegisto == origemEnum, cancellationToken);
+                if (existe)
+                    return BadRequest(new { error = "Já existe um registo deste tipo e origem para este serviço." });
+            }
+            else
+            {
+                if (!string.IsNullOrWhiteSpace(model.NomePersonalizado))
+                {
+                    var existeNome = await _context.ServicoLicencas.AnyAsync(l =>
+                        l.ServicoId == id && l.TipoLicenca == tipoEnum && l.OrigemRegisto == origemEnum && l.NomePersonalizado == model.NomePersonalizado, cancellationToken);
+                    if (existeNome)
+                        return BadRequest(new { error = "Já existe um documento «Outro» com este nome para esta origem." });
+                }
+                else
+                {
+                    var existeSemNome = await _context.ServicoLicencas.AnyAsync(l =>
+                        l.ServicoId == id && l.TipoLicenca == tipoEnum && l.OrigemRegisto == origemEnum && string.IsNullOrWhiteSpace(l.NomePersonalizado), cancellationToken);
+                    if (existeSemNome)
+                        return BadRequest(new { error = "Já existe um documento «Outro» sem nome para esta origem. Indique um nome personalizado." });
+                }
+            }
+
             lic = new ServicoLicenca
             {
                 ServicoId = id,
                 TipoLicenca = tipoEnum,
+                OrigemRegisto = origemEnum,
                 NumeroDocumento = model.NumeroDocumento,
                 DataEmissao = model.DataEmissao,
                 DataValidade = model.DataValidade,

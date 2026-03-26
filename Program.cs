@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -122,40 +124,44 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization(options => Finalproj.Authorization.PoliticasAutorizacao.ConfigurarPoliticas(options));
 
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
+// Swagger apenas em Development — em produção não expor documentação nem UI interativa.
+if (builder.Environment.IsDevelopment())
 {
-    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen(options =>
     {
-        Title = "PIROFAFE API",
-        Description = "API REST do sistema de gestão pirotécnica. A maioria dos endpoints requer autenticação JWT. " +
-                      "Use **POST /api/auth/login** para obter um token e clique em **Authorize** para o colar.",
-        Version = "v1",
-        Contact = new Microsoft.OpenApi.Models.OpenApiContact { Name = "PIROFAFE" }
-    });
-    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-    {
-        Name = "Authorization",
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
-        Scheme = "Bearer",
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Description = "Token JWT obtido em POST /api/auth/login. Ex.: Bearer {token}"
-    });
-    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
-    {
+        options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
         {
-            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            Title = "PIROFAFE API",
+            Description = "API REST do sistema de gestão pirotécnica. A maioria dos endpoints requer autenticação JWT. " +
+                          "Use **POST /api/auth/login** para obter um token e clique em **Authorize** para o colar.",
+            Version = "v1",
+            Contact = new Microsoft.OpenApi.Models.OpenApiContact { Name = "PIROFAFE" }
+        });
+        options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+        {
+            Name = "Authorization",
+            Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+            Scheme = "Bearer",
+            In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+            Description = "Token JWT obtido em POST /api/auth/login. Ex.: Bearer {token}"
+        });
+        options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+        {
             {
-                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                new Microsoft.OpenApi.Models.OpenApiSecurityScheme
                 {
-                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
+                    Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                    {
+                        Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                        Id = "Bearer"
+                    }
+                },
+                Array.Empty<string>()
+            }
+        });
     });
-});
+}
 
 var corsOrigins = builder.Configuration["Cors:AllowedOrigins"] ?? "http://localhost:3000,https://localhost:3000";
 var origins = corsOrigins.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -164,10 +170,22 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendPolicy", policy =>
     {
-        policy.WithOrigins(origins)
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials(); // necessário para pedidos com credentials: 'include' (ex.: POST create encomenda)
+        // Em Development: permitir Next.js em localhost, 127.0.0.1 e IPs privados (ex.: http://172.24.16.1:3000 — WSL/Hyper-V).
+        // Em produção: apenas origens explícitas em Cors:AllowedOrigins.
+        if (builder.Environment.IsDevelopment())
+        {
+            policy.SetIsOriginAllowed(IsAllowedDevelopmentFrontendOrigin)
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        }
+        else
+        {
+            policy.WithOrigins(origins)
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials(); // necessário para pedidos com credentials: 'include' (ex.: POST create encomenda)
+        }
     });
 });
 
@@ -182,8 +200,22 @@ static async Task InicializarAsync(WebApplication app)
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<FinalprojContext>();
     await context.Database.MigrateAsync();
+    // Se o histórico de migrações estiver desalinhado, a coluna pode faltar e o GET serviço falha (500).
+    await GarantirColunaOrigemRegistoServicoLicencaAsync(context);
     DbInitializer.Initialize(context);
     await SeedRoles.InitializeAsync(scope.ServiceProvider);
+}
+
+static async Task GarantirColunaOrigemRegistoServicoLicencaAsync(FinalprojContext context)
+{
+    await context.Database.ExecuteSqlRawAsync(
+        """
+        IF OBJECT_ID(N'[dbo].[ServicoLicencas]', N'U') IS NOT NULL
+           AND COL_LENGTH(N'ServicoLicencas', N'OrigemRegisto') IS NULL
+        BEGIN
+            ALTER TABLE [ServicoLicencas] ADD [OrigemRegisto] TINYINT NOT NULL CONSTRAINT DF_ServicoLicencas_OrigemRegisto DEFAULT 1;
+        END
+        """);
 }
 
 // Pipeline: erros, HTTPS, estáticos, sessão, auth
@@ -219,19 +251,24 @@ app.Use(async (context, next) =>
     }
 });
 
-app.UseHttpsRedirection();
+// Em Development, não redirecionar HTTP→HTTPS: permite o telemóvel usar http://<IP>:5078 sem certificado.
+if (!isDevelopment)
+    app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
 
 app.UseCors("FrontendPolicy");
 
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+if (app.Environment.IsDevelopment())
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "PIROFAFE API v1");
-    c.DocumentTitle = "PIROFAFE API";
-});
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "PIROFAFE API v1");
+        c.DocumentTitle = "PIROFAFE API";
+    });
+}
 
 app.UseSession();
 app.UseAuthentication();
@@ -240,3 +277,37 @@ app.UseAuthorization();
 app.MapControllers(); // Rotas da API ([Route("api/...")])
 
 app.Run();
+
+static bool IsAllowedDevelopmentFrontendOrigin(string? origin)
+{
+    if (string.IsNullOrEmpty(origin)) return false;
+    Uri uri;
+    try
+    {
+        uri = new Uri(origin);
+    }
+    catch (UriFormatException)
+    {
+        return false;
+    }
+
+    if (uri.Scheme is not ("http" or "https")) return false;
+    // Next.js dev (porto 3000 por defeito)
+    if (uri.Port != 3000) return false;
+
+    var h = uri.IdnHost;
+    if (h.Equals("localhost", StringComparison.OrdinalIgnoreCase)) return true;
+    if (h == "127.0.0.1") return true;
+
+    if (!IPAddress.TryParse(h, out var ip)) return false;
+
+    if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+        return IPAddress.IPv6Loopback.Equals(ip);
+
+    var b = ip.GetAddressBytes();
+    if (b.Length != 4) return false;
+    if (b[0] == 10) return true;
+    if (b[0] == 172 && b[1] >= 16 && b[1] <= 31) return true;
+    if (b[0] == 192 && b[1] == 168) return true;
+    return false;
+}
