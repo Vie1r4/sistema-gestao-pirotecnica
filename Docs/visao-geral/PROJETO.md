@@ -26,7 +26,7 @@ A **raiz do repositório** contém o **backend** (ASP.NET Core). O **frontend** 
 - **ASP.NET Core 8** — API REST; sem UI server-side (a interface é toda no frontend Next.js).
 - **Entity Framework Core** com **SQL Server** para persistência.
 - **Autenticação** — JWT para `/api/*`; refresh token com rotação e revogação.
-- **Swagger** — documentação interativa em `/swagger` com suporte a Bearer token.
+- **Swagger** — documentação interativa em `/swagger` com suporte a Bearer token (**apenas ambiente Development**; em produção fica desligado).
 - **FluentValidation** — validação de DTOs com mensagens em português.
 
 No arranque (`Program.cs`):
@@ -115,7 +115,7 @@ Refresh tokens são guardados em hash (SHA-256). JWT inclui claims de identifica
 
 ## 5. API — módulos e fluxos
 
-Resumo dos recursos. Documentação completa: **Swagger** (`/swagger`) e **`Docs/API.md`** (tabelas de endpoints, autenticação, paginação, exemplos cURL).
+Resumo dos recursos. Documentação completa: **Swagger** (`/swagger`, só em Development) e [**`Docs/api/API.md`**](../api/API.md) (tabelas de endpoints, autenticação, paginação, exemplos cURL).
 
 ### Auth — `/api/auth`
 
@@ -184,7 +184,7 @@ CRUD; associação a utilizador Identity; documentos (cartão cidadão, licença
 
 - **User Secrets** (obrigatório): `Jwt:Secret` (mín. 32 caracteres), `Jwt:Issuer`, `Jwt:Audience`; opcional: Email (SmtpHost, SmtpUser, SmtpPassword, From).
 - Comando: `dotnet run` na raiz do repositório.
-- **Swagger:** `https://localhost:7225/swagger` (confirmar porta em `Properties/launchSettings.json`).
+- **Swagger (Development):** `https://localhost:7225/swagger` (confirmar porta em `Properties/launchSettings.json`).
 
 ### Frontend
 
@@ -198,7 +198,7 @@ CRUD; associação a utilizador Identity; documentos (cartão cidadão, licença
 - **Decimais:** lat/lng com precisão alta no EF; `DecimalInvariantModelBinder` para form/query (evitar problemas de cultura).
 - **Erros da API:** para `/api/*`, middleware devolve 500 em JSON; JWT em falta/inválido devolve 401 em JSON (sem redirect).
 - **Documentos:** guardados em `wwwroot/Documentos/...`; servidos com `Content-Disposition: inline` e content-type adequado.
-- **Frontend:** dados de negócio via API; localStorage apenas para token/sessão e estado de UI (tema, etc.). Ver `client/.cursor/rules` e `client/Docs/` para auditoria e padrões.
+- **Frontend:** dados de negócio via API; localStorage apenas para token/sessão e estado de UI (tema, etc.). Ver `client/.cursor/rules` e [**`Docs/frontend/`**](../frontend/) para auditoria e padrões.
 
 ---
 
@@ -217,7 +217,8 @@ CRUD; associação a utilizador Identity; documentos (cartão cidadão, licença
 
 | Documento | Conteúdo |
 |-----------|----------|
-| **README.md** (raiz) | Estrutura, pré-requisitos, configuração, execução, primeiro utilizador. |
-| **Docs/API.md** | Documentação da API: base URL, autenticação, tabelas de recursos, paginação, códigos de resposta, cURL. |
-| **Services/README.md** | Organização dos serviços (Domain vs Infrastructure). |
-| **client/Docs/** | Auditoria localStorage vs API, verificação de endpoints, tarefas em aberto. |
+| [**README.md**](../../README.md) (raiz) | Estrutura, pré-requisitos, configuração, execução, primeiro utilizador. |
+| [**Docs/README.md**](../README.md) | Índice de toda a documentação em `Docs/`. |
+| [**Docs/api/API.md**](../api/API.md) | Documentação da API: base URL, autenticação, tabelas de recursos, paginação, códigos de resposta, cURL. |
+| [**Services/README.md**](../../Services/README.md) | Organização dos serviços (Domain vs Infrastructure). |
+| [**Docs/frontend/**](../frontend/) | Auditoria localStorage vs API, verificação de endpoints, tarefas em aberto. |

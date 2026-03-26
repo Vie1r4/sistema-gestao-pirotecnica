@@ -1,0 +1,11 @@
+---
+description: Segunda utilização do mesmo endpoint → função em lib/*Api.ts
+globs: "**/*.tsx,**/*.ts,app/lib/**/*.ts"
+alwaysApply: true
+---
+
+# Endpoints repetidos → `lib/*Api.ts`
+
+- **Regra:** quando o **mesmo endpoint** (HTTP + caminho, ex.: `GET /api/encomendas/5`) aparecer **uma segunda vez** noutra página ou componente, **não duplicar** o `fetch` — acrescentar (ou reutilizar) uma função em `app/lib/*Api.ts` no ficheiro do domínio certo.
+- **Objetivo:** um único sítio para URL, headers, parsing e erros; páginas chamam a função e usam TanStack Query em cima dela quando fizer sentido.
+- **Não exige** refactor massivo do código antigo; aplica-se **a partir de agora** e quando se tocar em código duplicado.

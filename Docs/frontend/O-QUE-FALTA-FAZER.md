@@ -31,7 +31,23 @@ Todas usam TanStack Query e não guardam listas em localStorage.
 ### Detalhes, edição e eliminação
 
 - Clientes, Produtos, Funcionários, Encomendas, Serviços, Armazém: useQuery para carregar (GET por id ou endpoints de edit/delete), useMutation para PUT/DELETE, invalidação e redirect no onSuccess.
-- Encomendas editar: já usa PUT api/encomendas/{id} e GET api/encomendas/{id}; produtos via produtosApi.fetchList.
+- Encomendas editar: já usa PUT/GET api/encomendas/{id} e produtosApi.fetchList.
+
+### TanStack Query em fluxos adicionais (padronização)
+
+Migrados de `useEffect` + `fetch` manual para `useQuery` / `useMutation` onde fazia sentido:
+
+| Área | Notas |
+|------|--------|
+| Armazém stock | `["armazem", "stock", filtros]` |
+| Conteúdo do paiol | `fetchConteudoPaiol` + query por id |
+| Entradas registar | formulário + POST com invalidação `["armazem"]` |
+| Encomendas — adicionar-itens | query com filtros debounced + mutations (adicionar/remover/submeter) |
+| Serviços novo / licença | create + upload-licença + detalhe (origem 0) |
+| Produtos gerir | lista filtrada |
+| Admin utilizador editar | GET edit + save mutation |
+| Perfil | GET/PUT perfil (`home.ts`) |
+| Funcionários desassociar | `["funcionarios", id, "desassociar"]` + `postDesassociarConta` em **lib/funcionariosApi.ts** |
 
 ### Uso aceitável de localStorage
 
@@ -47,17 +63,17 @@ Todas usam TanStack Query e não guardam listas em localStorage.
 - **Estado**: Implementado um sistema global de notificações (toast) para erros de mutations e sessão expirada.
 - **Comportamento**: Erros de mutation e erros de autenticação são mostrados num toast no canto da ecrã; o utilizador pode dispensar ou é redirecionado para login quando a sessão expira.
 
-### 2. Páginas que ainda usam fetch manual (opcional)
+### 2. Páginas com `fetch` ainda inline (opcional)
 
-Melhoria de consistência: migrar para useQuery/useMutation onde ainda exista `useEffect` + `fetch` + `useState` para dados da API:
+Muitas páginas já usam TanStack Query mas mantêm `fetch` dentro de `queryFn`/`mutationFn` (válido). Melhorias opcionais:
 
-- Armazém: gestao, [id]/conteudo, stock, movimentos, novo, entradas/registar, saidas/registar (algumas já usam useQuery).
-- Encomendas novo, adicionar-itens (já usam encomendasApi; podem padronizar com useQuery/useMutation).
-- Serviços novo, [id]/licenca; Clientes/Produtos/Funcionários novo, produtos/gerir; Admin utilizadores/[id]/editar; Perfil.
+- Extrair chamadas repetidas para **lib/** (ex.: GET funcionário por id partilhado entre detalhe e desassociar).
+- Migrar páginas que ainda carregam dados só com `useEffect` + `fetch` sem Query (se restarem).
+- Casos especiais a manter como estão: **login** (GET existem-utilizadores antes de hidratar providers), **error** (GET api/home/error), **ThemeSync** (preferências).
 
 ### 3. Documentação
 
-- **AUDITORIA-LOCALSTORAGE.md** e **O-QUE-FALTA-FAZER.md** estão alinhados com o estado atual (zero localStorage de negócio; Zustand para tema; toast global para erros).
+- **AUDITORIA-LOCALSTORAGE.md**, **O-QUE-FALTA-FAZER.md** e **VERIFICACAO-APIS-UTILIZADAS.md** alinhados: sem dados de negócio em localStorage; **api/auth/me** como fonte do utilizador (UserContext).
 
 ---
 
@@ -67,4 +83,5 @@ Melhoria de consistência: migrar para useQuery/useMutation onde ainda exista `u
 2. ~~**Encomendas [id] editar**~~ — **Feito.** Usa PUT/GET api/encomendas/{id} e produtosApi.
 3. ~~**Libs encomendas, clientes, produtos, armazem, funcionarios, entradasSaidasPaiol**~~ — **Feito.** Reduzidas a tipos e/ou API; sem localStorage.
 4. ~~**Feedback de erros global**~~ — **Feito.** Toast global para erros de mutation e sessão expirada.
-5. **Opcional:** Páginas de criação/registar/gestão — padronizar com useQuery/useMutation onde ainda haja fetch manual.
+5. ~~**Padronização TanStack Query** (stock, paiol, entradas, adicionar-itens, serviços, produtos gerir, admin editar, perfil, desassociar)~~ — **Feito** nas áreas listadas acima.
+6. **Opcional:** Centralizar mais funções em `lib/*Api.ts` e reduzir `fetch` duplicado em páginas.

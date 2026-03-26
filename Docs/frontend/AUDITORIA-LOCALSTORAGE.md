@@ -38,4 +38,4 @@ A fonte do utilizador atual é **GET api/auth/me** (UserContext); não se guarda
 
 - **Sim**: Todo o frontend lê dados de negócio **apenas das APIs**. Não há listas nem entidades (clientes, produtos, encomendas, serviços, paióis, funcionários, entradas/saídas) em localStorage.
 - **localStorage** é usado só para token, refresh token e tema (Zustand persist).
-- **Documentação**: Atualizado em março 2025 após remoção completa do localStorage de dados de negócio e introdução de Zustand para o tema.
+- **Documentação**: Atualizado após remoção completa do localStorage de dados de negócio e introdução de Zustand para o tema. Rever também **VERIFICACAO-APIS-UTILIZADAS.md** e **O-QUE-FALTA-FAZER.md** (março 2026).

@@ -99,7 +99,7 @@ Se o utilizador não tiver nenhuma destas permissões, a secção "Acesso rápid
 
 ## 6. Documentação relacionada
 
-- **PROJETO.md** (raiz do repo) — visão geral do PIROFAFE.
-- **ROLES-E-PERMISSOES.md** — matriz de permissões por role.
+- [**PROJETO.md**](../visao-geral/PROJETO.md) — visão geral do PIROFAFE.
+- [**ROLES-E-PERMISSOES.md**](../backend/ROLES-E-PERMISSOES.md) — matriz de permissões por role.
 - **Navbar** — `app/components/Navbar.tsx` (lista de links e permissões).
 - **API** — `GET api/home`, `GET api/home/stats`, `GET api/encomendas`.

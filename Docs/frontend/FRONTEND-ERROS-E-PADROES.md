@@ -81,8 +81,17 @@ useEffect(() => {
 
 ---
 
-## 4. Resumo
+## 4. TypeScript, `tsc` e pastas `.next`
+
+- **Problema**: Incluir **em paralelo** `.next/types/**/*.ts` e `.next/dev/types/**/*.ts` no `tsconfig.json` faz o TypeScript carregar **duas definições** de tipos de rotas (`LayoutRoutes`, etc.) e pode gerar **TS2344** no `validator.ts` gerado pelo Next.
+- **Correção no projeto**: manter **só** `.next/types/**/*.ts` no `include`; `next-env.d.ts` importa `./.next/types/routes.d.ts` (fonte única). O **`npm run typecheck`** (`tsc --noEmit`) deve passar após um `next build` (ou `next dev`) que regenere `.next`.
+- **Nota**: se `next dev` ou `next build` **voltarem a** acrescentar `.next/dev/types/**/*.ts` ao `include`, remover essa linha duplicada (comportamento conhecido no Next 16 em Windows; ver [issue #85028](https://github.com/vercel/next.js/issues/85028)).
+
+---
+
+## 5. Resumo
 
 - **Loops de useEffect**: normalmente causados por **dependências instáveis** (objetos/arrays criados no render). Correção: não colocar esses valores nas deps; usar apenas identificadores estáveis (`id`, `data` da query).
 - **Tratamento de erros**: hoje **inconsistente** (setLoadError vs setMessage vs .catch vazio). Um padrão único (toast/notificação + helper de erro) reduz bugs e melhora UX.
 - **Padrões consistentes**: definir **uma** forma de carregar dados (preferencialmente useQuery) e **uma** forma de preencher formulários a partir da API (useEffect com deps estáveis), evita tanto loops como re-fetches desnecessários e facilita manutenção.
+- **Tipos `tsc`**: ver secção 4 sobre `.next/types` vs `.next/dev/types`.

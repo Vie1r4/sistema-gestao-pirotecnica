@@ -1,6 +1,6 @@
 # Documentação da API PIROFAFE
 
-API REST do sistema de gestão pirotécnica. Backend em **ASP.NET Core 8**; documentação interativa via **Swagger**.
+API REST do sistema de gestão pirotécnica. Backend em **ASP.NET Core 8**; documentação interativa via **Swagger** (UI disponível **apenas em ambiente Development** — em produção o Swagger está desligado por segurança).
 
 ---
 
@@ -54,9 +54,9 @@ Authorization: Bearer <token>
 
 ---
 
-## Swagger (recomendado)
+## Swagger (recomendado em desenvolvimento)
 
-A forma mais rápida de explorar e testar a API é usar o **Swagger UI**:
+A forma mais rápida de explorar e testar a API é usar o **Swagger UI** (só com `ASPNETCORE_ENVIRONMENT=Development` ou equivalente):
 
 1. Inicie o backend: `dotnet run` (na raiz do projeto).
 2. Abra no browser: **https://localhost:7225/swagger**.
@@ -268,4 +268,4 @@ curl -s -X GET "https://localhost:7225/api/clientes" \
 
 ## Referência completa
 
-Para todos os parâmetros, schemas de request/response e tipos, use o **Swagger** em **https://localhost:7225/swagger** com o backend a correr.
+Para todos os parâmetros, schemas de request/response e tipos, use o **Swagger** em **https://localhost:7225/swagger** com o backend a correr em **Development** (em produção use esta documentação ou clientes HTTP próprios).

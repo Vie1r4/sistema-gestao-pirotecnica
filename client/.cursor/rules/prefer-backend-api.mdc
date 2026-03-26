@@ -14,4 +14,4 @@ alwaysApply: true
   - **Token de sessão** e, se necessário, objeto mínimo do utilizador (ex.: `pirofafe-user` para nome na Navbar) até haver GET `/api/auth/me` como fonte única.
   - **Estado puramente de UI** que não existe no backend: tema (ex.: `pirofafe-theme`), sidebar aberta, etc.
   - Cache/offline só se for explicitamente acordado no projeto.
-- **Não guardar em localStorage**: listas ou entidades que vêm da API (clientes, produtos, encomendas, serviços, paióis, funcionários, entradas/saídas de paiol). Ver `Docs/AUDITORIA-LOCALSTORAGE.md` para o estado atual.
+- **Não guardar em localStorage**: listas ou entidades que vêm da API (clientes, produtos, encomendas, serviços, paióis, funcionários, entradas/saídas de paiol). Ver `Docs/frontend/AUDITORIA-LOCALSTORAGE.md` (na raiz do repositório) para o estado atual.

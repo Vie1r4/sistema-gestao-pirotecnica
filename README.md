@@ -1,16 +1,28 @@
 # PIROFAFE — Sistema de Gestão Pirotécnica
 
-Aplicação full-stack: **backend** ASP.NET Core 8 (API + MVC + Identity) e **frontend** Next.js 16 (pasta `client/`).
+Aplicação full-stack: **backend** ASP.NET Core 8 (API REST + Identity) e **frontend** Next.js 16 (pasta `client/`).
 
-## Documentação da API
+## Documentação
 
-- **Swagger (UI interativa):** Com o backend a correr, abra [https://localhost:7225/swagger](https://localhost:7225/swagger). Inclui autenticação JWT (use **Authorize** após obter um token em `POST /api/auth/login`).
-- **Documentação em texto:** [Docs/API.md](Docs/API.md) — base URL, autenticação, tabela de recursos, paginação, códigos de resposta e exemplo com cURL.
+**Índice central:** [**Docs/README.md**](Docs/README.md) — visão geral, API, frontend, backend e configuração.
+
+| Área | Ligação rápida |
+|------|----------------|
+| **Iniciantes (linguagem simples)** | [Docs/informacoes-basicas/guia-iniciantes.md](Docs/informacoes-basicas/guia-iniciantes.md) |
+| API (referência) | [Docs/api/API.md](Docs/api/API.md) |
+| Projeto (stack, domínio) | [Docs/visao-geral/PROJETO.md](Docs/visao-geral/PROJETO.md) |
+| Frontend (auditorias, pendências) | [Docs/frontend/](Docs/frontend/) |
+
+## Documentação interativa (Swagger)
+
+Com o backend a correr em **Development**, a UI Swagger está em `/swagger` (ex.: [https://localhost:7225/swagger](https://localhost:7225/swagger)) — autenticação JWT com **Authorize** após `POST /api/auth/login`.
+
+Em **Production** o Swagger fica **desligado** (não expor a superfície da API).
 
 ## Estrutura
 
-- **Raiz do repositório**: Backend (Controllers, Data, Models, Services, Views).
-- **client/**: Frontend Next.js (React 19, TanStack Query, Tailwind, Leaflet).
+- **Raiz do repositório:** backend (Controllers, Data, Models, Services).
+- **`client/`:** frontend Next.js (React 19, TanStack Query, Tailwind, Leaflet).
 
 ## Pré-requisitos
 
@@ -53,7 +65,7 @@ cd C:\Users\shovi\source\repos\Finalproj
 dotnet run
 ```
 
-A API fica em `https://localhost:7225` (ou a porta em `Properties/launchSettings.json`). **Swagger:** [https://localhost:7225/swagger](https://localhost:7225/swagger) — documentação interativa com suporte a JWT.
+A API fica em `https://localhost:7225` (ou a porta em `Properties/launchSettings.json`). Em Development, use o Swagger em `/swagger` para testar endpoints.
 
 ### 2. Frontend
 
@@ -74,8 +86,3 @@ Em produção, defina `NEXT_PUBLIC_API_URL` com a URL da API.
 ## Primeiro utilizador
 
 Se não existir nenhum utilizador, ao aceder ao frontend será redirecionado para **Registar primeiro utilizador**. Esse utilizador recebe a role Admin.
-
-## Documentação adicional
-
-- **[Docs/API.md](Docs/API.md)** — Documentação da API (recursos, autenticação, paginação, exemplos).
-- **client/Docs/** — Auditoria localStorage vs API, verificação de endpoints, o que falta fazer.

@@ -1,0 +1,51 @@
+# Verificação: APIs do backend vs utilização no frontend
+
+Resumo da análise: quais endpoints existem no backend e se estão a ser usados no client.
+
+---
+
+## 1. APIs totalmente utilizadas pelo frontend
+
+| API | Endpoints | Utilização |
+|-----|-----------|------------|
+| **api/auth** | GET existem-utilizadores, POST registar-primeiro-utilizador, POST login, GET me | login, registar-primeiro-utilizador, UserContext |
+| **api/home** | GET, GET privacy, GET error, GET/POST limpar-dados, GET/POST preferencias, GET/PUT perfil, POST alterar-password | page.tsx, privacy, error, admin, clearData, ThemeSync, ThemeToggle, perfil |
+| **api/admin** | GET, GET/PUT/DELETE utilizadores/{id}, POST clear-all-data | lib/admin.ts, páginas admin |
+| **api/servicos** | GET, GET create, POST, GET {id}, GET {id}/edit, PUT, GET {id}/delete, DELETE, documentos, upload-licenca GET/POST, licenca ficheiro, PUT distancia-seguranca | lib/servicosApi.ts, páginas servicos |
+| **api/paiol** | GET, stock, movimentos, gestao, {id}, {id}/conteudo, create GET/POST, {id}/edit GET, PUT, {id}/delete GET, DELETE, {id}/documentos/{extraId} | armazem/*, lib/paiolApi.ts |
+| **api/clientes** | GET, GET {id}, create GET/POST, {id}/edit GET, PUT, {id}/delete GET, DELETE, {id}/documentos/{extraId} | clientes/*, lib (fetchClientes, fetchClienteDetalhe) |
+| **api/produtos** | GET, gerir, {id}, create GET/POST, {id}/edit GET, PUT, {id}/delete GET, DELETE | lib/produtosApi.ts, produtos/* |
+| **api/funcionarios** | GET, {id}, create GET/POST, {id}/edit GET, PUT, {id}/delete GET, DELETE, {id}/desassociar GET/POST, {id}/documentos | funcionarios/*, lib/funcionariosApi.ts (incl. postDesassociarConta) |
+| **api/encomendas** | GET, create GET/POST, adicionar-itens GET, adicionar-item POST, remover-item POST, submeter POST, {id} GET, {id}/aceitar POST, {id}/rejeitar GET/POST, {id}/preparar GET, {id}/registar-preparacao POST, {id}/concluir POST | lib/encomendasApi.ts, encomendas/* |
+| **api/entrada-paiol** | GET registar, POST registar | armazem/entradas/registar, lib/entradaPaiolApi.ts |
+| **api/saida-paiol** | GET registar, POST registar | armazem/saidas/registar (GET registar com query params e POST registar) |
+
+---
+
+## 2. Endpoints existentes mas pouco ou não utilizados
+
+| Endpoint | Situação |
+|----------|----------|
+| **GET api/auth/me** | **Atualizado:** UserContext chama GET api/auth/me quando existe token; Navbar e perfil usam `useUser()`. O login não escreve `pirofafe-user` no localStorage; a fonte do utilizador é a API. |
+| **GET api/saida-paiol** (raiz) | No backend devolve mensagem sobre onde obter histórico. O frontend não chama este GET; só usa GET registar e POST registar. Uso opcional (mensagem informativa). |
+
+---
+
+## 3. Frontend e localStorage (estado atual)
+
+**Não há dados de negócio em localStorage.** Listagens, detalhes e CRUD usam as APIs; onde aplicável, **TanStack Query** (`useQuery` / `useMutation`) com invalidação.
+
+| Tema | Conteúdo |
+|------|----------|
+| **O que é guardado** | Token/refresh (sessão), tema UI (`pirofafe-theme` via Zustand persist). |
+| **Fonte do utilizador** | GET **api/auth/me** (UserContext), não objeto manual no login. |
+| **Documentação detalhada** | Ver **AUDITORIA-LOCALSTORAGE.md** e a regra `.cursor/rules/prefer-backend-api.mdc`. |
+
+---
+
+## 4. Resumo
+
+- **Quase todas as APIs estão a ser utilizadas** em algum fluxo (listagens, CRUD, auth, home, admin, encomendas, serviços, paiol, entrada/saída).
+- **Pontos de melhoria opcionais:** reduzir `fetch` duplicado entre páginas movendo helpers para `lib/*Api.ts`; manter casos especiais (login inicial, página de erro, ThemeSync) onde não faz sentido Query.
+
+Seguir a regra em `.cursor/rules/prefer-backend-api.mdc`: usar a API em primeiro lugar para dados de negócio.
