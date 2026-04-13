@@ -33,6 +33,8 @@ export default function PrepararEncomendaPage() {
   const [mounted, setMounted] = useState(false);
   const [retiradas, setRetiradas] = useState<Record<string, Record<string, number>>>({});
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
+  /** Checklist visual por linha (não é enviado ao servidor). */
+  const [itensMarcados, setItensMarcados] = useState<Record<string, boolean>>({});
   const [erro, setErro] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
@@ -121,6 +123,10 @@ export default function PrepararEncomendaPage() {
       .catch(() => setApiData(null))
       .finally(() => setLoadingApi(false));
   }, [mounted, id, idNum, isApiId]);
+
+  const toggleItemMarcado = (encomendaItemId: string) => {
+    setItensMarcados((prev) => ({ ...prev, [encomendaItemId]: !prev[encomendaItemId] }));
+  };
 
   const setRetirada = (encomendaItemId: string, paiolId: string, value: number) => {
     setRetiradas((prev) => {
@@ -303,7 +309,7 @@ export default function PrepararEncomendaPage() {
             className="card-hover mt-10 rounded-2xl border border-[#e7e5e4] bg-white p-6 dark:border-[#1f1f1f] dark:bg-[#111] sm:p-8"
           >
             <p className="mb-4 text-sm text-[#57534e] dark:text-gray-400">
-              Para cada produto, indique de que paiol(s) retirar. A soma por produto deve ser igual à quantidade pedida. O sistema usa FIFO (primeiro a entrar, primeiro a sair).
+              Para cada produto, indique de que paiol(s) retirar. A soma por produto deve ser igual à quantidade pedida. O sistema usa FIFO (primeiro a entrar, primeiro a sair). Use a coluna à esquerda para marcar o que já tem em mãos.
             </p>
 
             <form onSubmit={handleRegistar}>
@@ -311,6 +317,9 @@ export default function PrepararEncomendaPage() {
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-[#e7e5e4] dark:border-[#222]">
+                      <th className="w-12 pb-2 pr-2 font-semibold text-[#444] dark:text-gray-300" scope="col">
+                        <span className="sr-only">Material pronto</span>
+                      </th>
                       <th className="pb-2 pr-4 font-semibold text-[#444] dark:text-gray-300">Produto</th>
                       <th className="whitespace-nowrap pb-2 pr-4 font-semibold text-[#444] dark:text-gray-300">Qtd pedida</th>
                       <th className="whitespace-nowrap pb-2 pr-4 font-semibold text-[#444] dark:text-gray-300">Em stock</th>
@@ -325,9 +334,28 @@ export default function PrepararEncomendaPage() {
                       const ok = Math.abs(soma - item.quantidadePedida) <= TOL;
                       const paioisComStock = paioisComStockPorItem.get(item.id) ?? [];
                       const isExpanded = expandedItemId === item.id;
+                      const marcado = !!itensMarcados[item.id];
                       return (
                         <React.Fragment key={item.id}>
-                          <tr className="border-b border-[#f5f5f4] dark:border-[#1a1a1a]">
+                          <tr
+                            className={`border-b border-[#f5f5f4] dark:border-[#1a1a1a] ${marcado ? "bg-emerald-50/60 dark:bg-emerald-950/20" : ""}`}
+                          >
+                            <td className="py-2 pr-2 align-middle">
+                              <button
+                                type="button"
+                                role="checkbox"
+                                aria-checked={marcado}
+                                aria-label={`Marcar material pronto: ${item.produto?.nome ?? item.produtoId}`}
+                                onClick={() => toggleItemMarcado(item.id)}
+                                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border-2 text-base leading-none transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316] ${
+                                  marcado
+                                    ? "border-emerald-600 bg-emerald-600 text-white dark:border-emerald-500 dark:bg-emerald-600"
+                                    : "border-[#d6d3d1] bg-white text-transparent hover:border-[#a8a29e] dark:border-[#444] dark:bg-[#1a1a1a] dark:hover:border-[#666]"
+                                }`}
+                              >
+                                {marcado ? "✓" : "\u00a0"}
+                              </button>
+                            </td>
                             <td className="py-2 pr-4 font-medium text-[#1c1917] dark:text-white">
                               {item.produto?.nome ?? item.produtoId}
                             </td>
@@ -355,7 +383,7 @@ export default function PrepararEncomendaPage() {
                           </tr>
                           {isExpanded && paioisComStock.length > 0 && (
                             <tr className="border-b border-[#f5f5f4] bg-[#fafaf9] dark:border-[#1a1a1a] dark:bg-[#0d0d0d]">
-                              <td colSpan={5} className="px-4 py-3">
+                              <td colSpan={6} className="px-4 py-3">
                                 <p className="mb-2 text-xs font-medium uppercase tracking-wider text-[#78716c] dark:text-gray-500">
                                   Quantidade a retirar de cada paiol (soma = {item.quantidadePedida})
                                 </p>

@@ -84,4 +84,4 @@ Muitas páginas já usam TanStack Query mas mantêm `fetch` dentro de `queryFn`/
 3. ~~**Libs encomendas, clientes, produtos, armazem, funcionarios, entradasSaidasPaiol**~~ — **Feito.** Reduzidas a tipos e/ou API; sem localStorage.
 4. ~~**Feedback de erros global**~~ — **Feito.** Toast global para erros de mutation e sessão expirada.
 5. ~~**Padronização TanStack Query** (stock, paiol, entradas, adicionar-itens, serviços, produtos gerir, admin editar, perfil, desassociar)~~ — **Feito** nas áreas listadas acima.
-6. **Opcional:** Centralizar mais funções em `lib/*Api.ts` e reduzir `fetch` duplicado em páginas.
+6. **Opcional:** Centralizar mais funções em `lib/*Api.ts` e reduzir `fetch` duplicado em páginas. **Parcial (2026):** auth (`authApi.ts`), movimentos/POST paiol (`paiolApi.ts`), entrada/saída (`entradaPaiolApi.ts`, `saidaPaiolApi.ts`); login/registar/UserContext já não usam `fetch`+`apiPath` inline.

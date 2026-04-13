@@ -13,8 +13,6 @@ public class EncomendaListResponseDto
     public DateTime? DataConclusao { get; set; }
     public string? Observacoes { get; set; }
     public string? MotivoRejeicao { get; set; }
-    public string? FuncionarioAceiteUserId { get; set; }
-    public string? FuncionarioPreparouUserId { get; set; }
     /// <summary>Resumo do cliente (apenas id e nome) para listagem.</summary>
     public EncomendaClienteResumoDto? Cliente { get; set; }
 }
@@ -38,8 +36,6 @@ public class EncomendaDetailResponseDto
     public DateTime? DataConclusao { get; set; }
     public string? Observacoes { get; set; }
     public string? MotivoRejeicao { get; set; }
-    public string? FuncionarioAceiteUserId { get; set; }
-    public string? FuncionarioPreparouUserId { get; set; }
     public ClienteResponseDto? Cliente { get; set; }
     public List<EncomendaItemResponseDto> Itens { get; set; } = new();
 }
@@ -81,8 +77,6 @@ public static class EncomendaResponseDtoMapping
             DataConclusao = e.DataConclusao,
             Observacoes = e.Observacoes,
             MotivoRejeicao = e.MotivoRejeicao,
-            FuncionarioAceiteUserId = e.FuncionarioAceiteUserId,
-            FuncionarioPreparouUserId = e.FuncionarioPreparouUserId,
             Cliente = e.Cliente != null ? new EncomendaClienteResumoDto { Id = e.Cliente.Id, Nome = e.Cliente.Nome } : null
         };
     }
@@ -99,8 +93,6 @@ public static class EncomendaResponseDtoMapping
             DataConclusao = e.DataConclusao,
             Observacoes = e.Observacoes,
             MotivoRejeicao = e.MotivoRejeicao,
-            FuncionarioAceiteUserId = e.FuncionarioAceiteUserId,
-            FuncionarioPreparouUserId = e.FuncionarioPreparouUserId,
             Cliente = e.Cliente != null ? ClienteResponseDtoMapping.Map(e.Cliente, false) : null,
             Itens = (e.Itens ?? new List<EncomendaItem>())
                 .Select(i => new EncomendaItemResponseDto
@@ -125,4 +117,15 @@ public static class EncomendaResponseDtoMapping
             DataConclusao = e.DataConclusao
         };
     }
+
+    /// <summary>Item de encomenda com produto como DTO (ex.: detalhe de serviço).</summary>
+    public static EncomendaItemResponseDto MapItem(EncomendaItem i) =>
+        new()
+        {
+            Id = i.Id,
+            EncomendaId = i.EncomendaId,
+            ProdutoId = i.ProdutoId,
+            QuantidadePedida = i.QuantidadePedida,
+            Produto = i.Produto != null ? ProdutoResponseDtoMapping.Map(i.Produto) : null
+        };
 }

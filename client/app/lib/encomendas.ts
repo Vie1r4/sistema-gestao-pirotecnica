@@ -23,9 +23,8 @@ export type Encomenda = {
   dataEntrega?: string;
   observacoes?: string;
   criadoPorUserId?: string;
-  funcionarioAceiteUserId?: string;
+  /** Nome de exibição; os UserIds do Identity não vêm na API de listagem/detalhe. */
   funcionarioAceiteNome?: string;
-  funcionarioPreparouUserId?: string;
   funcionarioPreparouNome?: string;
   dataConclusao?: string;
   motivoRejeicao?: string;

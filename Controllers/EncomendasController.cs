@@ -58,6 +58,16 @@ public class EncomendasController : ControllerBase
         HttpContext.Session.Remove(SessionKeyDraft);
     }
 
+    private async Task<EncomendaDetailResponseDto?> LoadEncomendaDetailDtoAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var e = await _context.Encomendas
+            .AsNoTracking()
+            .Include(x => x.Cliente)
+            .Include(x => x.Itens).ThenInclude(i => i.Produto)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        return e == null ? null : EncomendaResponseDtoMapping.MapToDetail(e);
+    }
+
     // Lista encomendas com filtro por estado e paginação
     [HttpGet]
     public async Task<IActionResult> Index(string? estado, int pagina = 1, int itensPorPagina = 20, CancellationToken cancellationToken = default)
@@ -145,7 +155,8 @@ public class EncomendasController : ControllerBase
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirEncomendas)]
     public async Task<IActionResult> Create(int? clienteId, CancellationToken cancellationToken = default)
     {
-        var clientes = await _context.Clientes.OrderBy(c => c.Nome).ToListAsync(cancellationToken);
+        var clientesEnt = await _context.Clientes.AsNoTracking().OrderBy(c => c.Nome).ToListAsync(cancellationToken);
+        var clientes = clientesEnt.Select(c => new EncomendaClienteResumoDto { Id = c.Id, Nome = c.Nome }).ToList();
         return Ok(new
         {
             clientes,
@@ -321,7 +332,8 @@ public class EncomendasController : ControllerBase
         await _logSistema.RegistarAsync("ENCOMENDA_CRIADA", userId, User?.Identity?.Name, new { encomenda_id = encomenda.Id, cliente_id = encomenda.ClienteId }, cancellationToken);
 
         ClearDraft();
-        return CreatedAtAction(nameof(Details), new { id = encomenda.Id }, new { encomenda, encomendaCriada = true });
+        var encomendaDto = await LoadEncomendaDetailDtoAsync(encomenda.Id, cancellationToken);
+        return CreatedAtAction(nameof(Details), new { id = encomenda.Id }, new { encomenda = encomendaDto, encomendaCriada = true });
     }
 
     /// <summary>
@@ -392,13 +404,8 @@ public class EncomendasController : ControllerBase
         var userId = User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         await _logSistema.RegistarAsync("ENCOMENDA_EDITADA", userId, User?.Identity?.Name, new { encomenda_id = id }, cancellationToken);
 
-        var updated = await _context.Encomendas
-            .AsNoTracking()
-            .Include(e => e.Cliente)
-            .Include(e => e.Itens).ThenInclude(i => i.Produto)
-            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
-
-        return Ok(new { encomenda = updated, encomendaEditada = true });
+        var encomendaDto = await LoadEncomendaDetailDtoAsync(id, cancellationToken);
+        return Ok(new { encomenda = encomendaDto, encomendaEditada = true });
     }
 
     [HttpPost("{id:int}/aceitar")]
@@ -417,7 +424,8 @@ public class EncomendasController : ControllerBase
 
         await _logSistema.RegistarAsync("ENCOMENDA_ACEITE", userId, User?.Identity?.Name, new { encomenda_id = id }, cancellationToken);
 
-        return Ok(new { encomenda, encomendaAceite = true });
+        var encomendaDto = await LoadEncomendaDetailDtoAsync(id, cancellationToken);
+        return Ok(new { encomenda = encomendaDto, encomendaAceite = true });
     }
 
     [HttpGet("{id:int}/rejeitar")]
@@ -429,7 +437,7 @@ public class EncomendasController : ControllerBase
         if (encomenda == null) return NotFound();
         if (encomenda.Estado != ConstantesEncomenda.PENDENTE && encomenda.Estado != ConstantesEncomenda.ACEITE)
             return BadRequest(new { error = "Apenas encomendas pendentes ou aceites podem ser rejeitadas." });
-        return Ok(encomenda);
+        return Ok(EncomendaResponseDtoMapping.MapToDetail(encomenda));
     }
 
     [HttpPost("{id:int}/rejeitar")]
@@ -451,7 +459,8 @@ public class EncomendasController : ControllerBase
         var userId = User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         await _logSistema.RegistarAsync("ENCOMENDA_REJEITADA", userId, User?.Identity?.Name, new { encomenda_id = id, motivo = encomenda.MotivoRejeicao }, cancellationToken);
 
-        return Ok(new { encomenda, encomendaRejeitada = true });
+        var encomendaDtoRej = await LoadEncomendaDetailDtoAsync(id, cancellationToken);
+        return Ok(new { encomenda = encomendaDtoRej, encomendaRejeitada = true });
     }
 
     [HttpGet("{id:int}/preparar")]
@@ -508,11 +517,14 @@ public class EncomendasController : ControllerBase
 
         var stockPorProduto = await _stockDisponivel.ObterStockDisponivelPorProdutoAsync(cancellationToken);
 
+        var encomendaDto = EncomendaResponseDtoMapping.MapToDetail(encomenda);
+        var paióisDto = paióis.Select(PaiolResponseDtoMapping.Map).ToList();
+
         return Ok(new
         {
-            encomenda,
+            encomenda = encomendaDto,
             stockPorProduto,
-            paióis,
+            paióis = paióisDto,
             stockPaiolProduto
         });
     }
@@ -562,6 +574,7 @@ public class EncomendasController : ControllerBase
         var userId = User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         await _logSistema.RegistarAsync("ENCOMENDA_CONCLUIDA", userId, User?.Identity?.Name, new { encomenda_id = id }, cancellationToken);
 
-        return Ok(new { encomenda, encomendaConcluida = true });
+        var encomendaDtoConc = await LoadEncomendaDetailDtoAsync(id, cancellationToken);
+        return Ok(new { encomenda = encomendaDtoConc, encomendaConcluida = true });
     }
 }

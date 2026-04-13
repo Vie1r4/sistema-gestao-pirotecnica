@@ -55,7 +55,7 @@ export default function EliminarFuncionarioPage() {
         email: (raw.email ?? raw.Email) as string | undefined,
         telefone: (raw.telefone ?? raw.Telefone) as string | undefined,
         cargo: String(raw.cargo ?? raw.Cargo ?? "Comercial"),
-        contaAssociada: !!userId,
+        contaAssociada: Boolean(raw.contaAssociada ?? raw.ContaAssociada ?? userId),
       };
     },
     staleTime: 30 * 1000,

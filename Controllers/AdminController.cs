@@ -1,6 +1,7 @@
 using Finalproj.Authorization;
 using Finalproj.Data;
 using Finalproj.Models;
+using Finalproj.Services.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -17,13 +18,19 @@ namespace Finalproj.Controllers
         private readonly UserManager<IdentityUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly FinalprojContext _context;
+        private readonly IDatabaseBackupService _databaseBackupService;
         private static readonly string[] RolesDisponiveis = ConstantesRoles.Todas;
 
-        public AdminController(UserManager<IdentityUser> userManager, RoleManager<IdentityRole> roleManager, FinalprojContext context)
+        public AdminController(
+            UserManager<IdentityUser> userManager,
+            RoleManager<IdentityRole> roleManager,
+            FinalprojContext context,
+            IDatabaseBackupService databaseBackupService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _context = context;
+            _databaseBackupService = databaseBackupService;
         }
 
         // Dashboard Admin
@@ -250,6 +257,24 @@ namespace Finalproj.Controllers
             }
 
             return Ok(new { message = "Todos os dados e contas foram apagados." });
+        }
+
+        /// <summary>
+        /// Executa backup manual imediato da base de dados (apenas Admin).
+        /// </summary>
+        [HttpPost("backups/run")]
+        public async Task<IActionResult> RunBackupNow(CancellationToken cancellationToken = default)
+        {
+            var backupPath = await _databaseBackupService.ExecuteBackupNowAsync(cancellationToken);
+            var info = new FileInfo(backupPath);
+
+            return Ok(new
+            {
+                message = "Backup executado com sucesso.",
+                caminho = backupPath,
+                nomeFicheiro = info.Name,
+                tamanhoBytes = info.Exists ? info.Length : 0
+            });
         }
     }
 }

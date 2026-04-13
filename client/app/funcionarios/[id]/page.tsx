@@ -108,11 +108,12 @@ export default function FuncionarioDetalhePage() {
 
   const docs = funcionario.documentos ?? { extras: [] };
   const isOwnAccount =
-    funcionario.contaAssociada &&
-    currentUserId &&
-    (funcionario.userId === currentUserId ||
-      funcionario.userId === `u-${currentUserId}` ||
-      funcionario.email === currentUserId);
+    funcionario.associadoAoUtilizadorAtual === true ||
+    (funcionario.contaAssociada &&
+      currentUserId &&
+      (funcionario.userId === currentUserId ||
+        funcionario.userId === `u-${currentUserId}` ||
+        funcionario.email === currentUserId));
 
   return (
     <div className="min-h-screen bg-[#fafafa] text-gray-900 dark:bg-[#0a0a0a] dark:text-white">

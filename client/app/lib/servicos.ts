@@ -128,7 +128,9 @@ export type ServicoLicenca = {
   numeroDocumento?: string;
   dataEmissao?: string;
   dataValidade?: string;
-  ficheiroPath?: string; // fake: pode ser nome do ficheiro
+  /** A API não expõe caminho no servidor; usar download por id ou hasFicheiro. */
+  ficheiroPath?: string;
+  hasFicheiro?: boolean;
   observacoes?: string;
 };
 
@@ -139,6 +141,7 @@ export type ServicoDistanciaSeguranca = {
   descricaoReferencia: string;
   distanciaMinima_m: number;
   distanciaMedida_m?: number;
+  cumpre?: boolean;
 };
 
 export type ServicoDocumentoExtra = {
@@ -202,7 +205,12 @@ function mapApiServicoToList(s: Record<string, unknown>): Servico & { cliente?: 
     coordenadasLng: (s.coordenadasLng ?? s.CoordenadasLng) != null ? Number(s.coordenadasLng ?? s.CoordenadasLng) : undefined,
     raioPublico: (s.raioPublico ?? s.RaioPublico) != null ? Number(s.raioPublico ?? s.RaioPublico) : undefined,
     publicoPrivado: (s.publicoPrivado ?? s.PublicoPrivado) as PublicoPrivado | undefined,
-    responsavelTecnicoId: resp != null ? mapId(resp.id ?? resp.Id) : undefined,
+    responsavelTecnicoId:
+      s.responsavelTecnicoId != null || s.ResponsavelTecnicoId != null
+        ? mapId(s.responsavelTecnicoId ?? s.ResponsavelTecnicoId)
+        : resp != null
+          ? mapId(resp.id ?? resp.Id)
+          : undefined,
     observacoes: (s.observacoes ?? s.Observacoes) as string | undefined,
     cliente: cliente ? { id: mapId(cliente.id ?? cliente.Id), nome: String(cliente.nome ?? cliente.Nome ?? "") } as Cliente : null,
     encomenda: encomenda ? { id: mapId(encomenda.id ?? encomenda.Id), estado: (encomenda.estado ?? encomenda.Estado) as string } as Encomenda : null,
@@ -296,6 +304,8 @@ function mapApiDetalheToServicoDetalhe(data: {
       numeroDocumento: (x.numeroDocumento ?? x.NumeroDocumento) as string | undefined,
       dataEmissao: (x.dataEmissao ?? x.DataEmissao) as string | undefined,
       dataValidade: (x.dataValidade ?? x.DataValidade) as string | undefined,
+      ficheiroPath: (x.ficheiroPath ?? x.FicheiroPath) as string | undefined,
+      hasFicheiro: Boolean(x.hasFicheiro ?? x.HasFicheiro ?? x.ficheiroPath ?? x.FicheiroPath),
       observacoes: (x.observacoes ?? x.Observacoes) as string | undefined,
     };
   };
@@ -368,6 +378,7 @@ function mapApiDetalheToServicoDetalhe(data: {
       dataEmissao: (l.dataEmissao ?? l.DataEmissao) as string | undefined,
       dataValidade: (l.dataValidade ?? l.DataValidade) as string | undefined,
       ficheiroPath: (l.ficheiroPath ?? l.FicheiroPath) as string | undefined,
+      hasFicheiro: Boolean(l.hasFicheiro ?? l.HasFicheiro ?? l.ficheiroPath ?? l.FicheiroPath),
       nomePersonalizado: (l.nomePersonalizado ?? l.NomePersonalizado) as string | undefined,
       observacoes: (l.observacoes ?? l.Observacoes) as string | undefined,
     })),
@@ -378,18 +389,24 @@ function mapApiDetalheToServicoDetalhe(data: {
       descricaoReferencia: String(d.descricaoReferencia ?? d.DescricaoReferencia ?? ""),
       distanciaMinima_m: Number(d.distanciaMinima_m ?? d.DistanciaMinima_m ?? 0),
       distanciaMedida_m: (d.distanciaMedida_m ?? d.DistanciaMedida_m) != null ? Number(d.distanciaMedida_m ?? d.DistanciaMedida_m) : undefined,
+      cumpre: (d.cumpre ?? d.Cumpre) != null ? Boolean(d.cumpre ?? d.Cumpre) : undefined,
     })),
     resumoMaterial: data.resumoMaterial
-      ? {
-          encomendaId: mapId((data.resumoMaterial as Record<string, unknown>).encomendaId ?? (data.resumoMaterial as Record<string, unknown>).EncomendaId),
-          numeroProdutos: Number((data.resumoMaterial as Record<string, unknown>).numeroProdutos ?? (data.resumoMaterial as Record<string, unknown>).NumeroProdutos ?? 0),
-          totalUnidades: Number((data.resumoMaterial as Record<string, unknown>).totalUnidades ?? (data.resumoMaterial as Record<string, unknown>).TotalUnidades ?? 0),
-          mleTotalKg: Number((data.resumoMaterial as Record<string, unknown>).mleTotalKg ?? (data.resumoMaterial as Record<string, unknown>).MleTotalKg ?? 0),
-          divisaoDominante: ((data.resumoMaterial as Record<string, unknown>).divisaoDominante ?? (data.resumoMaterial as Record<string, unknown>).DivisaoDominante) as string | undefined,
-          corDivisaoDominante: ((data.resumoMaterial as Record<string, unknown>).corDivisaoDominante ?? (data.resumoMaterial as Record<string, unknown>).CorDivisaoDominante) as string | undefined,
-          categoriasPresentes: String((data.resumoMaterial as Record<string, unknown>).categoriasPresentes ?? (data.resumoMaterial as Record<string, unknown>).CategoriasPresentes ?? ""),
-          temItens: Boolean((data.resumoMaterial as Record<string, unknown>).temItens ?? (data.resumoMaterial as Record<string, unknown>).TemItens),
-        }
+      ? (() => {
+          const rm = data.resumoMaterial as Record<string, unknown>;
+          const pesoRaw = rm.pesoBrutoKg ?? rm.PesoBrutoKg;
+          return {
+            encomendaId: mapId(rm.encomendaId ?? rm.EncomendaId),
+            numeroProdutos: Number(rm.numeroProdutos ?? rm.NumeroProdutos ?? 0),
+            totalUnidades: Number(rm.totalUnidades ?? rm.TotalUnidades ?? 0),
+            mleTotalKg: Number(rm.mleTotalKg ?? rm.MleTotalKg ?? 0),
+            pesoBrutoKg: pesoRaw != null ? Number(pesoRaw) : undefined,
+            divisaoDominante: (rm.divisaoDominante ?? rm.DivisaoDominante) as string | undefined,
+            corDivisaoDominante: (rm.corDivisaoDominante ?? rm.CorDivisaoDominante) as string | undefined,
+            categoriasPresentes: String(rm.categoriasPresentes ?? rm.CategoriasPresentes ?? ""),
+            temItens: Boolean(rm.temItens ?? rm.TemItens),
+          };
+        })()
       : null,
     itensEncomenda,
     licencasEvento,

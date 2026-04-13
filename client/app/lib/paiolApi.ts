@@ -1,8 +1,10 @@
 /**
- * API Paiol: stock, gestao, create, edit, delete, documentos.
+ * API Paiol: stock, gestao, create, edit, delete, documentos, movimentos.
  */
 
 import { apiPath } from "./apiConfig";
+import { parseApiErrorBody } from "./apiErrors";
+import { safeParseJson } from "./api";
 
 function authHeaders(token: string): HeadersInit {
   return { Authorization: `Bearer ${token}` };
@@ -88,6 +90,25 @@ export async function fetchGestao(token: string): Promise<Array<Record<string, u
   return res.json();
 }
 
+/** POST api/paiol — criar paiol (FormData). */
+export async function postCreatePaiol(
+  token: string,
+  formData: FormData
+): Promise<{ paiol?: { Id?: number; id?: number } }> {
+  const res = await fetch(apiPath("api/paiol"), {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  if (res.status === 401) throw new Error("Não autenticado");
+  if (res.status === 403) throw new Error("Sem permissão para criar paiol (requer perfil Admin).");
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseApiErrorBody(err).message);
+  }
+  return res.json();
+}
+
 /** GET api/paiol/create — dados para formulário criar (perfisRisco, estados, cargosDisponiveis) */
 export async function fetchCreate(token: string): Promise<{
   paiol: Record<string, unknown>;
@@ -143,4 +164,28 @@ export async function openDocumento(token: string, paiolId: number, extraId: num
   const url = URL.createObjectURL(new Blob([blob], { type: contentType }));
   const w = window.open(url, "_blank", "noopener");
   if (!w) URL.revokeObjectURL(url);
+}
+
+/** GET api/paiol/movimentos — entradas/saídas paginadas (gestão armazém). */
+export async function fetchPaiolMovimentos(
+  token: string,
+  params: { tipo?: string; paiolId?: string; pagina: number; itensPorPagina: number }
+): Promise<Record<string, unknown>> {
+  const q = new URLSearchParams();
+  if (params.tipo) q.set("tipo", params.tipo);
+  if (params.paiolId) q.set("paiolId", params.paiolId);
+  q.set("pagina", String(params.pagina));
+  q.set("itensPorPagina", String(params.itensPorPagina));
+  const res = await fetch(`${apiPath("api/paiol/movimentos")}?${q.toString()}`, {
+    method: "GET",
+    headers: authHeaders(token),
+  });
+  if (res.status === 401) throw new Error("UNAUTHORIZED");
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Erro ${res.status}`);
+  }
+  const data = (await safeParseJson(res)) as Record<string, unknown> | null;
+  if (!data) throw new Error("Resposta inválida");
+  return data;
 }

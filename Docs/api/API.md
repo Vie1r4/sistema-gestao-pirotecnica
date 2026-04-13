@@ -97,6 +97,8 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | DELETE | `/{id}` | Eliminar cliente |
 | GET | `/{id}/documentos/{extraId}` | Ficheiro de documento extra |
 
+**DTOs:** respostas usam **ClienteResponseDto**; o **UserId** (Identity) só aparece nas respostas de **edição** (`includeSensitive`). Ver [CONTRATOS-API-DTOs.md](./CONTRATOS-API-DTOs.md).
+
 ### Encomendas — `/api/encomendas`
 
 | Método | Endpoint | Descrição |
@@ -117,6 +119,8 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | POST | `/{id}/registar-preparacao` | Registar preparação |
 | POST | `/{id}/concluir` | Concluir encomenda |
 
+**DTOs (encomendas):** listagem e detalhe devolvem objetos tipados (`EncomendaListResponseDto`, `EncomendaDetailResponseDto`) — **sem** expor `FuncionarioAceiteUserId` / `FuncionarioPreparouUserId`. No **GET `/{id}`**, o JSON inclui também **`funcionarioAceiteNome`** e **`funcionarioPreparouNome`** no nível raiz (com `encomenda`, `stockPorProduto`). Ver [CONTRATOS-API-DTOs.md](./CONTRATOS-API-DTOs.md).
+
 ### Serviços — `/api/servicos`
 
 | Método | Endpoint | Descrição |
@@ -135,13 +139,15 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | GET | `/{id}/licenca/{licencaId}/ficheiro` | Ficheiro de licença |
 | PUT | `/{id}/distancia-seguranca/{distanciaId}` | Atualizar distância de segurança |
 
+**DTOs:** lista e **`servico`** em create/edit/delete/detalhe como **ServicoResponseDto**; no GET **`/{id}`**, **`itensEncomenda`** são DTOs de item+produto, **`paiolParaRota`** é **PaiolResponseDto**, licenças sem caminho de ficheiro no JSON (**`hasFicheiro`**). Ver [CONTRATOS-API-DTOs.md](./CONTRATOS-API-DTOs.md).
+
 ### Paiol / Armazém — `/api/paiol`
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
 | GET | `/` | Lista de paióis (consoante permissões) |
 | GET | `/stock` | Stock por produto/paiol |
-| GET | `/movimentos` | Movimentos (entradas/saídas); query: `tipo`, `paiolId`, `pagina`, `itensPorPagina` |
+| GET | `/movimentos` | Movimentos (entradas/saídas); query: `tipo`, `paiolId`, `pagina`, `itensPorPagina`. Cada linha inclui **`registadoPor`** / **`retiradoPor`** (nome); não expõe UserIds de Identity nas linhas. |
 | GET | `/gestao` | Gestão completa (Admin) |
 | GET | `/{id}/conteudo` | Conteúdo de um paiol |
 | GET | `/{id}` | Detalhe do paiol |
@@ -159,7 +165,7 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 |--------|----------|-----------|
 | GET | `/` | Lista / contexto |
 | GET | `/registar` | Dados para registar |
-| POST | `/registar` | Registar entrada ou saída |
+| POST | `/registar` | Registar entrada ou saída; resposta com `entrada` / `saida` em DTO (sem UserId do funcionário). |
 
 ### Produtos — `/api/produtos`
 
@@ -191,6 +197,8 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | POST | `/{id}/desassociar` | Desassociar utilizador |
 | GET | `/{id}/documentos` | Lista de documentos |
 
+**DTOs:** **FuncionarioResponseDto**; na lista, **`contaAssociada`** e **`contaEmailConfirmada`** por item (sem **`userIdsConfirmados`**). No GET **`/{id}`**, **`associadoAoUtilizadorAtual`** no JSON raiz. **UserId** só no GET **`/{id}/edit`**. Ver [CONTRATOS-API-DTOs.md](./CONTRATOS-API-DTOs.md).
+
 ### Admin — `/api/admin`
 
 | Método | Endpoint | Descrição |
@@ -200,6 +208,7 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | GET | `/utilizadores/{id}` | Detalhe utilizador |
 | PUT | `/utilizadores/{id}` | Atualizar (roles, etc.) |
 | DELETE | `/utilizadores/{id}` | Eliminar |
+| POST | `/backups/run` | Executar backup manual da BD |
 | POST | `/clear-all-data` | Limpar dados (cuidado) |
 
 ### Home / Preferências — `/api/home`
@@ -215,6 +224,12 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | POST | `/alterar-password` | Alterar palavra-passe |
 
 ---
+
+## Correlation id e suporte
+
+- Cada resposta inclui o header **`X-Correlation-Id`** (o cliente pode enviar o mesmo header no pedido; o servidor valida e reutiliza ou gera um novo).
+- Em erros **500** em rotas `/api/*`, o JSON pode incluir **`correlationId`** para cruzar com os logs do servidor.
+- Em CORS, o header é **exposto** ao JavaScript (`Access-Control-Expose-Headers`). Ver [OBSERVABILIDADE-HTTP.md](../backend/OBSERVABILIDADE-HTTP.md).
 
 ## Paginação
 

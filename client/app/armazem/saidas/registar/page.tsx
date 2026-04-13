@@ -7,12 +7,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import { getToken } from "@/app/lib/auth";
-import { safeParseJson } from "@/app/lib/api";
-import { parseApiErrorBody } from "@/app/lib/apiErrors";
+import { fetchSaidaRegistarForm, postRegistarSaida } from "@/app/lib/saidaPaiolApi";
 import { useToastStore } from "@/app/stores/useToastStore";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
-
-import { apiPath } from "@/app/lib/apiConfig";
 
 const cardClass =
   "card-hover rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111] sm:p-8";
@@ -54,24 +51,15 @@ function RegistarSaidaContent() {
     queryKey: ["armazem", "saida-paiol", "registar", ids?.paiolNum, ids?.produtoNum],
     queryFn: async (): Promise<{ paiolNome: string; produtoNome: string; stockDisponivel: number }> => {
       if (!token || !ids) throw new Error("Parâmetros em falta");
-      const res = await fetch(`${apiPath("api/saida-paiol/registar")}?paiolId=${ids.paiolNum}&produtoId=${ids.produtoNum}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status === 401) {
-        router.replace("/login");
-        throw new Error("Não autenticado");
+      try {
+        return await fetchSaidaRegistarForm(token, ids.paiolNum, ids.produtoNum);
+      } catch (e) {
+        if (e instanceof Error && e.message === "UNAUTHORIZED") {
+          router.replace("/login");
+          throw new Error("Não autenticado");
+        }
+        throw e;
       }
-      if (res.status === 403 || res.status === 404 || !res.ok) return { paiolNome: "", produtoNome: "", stockDisponivel: 0 };
-      const data = (await res.json()) as Record<string, unknown>;
-      const nomePaiol = (data.paiolNome ?? data.PaiolNome) as string | undefined;
-      const nomeProduto = (data.produtoNome ?? data.ProdutoNome) as string | undefined;
-      const stock = data.stockDisponivel ?? data.StockDisponivel;
-      const stockNum = typeof stock === "number" ? stock : Number(stock);
-      return {
-        paiolNome: String(nomePaiol ?? ""),
-        produtoNome: String(nomeProduto ?? ""),
-        stockDisponivel: Number.isFinite(stockNum) ? Math.max(0, stockNum) : 0,
-      };
     },
     staleTime: 30 * 1000,
     enabled: mounted && !!token && !!ids,
@@ -79,20 +67,19 @@ function RegistarSaidaContent() {
 
   const registarMutation = useMutation({
     mutationFn: async (body: { PaiolId: number; ProdutoId: number; Quantidade: number }) => {
-      const res = await fetch(apiPath("api/saida-paiol/registar"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token!}` },
-        body: JSON.stringify(body),
-      });
-      if (res.status === 401) {
+      if (!token) {
         router.replace("/login");
         throw new Error("Não autenticado");
       }
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(parseApiErrorBody(data).message);
+      try {
+        return await postRegistarSaida(token, body);
+      } catch (e) {
+        if (e instanceof Error && e.message === "UNAUTHORIZED") {
+          router.replace("/login");
+          throw new Error("Não autenticado");
+        }
+        throw e;
       }
-      return safeParseJson(res);
     },
     onSuccess: () => {
       useToastStore.getState().show("Saída registada com sucesso.", "success");

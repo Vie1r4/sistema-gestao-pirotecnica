@@ -141,7 +141,7 @@ function LicencaContent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["servicos"] });
-      router.push(`/servicos/${id}`);
+      router.push(`/documentacao?servicoId=${encodeURIComponent(id)}`);
     },
     onError: (err: Error) => {
       setErro(err.message || "Não foi possível guardar a licença.");
@@ -420,7 +420,7 @@ function LicencaContent() {
               <button type="submit" disabled={uploadMutation.isPending} className={btnPrimary}>
                 {uploadMutation.isPending ? "A guardar…" : "Guardar"}
               </button>
-              <Link href={`/servicos/${servicoId}`} className={btnSecondary}>
+              <Link href={`/documentacao?servicoId=${encodeURIComponent(String(servicoId))}`} className={btnSecondary}>
                 Cancelar
               </Link>
             </div>

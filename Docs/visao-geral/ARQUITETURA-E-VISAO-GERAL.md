@@ -1,6 +1,20 @@
 # Arquitetura e visão geral — PIROFAFE
 
-Documento técnico de referência (backend + frontend). Última revisão alinhada ao código do repositório.
+Documento técnico de referência (backend + frontend). **Última revisão:** março de 2026 — alinhada a Next.js 16, centralização `client/app/lib/*Api.ts`, `authApi` / `saidaPaiolApi`, backups SQL agendados e `GET /api/auth/me` com `permissions`.
+
+---
+
+## Conteúdo deste documento
+
+1. [Visão geral](#1-visão-geral) — domínio e regras centrais  
+2. [Stack e arquitetura](#2-stack-e-arquitetura) — backend (`Program.cs`), frontend (camada `lib/`).  
+3. [Domínio](#3-domínio) — EF, entidades, relações.  
+4. [Segurança](#4-segurança) — JWT, políticas, `/me`.  
+5. [API](#5-api) — controllers e ciclo de encomenda.  
+6. [Persistência](#6-persistência-e-migrações)  
+7. [Convenções](#7-convenções-e-decisões-técnicas-relevantes)
+
+O resumo executivo e o índice de documentação estão em [**`PROJETO.md`**](PROJETO.md).
 
 ---
 
@@ -43,6 +57,7 @@ O frontend é **API-first**: dados de negócio vêm da API; tokens de sessão e 
 - **FluentValidation**: validators scoped para DTOs de cliente, saída/entrada paiol, encomenda, paiol, funcionário.
 - **`DocumentosOptions`** + **`FormOptions.MultipartBodyLengthLimit`** alinhados ao tamanho máximo de ficheiro.
 - **Serviços**: `IEmailSender` (singleton), `ILogSistemaService`, `IStockDisponivelService`, `IEncomendaService`, `IServicoService`, `IDocumentoStorageService` (scoped conforme caso).
+- **Backups SQL:** `Configure<DatabaseBackupOptions>` (secção `Backups` no `appsettings`). `DatabaseBackupHostedService` implementa `IDatabaseBackupService` e `IHostedService` — backup diário (hora local), ficheiros `.bak` na raiz do projeto, retenção de N dias. Ver **`Docs/backend/BACKUPS-AUTOMATICOS.md`**.
 - **`AddDistributedMemoryCache` + `AddSession`**: rascunho de encomenda no servidor; cookie de sessão com `SameSite=None`, `Secure=Always` para CORS com credenciais.
 - **`AddAuthentication`**: default scheme = **`IdentityConstants.ApplicationScheme`** (cookies Identity); **JWT** registado como scheme adicional — os controladores da API usam **`[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]`** para não depender de cookies.
 - **`AddAuthorization`**: políticas nomeadas via `PoliticasAutorizacao.ConfigurarPoliticas`.
@@ -73,7 +88,21 @@ O frontend é **API-first**: dados de negócio vêm da API; tokens de sessão e 
 | Gráficos | **Recharts** |
 | Tabelas | **TanStack Table** |
 
-**Arquitetura cliente:** páginas em `client/app/`, módulos de API em `client/app/lib/*Api.ts`, `getApiBaseUrl()` / `apiPath()` em `apiConfig.ts` (localhost HTTPS 7225, HTTP 5078 em LAN, override `NEXT_PUBLIC_API_URL`). Layout raiz: `QueryProvider`, `ThemeSync`, `GlobalToast`, `ProtectedRoute`, `PageTransition`. `UserContext` usa `GET /api/auth/me` e agenda **refresh do JWT** ~5 min antes da expiração.
+**Arquitetura cliente**
+
+| Camada | Conteúdo |
+|--------|----------|
+| **Páginas** | `client/app/**/page.tsx` — UI, rotas, TanStack Query onde aplica. |
+| **API (HTTP)** | `client/app/lib/*Api.ts` — um módulo por domínio ou fluxo: `encomendasApi`, `paiolApi` (incl. POST criar paiol, GET movimentos), `produtosApi`, `servicosApi`, `funcionariosApi`, `entradaPaiolApi` (GET formulário + POST registar entrada), **`saidaPaiolApi`** (GET/POST registar saída), **`authApi`** (`existem-utilizadores`, login, primeiro utilizador, **`fetchAuthMe`**). Outros: `admin.ts`, `clientes.ts`, `home.ts`, `homeGestor.ts`, `geocoding.ts`. |
+| **Sessão local** | `auth.ts` — `getToken`, refresh, `logout` (sem duplicar URLs de login aqui; isso fica em `authApi`). |
+| **Config** | `apiConfig.ts` — `getApiBaseUrl()`, `apiPath()` (HTTPS `localhost:7225` por defeito, override `NEXT_PUBLIC_API_URL`). |
+| **Helpers** | `api.ts` (`safeParseJson`), `apiErrors.ts` (`parseApiErrorBody`). |
+
+**Layout raiz:** `QueryProvider`, `ThemeSync`, `GlobalToast`, `ProtectedRoute`, `PageTransition`. **`UserContext`** chama `fetchAuthMe` (wrapper sobre `GET /api/auth/me`); o backend devolve **roles** e **`permissions`** (strings tipo `encomendas.gerir`) para a UI e **Navbar** alinharem com o servidor. **`refreshAccessToken`** é agendado ~5 min antes da expiração do JWT.
+
+**CI:** `.github/workflows/client-ci.yml` em alterações sob `client/**` (typecheck, lint, Vitest em paralelo, build, Playwright E2E com Chromium).
+
+**Testes:** Vitest + Testing Library em `client/tests/`; Playwright para E2E — ver `client/README.md`.
 
 ---
 
@@ -184,6 +213,8 @@ Depois disso, um **Servico** pode ser criado apontando para essa encomenda (úni
 7. **API-only e erros JSON**: middleware para `/api` garante respostas JSON em erro; JWT não redireciona para HTML.
 8. **Frontend**: TanStack Query com `staleTime` curto e retry condicionado; refresh proativo de JWT no `UserContext`; `safeParseJson` evita parse de HTML como JSON.
 9. **Seed**: roles e contas de demonstração por email (`SeedUsers:Password`); migração de role antiga "Técnico" para "Gestor".
+10. **Centralização de endpoints no client:** o mesmo método + caminho HTTP não deve repetir `fetch`/`apiPath` em várias páginas; extrair para `client/app/lib/*Api.ts` (ver regra em `client/.cursor/rules` e `Docs/frontend/VERIFICACAO-APIS-UTILIZADAS.md`).
+11. **Testes de domínio (backend):** projeto **`Finalproj.Tests`** (xUnit, EF InMemory) cobre `EncomendaService` e `StockDisponivelService` — ver **`Docs/backend/TESTES-DOMINIO.md`**.
 
 ---
 
@@ -197,3 +228,6 @@ Depois disso, um **Servico** pode ser criado apontando para essa encomenda (úni
 | Controllers e DTOs | [`../backend/ANALISE-CONTROLLERS-ENTIDADES-DTO.md`](../backend/ANALISE-CONTROLLERS-ENTIDADES-DTO.md) |
 | Serviços (camada) | [`../../Services/README.md`](../../Services/README.md) |
 | Frontend / localStorage | [`../frontend/AUDITORIA-LOCALSTORAGE.md`](../frontend/AUDITORIA-LOCALSTORAGE.md) |
+| Backups automáticos (SQL) | [`../backend/BACKUPS-AUTOMATICOS.md`](../backend/BACKUPS-AUTOMATICOS.md) |
+| APIs usadas pelo client | [`../frontend/VERIFICACAO-APIS-UTILIZADAS.md`](../frontend/VERIFICACAO-APIS-UTILIZADAS.md) |
+| Testes unitários (domínio) | [`../backend/TESTES-DOMINIO.md`](../backend/TESTES-DOMINIO.md) |

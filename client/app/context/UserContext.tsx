@@ -9,7 +9,7 @@ import {
   refreshAccessToken,
   logout,
 } from "@/app/lib/auth";
-import { apiPath } from "@/app/lib/apiConfig";
+import { fetchAuthMe } from "@/app/lib/authApi";
 
 export type CurrentUser = {
   id: string;
@@ -91,9 +91,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     queryFn: async (): Promise<CurrentUser | null> => {
       const token = getToken();
       if (!token) return null;
-      const res = await fetch(apiPath("api/auth/me"), { headers: { Authorization: `Bearer ${token}` } });
-      if (res.status === 401 || !res.ok) return null;
-      const raw = (await res.json()) as Record<string, unknown>;
+      const raw = await fetchAuthMe(token);
+      if (!raw) return null;
       return parseMeData(raw);
     },
     staleTime: 2 * 60 * 1000,

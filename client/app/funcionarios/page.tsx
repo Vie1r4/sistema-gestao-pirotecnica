@@ -69,13 +69,13 @@ function funcionariosColumns(): ColumnDef<Funcionario, unknown>[] {
   ];
 }
 
-/** Resposta da API pode usar nome ou nomeCompleto; userIdsConfirmados vem no corpo da lista */
-function mapApiToFuncionario(item: Record<string, unknown>, userIdsConfirmados?: string[]): Funcionario {
+/** Resposta da API: contaAssociada / contaEmailConfirmada por item (sem UserId na listagem). */
+function mapApiToFuncionario(item: Record<string, unknown>): Funcionario {
   const nome = (item.nomeCompleto ?? item.nome ?? "") as string;
   const userId = (item.userId ?? item.UserId) as string | undefined;
-  const contaAssociada = !!userId;
-  const confirmados = userIdsConfirmados ?? [];
-  const emailConfirmado = contaAssociada ? confirmados.includes(userId!) : undefined;
+  const contaAssociada = Boolean(item.contaAssociada ?? item.ContaAssociada ?? userId);
+  const apiConf = item.contaEmailConfirmada ?? item.ContaEmailConfirmada;
+  const emailConfirmado = typeof apiConf === "boolean" ? apiConf : undefined;
   return {
     id: String(item.id ?? item.Id ?? ""),
     nomeCompleto: nome,
@@ -112,8 +112,8 @@ function FuncionariosContent() {
         throw new Error("Sessão expirada. Faça login novamente.");
       }
       try {
-        const { items: arr, userIdsConfirmados } = await fetchFuncionariosLista(token);
-        return arr.map((item) => mapApiToFuncionario(item, userIdsConfirmados));
+        const { items: arr } = await fetchFuncionariosLista(token);
+        return arr.map((item) => mapApiToFuncionario(item));
       } catch (e) {
         if (e instanceof Error && e.message === "UNAUTHORIZED") {
           router.replace("/login");

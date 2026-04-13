@@ -18,6 +18,7 @@ Implementações que dependem de I/O, HTTP ou infraestrutura (ficheiros, email, 
 - **DocumentoStorageService** — guardar/apagar ficheiros em wwwroot
 - **EmailSender** — envio de email (SMTP ou ficheiro)
 - **IdentityErrorDescriberPt** — mensagens do Identity em português
+- **DatabaseBackupHostedService** — backup agendado da base SQL Server (configuração `Backups`); ver `Docs/backend/BACKUPS-AUTOMATICOS.md`
 
 ## Raiz (`Services/`)
 

@@ -15,7 +15,7 @@ const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300";
 const btnPrimary =
   "data-button w-full rounded-xl bg-[#f97316] px-5 py-3 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
 
-import { apiPath } from "@/app/lib/apiConfig";
+import { fetchExistemUtilizadores, postLogin } from "@/app/lib/authApi";
 import { setTokens } from "@/app/lib/auth";
 
 export default function LoginPage() {
@@ -30,19 +30,8 @@ export default function LoginPage() {
   >("a carregar");
 
   useEffect(() => {
-    const url = apiPath("api/auth/existem-utilizadores");
-    fetch(url)
-      .then((res) => {
-        if (!res.ok) throw new Error("http");
-        return res.json() as Promise<{ existem?: boolean }>;
-      })
-      .then((data) => {
-        if (data && typeof data.existem === "boolean") {
-          setEstadoContas(data.existem ? "comContas" : "semContas");
-        } else {
-          setEstadoContas("erro");
-        }
-      })
+    fetchExistemUtilizadores()
+      .then((existem) => setEstadoContas(existem ? "comContas" : "semContas"))
       .catch(() => setEstadoContas("erro"));
   }, []);
 
@@ -56,11 +45,7 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      const res = await fetch(apiPath("api/auth/login"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
-      });
+      const res = await postLogin(email.trim(), password);
       if (res.status === 200) {
         const data = (await safeParseJson(res)) as Record<string, unknown>;
         const token =

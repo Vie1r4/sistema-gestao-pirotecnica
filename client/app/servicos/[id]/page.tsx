@@ -3,14 +3,14 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import MapaCoordenadas from "@/app/components/MapaCoordenadas";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
-import { fetchServicoDetalheFromApi } from "@/app/lib/servicos";
-import type { ServicoDetalhe, ServicoLicenca } from "@/app/lib/servicos";
+import { fetchServicoDetalheFromApi, servicosApi } from "@/app/lib/servicos";
+import type { ServicoDetalhe } from "@/app/lib/servicos";
 import { textoCalibre, textoGrupo } from "@/app/lib/produtos";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 
@@ -18,15 +18,22 @@ const btnSecondary =
   "data-button rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
 const btnDanger =
   "data-button rounded-xl border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950";
+const FILE_ACCEPT = ".pdf,.jpg,.jpeg,.png";
 
 export default function ServicoDetalhePage() {
   const params = useParams();
   const id = params.id as string;
+  const queryClient = useQueryClient();
   const { user } = useUser();
   const permissions = user?.permissions ?? [];
   const canGerirServicos = permissions.includes("servicos.gerir");
   const canApagarServicos = permissions.includes("servicos.apagar");
   const [coordsCopied, setCoordsCopied] = useState(false);
+  const [docNome, setDocNome] = useState("");
+  const [docFicheiro, setDocFicheiro] = useState<File | null>(null);
+  const [docRemoverId, setDocRemoverId] = useState<string | null>(null);
+  const [docErro, setDocErro] = useState<string | null>(null);
+  const [docInfo, setDocInfo] = useState<string | null>(null);
 
   const {
     data: servico,
@@ -52,6 +59,89 @@ export default function ServicoDetalhePage() {
       (a.funcionario?.nomeCompleto ?? "").localeCompare(b.funcionario?.nomeCompleto ?? "", "pt", { sensitivity: "base" })
     );
   }, [servico?.equipa]);
+
+  const buildServicoBaseFormData = (s: ServicoDetalhe): FormData => {
+    const fd = new FormData();
+    fd.append("Servico.Id", String(s.id));
+    fd.append("Servico.EncomendaId", String(s.encomendaId));
+    fd.append("Servico.ClienteId", String(s.clienteId));
+    fd.append("Servico.DataServico", String(s.dataServico).slice(0, 10));
+    if (s.publicoPrivado) fd.append("Servico.PublicoPrivado", s.publicoPrivado);
+    if (s.local) fd.append("Servico.Local", s.local);
+    if (s.distrito) fd.append("Servico.Distrito", s.distrito);
+    if (s.cidade) fd.append("Servico.Cidade", s.cidade);
+    if (s.municipio) fd.append("Servico.Municipio", s.municipio);
+    if (s.coordenadasLat != null) fd.append("Servico.CoordenadasLat", String(s.coordenadasLat));
+    if (s.coordenadasLng != null) fd.append("Servico.CoordenadasLng", String(s.coordenadasLng));
+    if (s.raioPublico != null) fd.append("Servico.RaioPublico", String(s.raioPublico));
+    if (s.responsavelTecnicoId) fd.append("Servico.ResponsavelTecnicoId", String(s.responsavelTecnicoId));
+    if (s.observacoes) fd.append("Servico.Observacoes", s.observacoes);
+    s.equipa.forEach((m) => {
+      if (m.funcionarioId) fd.append("EquipaIds", String(m.funcionarioId));
+    });
+    return fd;
+  };
+
+  const uploadDocumentoMutation = useMutation({
+    mutationFn: async (): Promise<void> => {
+      if (!servico) throw new Error("Serviço não encontrado.");
+      const token = getToken();
+      if (!token) throw new Error("Sessão expirada.");
+      if (!docFicheiro) throw new Error("Selecione um ficheiro.");
+      const nome = docNome.trim() || "Documento";
+
+      const fd = buildServicoBaseFormData(servico);
+      fd.append("DocumentosExtras[0].Nome", nome.slice(0, 100));
+      fd.append("DocumentosExtras[0].Ficheiro", docFicheiro);
+
+      await servicosApi.putServico(token, servico.id, fd);
+    },
+    onSuccess: () => {
+      setDocErro(null);
+      setDocInfo("Documento anexado com sucesso.");
+      setDocNome("");
+      setDocFicheiro(null);
+      queryClient.invalidateQueries({ queryKey: ["servicos", id] });
+      queryClient.invalidateQueries({ queryKey: ["servicos"] });
+    },
+    onError: (e: Error) => {
+      setDocInfo(null);
+      setDocErro(e.message || "Falha ao anexar documento.");
+    },
+  });
+
+  const removerDocumentoMutation = useMutation({
+    mutationFn: async (extraId: string): Promise<void> => {
+      if (!servico) throw new Error("Serviço não encontrado.");
+      const token = getToken();
+      if (!token) throw new Error("Sessão expirada.");
+      const fd = buildServicoBaseFormData(servico);
+      fd.append("RemoverDocumentoExtraIds", String(extraId));
+      await servicosApi.putServico(token, servico.id, fd);
+    },
+    onSuccess: () => {
+      setDocErro(null);
+      setDocInfo("Documento removido com sucesso.");
+      setDocRemoverId(null);
+      queryClient.invalidateQueries({ queryKey: ["servicos", id] });
+      queryClient.invalidateQueries({ queryKey: ["servicos"] });
+    },
+    onError: (e: Error) => {
+      setDocInfo(null);
+      setDocErro(e.message || "Falha ao remover documento.");
+    },
+  });
+
+  const abrirDocumentoExtra = async (extraId: string) => {
+    const token = getToken();
+    if (!token || !servico) return;
+    try {
+      await servicosApi.downloadComToken(token, servicosApi.documentoUrl(servico.id, extraId));
+    } catch (e) {
+      setDocInfo(null);
+      setDocErro(e instanceof Error ? e.message : "Não foi possível abrir o documento.");
+    }
+  };
 
   const copyCoords = () => {
     if (servico?.coordenadasLat != null && servico?.coordenadasLng != null && typeof window !== "undefined") {
@@ -138,6 +228,11 @@ export default function ServicoDetalhePage() {
               {canApagarServicos && (
                 <Link href={`/servicos/${servico.id}/eliminar`} className={btnDanger}>
                   Eliminar
+                </Link>
+              )}
+              {(user?.roles ?? []).some((r) => r === "Admin" || r === "Gestor") && (
+                <Link href={`/documentacao?servicoId=${encodeURIComponent(String(servico.id))}`} className={btnSecondary}>
+                  Documentação
                 </Link>
               )}
               <Link href="/servicos" className={btnSecondary}>
@@ -387,144 +482,121 @@ export default function ServicoDetalhePage() {
             </motion.section>
           )}
 
-          {/* Licenças do evento */}
+          <motion.section
+            initial={fadeInUp.initial}
+            animate={fadeInUp.animate}
+            transition={{ ...transitionSmooth, delay: 0.12 }}
+            className="mt-6 rounded-2xl border border-[#e7e5e4] bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111]"
+          >
+            <h2 className="text-lg font-semibold">Documentação do serviço</h2>
+            <p className="mt-1 text-sm text-[#57534e] dark:text-gray-400">
+              Use esta secção para anexar documentos ao serviço. A aba Documentação é apenas para gerar ficheiros.
+            </p>
+
+            {docErro && (
+              <p className="mt-4 rounded-xl bg-red-100 px-4 py-3 text-sm text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                {docErro}
+              </p>
+            )}
+            {docInfo && (
+              <p className="mt-4 rounded-xl bg-emerald-100 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                {docInfo}
+              </p>
+            )}
+
+            {canGerirServicos && (
+              <form
+                className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setDocErro(null);
+                  setDocInfo(null);
+                  if (!docFicheiro) {
+                    setDocErro("Selecione um ficheiro para anexar.");
+                    return;
+                  }
+                  uploadDocumentoMutation.mutate();
+                }}
+              >
+                <input
+                  type="text"
+                  value={docNome}
+                  onChange={(e) => setDocNome(e.target.value)}
+                  placeholder="Nome do documento (ex.: Declaração final)"
+                  className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-white"
+                />
+                <input
+                  type="file"
+                  accept={FILE_ACCEPT}
+                  onChange={(e) => setDocFicheiro(e.target.files?.[0] ?? null)}
+                  className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-white"
+                />
+                <button
+                  type="submit"
+                  disabled={uploadDocumentoMutation.isPending}
+                  className="rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {uploadDocumentoMutation.isPending ? "A anexar..." : "Adicionar"}
+                </button>
+              </form>
+            )}
+
+            <div className="mt-5">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-[#78716c] dark:text-gray-500">Documentos anexados</h3>
+              {servico.documentosExtras.length === 0 ? (
+                <p className="mt-2 text-sm text-[#57534e] dark:text-gray-400">Ainda não existem documentos anexados.</p>
+              ) : (
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {servico.documentosExtras.map((doc) => (
+                    <li key={doc.id}>
+                      <div className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-[#333]">
+                        <button
+                          type="button"
+                          onClick={() => abrirDocumentoExtra(doc.id)}
+                          className="hover:text-[#f97316] hover:underline"
+                        >
+                          {doc.nome || "Documento"}
+                        </button>
+                        {canGerirServicos && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDocErro(null);
+                              setDocInfo(null);
+                              setDocRemoverId(doc.id);
+                              removerDocumentoMutation.mutate(doc.id);
+                            }}
+                            disabled={removerDocumentoMutation.isPending && docRemoverId === doc.id}
+                            className="rounded-md px-2 py-0.5 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-red-400 dark:hover:bg-red-950/30"
+                          >
+                            {removerDocumentoMutation.isPending && docRemoverId === doc.id ? "A remover..." : "Remover"}
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </motion.section>
+
           {servico.licencasEvento.length > 0 && (
             <motion.section
               initial={fadeInUp.initial}
               animate={fadeInUp.animate}
-              transition={{ ...transitionSmooth, delay: 0.12 }}
+              transition={{ ...transitionSmooth, delay: 0.14 }}
               className="mt-6 rounded-2xl border border-[#e7e5e4] bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111]"
             >
-              <h2 className="mb-1 text-lg font-semibold">Licenças do evento</h2>
-              <p className="mb-4 text-sm text-[#57534e] dark:text-gray-400">
-                Duas fases: <strong className="font-medium text-[#1c1917] dark:text-white">papelada gerada</strong> no sistema e, depois, o{" "}
-                <strong className="font-medium text-[#1c1917] dark:text-white">registo definitivo</strong> autorizado pelas entidades reguladoras. A barra de
-                progresso conta só as autorizações definitivas obrigatórias.
+              <h2 className="text-lg font-semibold">Documentação gerada</h2>
+              <p className="mt-1 text-sm text-[#57534e] dark:text-gray-400">
+                Gere os ficheiros na aba Documentação e anexe-os aqui no serviço.
               </p>
-              {canGerirServicos && (
-                <div className="mb-4 rounded-xl border border-dashed border-[#fdba74]/60 bg-[#fffbeb] px-4 py-3 dark:border-[#78350f]/50 dark:bg-[#1c1410]/80">
-                  <p className="text-sm font-medium text-[#9a3412] dark:text-[#fdba74]">Assistente de preenchimento</p>
-                  <p className="mt-1 text-sm text-[#57534e] dark:text-gray-400">
-                    Na coluna «Papelada gerada», abra o registo e use o assistente para o texto das observações. Na coluna «Autorização definitiva», registe o
-                    documento oficial (n.º, validade, PDF).
-                  </p>
-                </div>
-              )}
-              {servico.licencasObrigatoriasTotal > 0 && (
-                <p className="mb-2 text-sm text-[#57534e] dark:text-gray-400">
-                  {servico.licencasObrigatoriasEntregues} de {servico.licencasObrigatoriasTotal} autorizações definitivas obrigatórias com ficheiro
-                </p>
-              )}
-              <div className="mb-4 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-[#333]">
-                <div
-                  className="h-full rounded-full bg-green-500 transition-all"
-                  style={{
-                    width:
-                      servico.licencasObrigatoriasTotal > 0
-                        ? `${(100 * servico.licencasObrigatoriasEntregues) / servico.licencasObrigatoriasTotal}%`
-                        : "0%",
-                  }}
-                />
-              </div>
-              <ul className="space-y-5">
-                {servico.licencasEvento.map((linha) => {
-                  const iconEstado = (e: number) => (e === 2 ? "✅" : e === 1 ? "⚠️" : "❌");
-                  const hrefLic = (origem: 0 | 1, lic?: ServicoLicenca) => {
-                    const p = new URLSearchParams({ tipo: linha.tipo });
-                    p.set("origem", String(origem));
-                    if (lic?.id) p.set("licencaId", lic.id);
-                    return `/servicos/${servico.id}/licenca?${p}`;
-                  };
-                  const renderCelula = (
-                    titulo: string,
-                    origem: 0 | 1,
-                    lic: ServicoLicenca | undefined,
-                    estado: number,
-                    badgeObrigatorio: boolean
-                  ) => {
-                    const validadeExpirada = lic?.dataValidade && new Date(lic.dataValidade) < new Date();
-                    return (
-                      <div className="min-w-0 flex-1 rounded-xl border border-[#e7e5e4] bg-[#fafaf9] p-3 dark:border-[#333] dark:bg-[#141414]">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-[#78716c] dark:text-gray-500">
-                          {titulo}
-                          {badgeObrigatorio && (
-                            <span className="ml-1.5 rounded bg-gray-200 px-1.5 py-0.5 text-[0.65rem] font-normal normal-case dark:bg-[#333]">obrigatório</span>
-                          )}
-                        </p>
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <span className="text-lg leading-none">{iconEstado(estado)}</span>
-                          {lic?.numeroDocumento && (
-                            <span className="text-sm text-[#57534e] dark:text-gray-400">{lic.numeroDocumento}</span>
-                          )}
-                          {lic?.dataValidade && (
-                            <span
-                              className={
-                                validadeExpirada ? "text-sm text-red-600 dark:text-red-400" : "text-sm text-[#57534e] dark:text-gray-400"
-                              }
-                            >
-                              Val. {new Date(lic.dataValidade).toLocaleDateString("pt-PT")}
-                            </span>
-                          )}
-                          {canGerirServicos && (
-                            <Link href={hrefLic(origem, lic)} className="rounded-lg border border-gray-300 px-2 py-1 text-xs dark:border-[#333]">
-                              {lic ? "Editar" : "Adicionar"}
-                            </Link>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  };
-
-                  if (linha.tipo === "OUTRO") {
-                    const ped = linha.licencaPedido;
-                    const def = linha.licencaDefinitiva;
-                    const key = `outro-${ped?.id ?? ""}-${def?.id ?? ""}-${linha.nomeExibicao}`;
-                    return (
-                      <li key={key} className="border-b border-[#f5f5f4] pb-4 last:border-0 dark:border-[#1a1a1a]">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-lg leading-none">{iconEstado(Math.max(linha.estadoPedido, linha.estadoDefinitiva))}</span>
-                          <span className="font-medium">{linha.nomeExibicao}</span>
-                        </div>
-                        <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                          {renderCelula("Papelada gerada", 0, ped, linha.estadoPedido, false)}
-                          {renderCelula("Autorização definitiva", 1, def, linha.estadoDefinitiva, false)}
-                        </div>
-                      </li>
-                    );
-                  }
-
-                  return (
-                    <li key={linha.tipo} className="border-b border-[#f5f5f4] pb-4 last:border-0 dark:border-[#1a1a1a]">
-                      <p className="font-medium text-[#1c1917] dark:text-white">{linha.nomeExibicao}</p>
-                      <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                        {renderCelula("1. Papelada gerada (pedido)", 0, linha.licencaPedido, linha.estadoPedido, false)}
-                        {renderCelula("2. Autorização definitiva", 1, linha.licencaDefinitiva, linha.estadoDefinitiva, linha.obrigatorio)}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </motion.section>
-          )}
-
-          {/* Documentação do evento */}
-          {servico.documentosExtras.length > 0 && (
-            <motion.section
-              initial={fadeInUp.initial}
-              animate={fadeInUp.animate}
-              transition={{ ...transitionSmooth, delay: 0.16 }}
-              className="mt-6 rounded-2xl border border-[#e7e5e4] bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111]"
-            >
-              <h2 className="mb-4 text-lg font-semibold">Documentação do evento</h2>
-              <ul className="flex flex-wrap gap-2">
-                {servico.documentosExtras.map((doc) => (
-                  <li key={doc.id}>
-                    <span className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-[#333]">
-                      {doc.nome || "Documento"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <Link
+                href={`/documentacao?servicoId=${encodeURIComponent(String(servico.id))}`}
+                className="mt-4 inline-flex rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]"
+              >
+                Abrir documentação do serviço
+              </Link>
             </motion.section>
           )}
         </div>

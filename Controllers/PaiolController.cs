@@ -156,10 +156,11 @@ namespace Finalproj.Controllers
                 query = query.Where(p => p.Calibre == calibre);
 
             var lista = await query.OrderBy(p => p.Nome).ToListAsync(cancellationToken);
+            var itemsDto = lista.Select(ProdutoResponseDtoMapping.Map).ToList();
 
             return Ok(new
             {
-                items = lista,
+                items = itemsDto,
                 stockPorProduto,
                 pesquisa = pesquisa ?? string.Empty,
                 classificacao = classificacao ?? string.Empty,
@@ -193,13 +194,14 @@ namespace Finalproj.Controllers
 
             if (string.IsNullOrEmpty(tipo))
             {
+                var paióisNomes = paióis.Select(p => new PaiolListagemNomeDto { Id = p.Id, Nome = p.Nome }).ToList();
                 return Ok(new
                 {
-                    paióis,
+                    paióis = paióisNomes,
                     paiolIdFiltro = paiolId,
                     tipo = tipo ?? string.Empty,
-                    entradas = new List<EntradaPaiol>(),
-                    saidas = new List<SaidaPaiol>(),
+                    entradas = new List<EntradaPaiolMovimentoDto>(),
+                    saidas = new List<SaidaPaiolMovimentoDto>(),
                     paginaAtual = pagina,
                     totalRegistos = 0,
                     itensPorPagina
@@ -222,14 +224,16 @@ namespace Finalproj.Controllers
                     .ToListAsync(cancellationToken);
                 var userIdsEntradas = entradas.Where(e => !string.IsNullOrEmpty(e.FuncionarioRegistouUserId)).Select(e => e.FuncionarioRegistouUserId!).Distinct().ToList();
                 var nomesUtilizadoresEntradas = await ObterNomesUtilizadoresAsync(userIdsEntradas, cancellationToken);
+                var entradasDto = entradas.Select(e => ArmazemResponseDtoMapping.MapEntradaMovimento(e, nomesUtilizadoresEntradas)).ToList();
+                var paióisNomesE = paióis.Select(p => new PaiolListagemNomeDto { Id = p.Id, Nome = p.Nome }).ToList();
 
                 return Ok(new
                 {
-                    paióis,
+                    paióis = paióisNomesE,
                     paiolIdFiltro = paiolId,
                     tipo,
-                    entradas,
-                    saidas = new List<SaidaPaiol>(),
+                    entradas = entradasDto,
+                    saidas = new List<SaidaPaiolMovimentoDto>(),
                     nomesUtilizadoresEntradas,
                     paginaAtual = pagina,
                     totalRegistos,
@@ -251,14 +255,16 @@ namespace Finalproj.Controllers
                 .ToListAsync(cancellationToken);
             var userIds = saidas.Where(s => !string.IsNullOrEmpty(s.FuncionarioRetirouUserId)).Select(s => s.FuncionarioRetirouUserId!).Distinct().ToList();
             var nomesUtilizadoresSaidas = await ObterNomesUtilizadoresAsync(userIds, cancellationToken);
+            var saidasDto = saidas.Select(s => ArmazemResponseDtoMapping.MapSaidaMovimento(s, nomesUtilizadoresSaidas)).ToList();
+            var paióisNomesS = paióis.Select(p => new PaiolListagemNomeDto { Id = p.Id, Nome = p.Nome }).ToList();
 
             return Ok(new
             {
-                paióis,
+                paióis = paióisNomesS,
                 paiolIdFiltro = paiolId,
                 tipo,
-                entradas = new List<EntradaPaiol>(),
-                saidas,
+                entradas = new List<EntradaPaiolMovimentoDto>(),
+                saidas = saidasDto,
                 nomesUtilizadoresSaidas,
                 paginaAtual = pagina,
                 totalRegistos = totalRegistosSaidas,
@@ -323,7 +329,7 @@ namespace Finalproj.Controllers
                 .Cast<CargaPaiolItem>()
                 .ToList();
 
-            return Ok(new { paiol, carga });
+            return Ok(new { paiol = PaiolResponseDtoMapping.Map(paiol), carga });
         }
 
         // GET: Details
@@ -369,7 +375,7 @@ namespace Finalproj.Controllers
             var nemAtual = carga.Sum(x => x.NEMTotal);
             var cargosAcesso = await _context.PaiolAcessos.Where(a => a.PaiolId == id).Select(a => a.RoleName).ToListAsync(cancellationToken);
 
-            return Ok(new { paiol, nemAtual, carga, cargosAcesso });
+            return Ok(new { paiol = PaiolResponseDtoMapping.Map(paiol), nemAtual, carga, cargosAcesso });
         }
 
         // GET: Create (Admin e Gestor)
@@ -379,7 +385,7 @@ namespace Finalproj.Controllers
         {
             return Ok(new
             {
-                paiol = new Paiol(),
+                paiol = ArmazemResponseDtoMapping.EmptyPaiolParaFormulario(),
                 perfisRisco = ConstantesPaiol.LicencasParaDropdown(),
                 estados = ConstantesPaiol.Estados,
                 cargosDisponiveis = ConstantesPaiol.CargosDisponiveis
@@ -405,7 +411,7 @@ namespace Finalproj.Controllers
                     ModelState.AddModelError(string.Empty, "Perfil de risco ou estado inválido.");
                     return BadRequest(new
                     {
-                        paiol,
+                        paiol = PaiolResponseDtoMapping.Map(paiol),
                         perfisRisco = ConstantesPaiol.LicencasParaDropdown(),
                         estados = ConstantesPaiol.Estados,
                         cargosDisponiveis = ConstantesPaiol.CargosDisponiveis,
@@ -439,11 +445,12 @@ namespace Finalproj.Controllers
                     }
                     await _context.SaveChangesAsync(cancellationToken);
                 }
-                return CreatedAtAction(nameof(Details), new { id = paiol.Id }, new { paiol });
+                var paiolCriado = await _context.Paiol.Include(p => p.DocumentosExtras).FirstAsync(p => p.Id == paiol.Id, cancellationToken);
+                return CreatedAtAction(nameof(Details), new { id = paiol.Id }, new { paiol = PaiolResponseDtoMapping.Map(paiolCriado) });
             }
             return BadRequest(new
             {
-                paiol,
+                paiol = PaiolResponseDtoMapping.Map(paiol),
                 perfisRisco = ConstantesPaiol.LicencasParaDropdown(),
                 estados = ConstantesPaiol.Estados,
                 cargosDisponiveis = ConstantesPaiol.CargosDisponiveis,
@@ -467,7 +474,7 @@ namespace Finalproj.Controllers
 
             return Ok(new
             {
-                paiol,
+                paiol = PaiolResponseDtoMapping.Map(paiol),
                 perfisRisco = ConstantesPaiol.LicencasParaDropdown(),
                 estados = ConstantesPaiol.Estados,
                 cargosDisponiveis = ConstantesPaiol.CargosDisponiveis,
@@ -543,13 +550,14 @@ namespace Finalproj.Controllers
                         return NotFound();
                     throw;
                 }
-                return Ok(new { paiol });
+                var paiolAtualizado = await _context.Paiol.Include(p => p.DocumentosExtras).FirstAsync(p => p.Id == id, cancellationToken);
+                return Ok(new { paiol = PaiolResponseDtoMapping.Map(paiolAtualizado) });
             }
 
             var cargosSelecionados = await _context.PaiolAcessos.Where(a => a.PaiolId == id).Select(a => a.RoleName).ToListAsync(cancellationToken);
             return BadRequest(new
             {
-                paiol,
+                paiol = PaiolResponseDtoMapping.Map(paiol),
                 perfisRisco = ConstantesPaiol.LicencasParaDropdown(),
                 estados = ConstantesPaiol.Estados,
                 cargosDisponiveis = ConstantesPaiol.CargosDisponiveis,
@@ -570,7 +578,7 @@ namespace Finalproj.Controllers
             if (paiol == null)
                 return NotFound();
 
-            return Ok(paiol);
+            return Ok(PaiolResponseDtoMapping.Map(paiol));
         }
 
         // DELETE: Delete

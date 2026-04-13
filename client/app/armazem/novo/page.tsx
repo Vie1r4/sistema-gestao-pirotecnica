@@ -19,11 +19,10 @@ import {
   type PerfilRiscoPaiol,
   type EstadoPaiol,
 } from "@/app/lib/armazem";
-import { parseApiErrorBody } from "@/app/lib/apiErrors";
 import { useToastStore } from "@/app/stores/useToastStore";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 
-import { apiPath } from "@/app/lib/apiConfig";
+import { postCreatePaiol } from "@/app/lib/paiolApi";
 
 const cardClass =
   "card-hover rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111] sm:p-8";
@@ -68,19 +67,7 @@ export default function NovoPaiolPage() {
     mutationFn: async (fd: FormData) => {
       const t = getToken();
       if (!t) throw new Error("Sessão expirada.");
-      const res = await fetch(apiPath("api/paiol"), {
-        method: "POST",
-        headers: { Authorization: `Bearer ${t}` },
-        body: fd,
-      });
-      if (res.status === 401) throw new Error("Não autenticado");
-      if (res.status === 403) throw new Error("Sem permissão para criar paiol (requer perfil Admin).");
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        const parsed = parseApiErrorBody(err);
-        throw new Error(parsed.message);
-      }
-      return res.json() as Promise<{ paiol?: { Id?: number; id?: number } }>;
+      return postCreatePaiol(t, fd);
     },
     onSuccess: (data) => {
       useToastStore.getState().show("Paiol criado com sucesso.", "success");

@@ -23,6 +23,13 @@ Em **Production** o Swagger fica **desligado** (não expor a superfície da API)
 
 - **Raiz do repositório:** backend (Controllers, Data, Models, Services).
 - **`client/`:** frontend Next.js (React 19, TanStack Query, Tailwind, Leaflet).
+- **`Finalproj.Tests/`:** testes unitários xUnit (domínio: `EncomendaService`, `StockDisponivelService` com EF InMemory). Ver [Docs/backend/TESTES-DOMINIO.md](Docs/backend/TESTES-DOMINIO.md).
+
+## Testes (backend)
+
+```bash
+dotnet test Finalproj.Tests/Finalproj.Tests.csproj
+```
 
 ## Pré-requisitos
 
@@ -55,6 +62,19 @@ Em **produção**, use variáveis de ambiente ou Azure Key Vault (por exemplo `J
 Por defeito o backend aceita origens `http://localhost:3000` e `https://localhost:3000`. Em produção, defina:
 
 - `Cors:AllowedOrigins` em appsettings ou variável de ambiente (ex.: `https://app.seudominio.pt`).
+
+### Logs e correlation id
+
+- Cada pedido HTTP recebe um **`X-Correlation-Id`** (header de resposta; opcional no pedido). Os logs de consola incluem **scopes** com `CorrelationId` e o tempo do pedido em milissegundos.
+- Detalhes: [Docs/backend/OBSERVABILIDADE-HTTP.md](Docs/backend/OBSERVABILIDADE-HTTP.md).
+
+### Backups automáticos da base de dados
+
+O backend inclui um serviço automático de backups SQL Server (`BackgroundService`) com execução diária às **19:00**.
+
+- Destino: ficheiros `.bak` na raiz do projeto.
+- Configuração: secção `Backups` no `appsettings.json`.
+- Documentação detalhada: [Docs/backend/BACKUPS-AUTOMATICOS.md](Docs/backend/BACKUPS-AUTOMATICOS.md).
 
 ## Executar
 

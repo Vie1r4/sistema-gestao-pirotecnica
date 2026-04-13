@@ -12,10 +12,9 @@ function authHeaders(token: string): HeadersInit {
   return { Authorization: `Bearer ${token}` };
 }
 
-/** GET api/funcionarios — lista + userIdsConfirmados (mesmo contrato que a página de listagem). */
+/** GET api/funcionarios — lista; cada item inclui contaAssociada e contaEmailConfirmada (sem UserId do Identity). */
 export async function fetchFuncionariosLista(token: string): Promise<{
   items: Array<Record<string, unknown>>;
-  userIdsConfirmados: string[];
 }> {
   const res = await fetch(apiPath("api/funcionarios"), { headers: authHeaders(token) });
   if (!res.ok) {
@@ -25,10 +24,9 @@ export async function fetchFuncionariosLista(token: string): Promise<{
     );
   }
   const data = (await safeParseJson(res)) as unknown;
-  const dataObj = data as { items?: unknown[]; userIdsConfirmados?: string[] } | null;
+  const dataObj = data as { items?: unknown[] } | null;
   const arr = Array.isArray(dataObj?.items) ? dataObj.items : [];
-  const userIdsConfirmados = Array.isArray(dataObj?.userIdsConfirmados) ? dataObj.userIdsConfirmados : [];
-  return { items: arr as Array<Record<string, unknown>>, userIdsConfirmados };
+  return { items: arr as Array<Record<string, unknown>> };
 }
 
 /** GET api/funcionarios/{id}/edit — dados para o formulário de edição (Admin). */
@@ -61,7 +59,11 @@ export async function putFuncionario(token: string, id: string, formData: FormDa
 /**
  * Mapeia o item JSON de GET api/funcionarios/{id} para o modelo de UI (secção Documentos com flags Has*).
  */
-export function mapApiItemToFuncionarioDetalhe(item: Record<string, unknown>, contaEmailConfirmada?: boolean): Funcionario {
+export function mapApiItemToFuncionarioDetalhe(
+  item: Record<string, unknown>,
+  contaEmailConfirmada?: boolean,
+  associadoAoUtilizadorAtual?: boolean
+): Funcionario {
   const nome = (item.nomeCompleto ?? item.NomeCompleto ?? item.nome ?? "") as string;
   const hasCc = Boolean(item.hasCartaoCidadao ?? item.HasCartaoCidadao ?? item.cartaoCidadaoCaminho ?? item.CartaoCidadaoCaminho);
   const hasAdr = Boolean(item.hasDocumentoADR ?? item.HasDocumentoADR ?? item.documentoADDRCaminho ?? item.DocumentoADDRCaminho);
@@ -82,6 +84,11 @@ export function mapApiItemToFuncionarioDetalhe(item: Record<string, unknown>, co
           extras,
         }
       : undefined;
+  const contaEmailDaApi = item.contaEmailConfirmada ?? item.ContaEmailConfirmada;
+  const emailConfirmado =
+    typeof contaEmailDaApi === "boolean"
+      ? contaEmailDaApi
+      : contaEmailConfirmada ?? (item.emailConfirmado as boolean | undefined);
   return {
     id: String(item.id ?? item.Id ?? ""),
     nomeCompleto: nome,
@@ -94,9 +101,13 @@ export function mapApiItemToFuncionarioDetalhe(item: Record<string, unknown>, co
     cargo: (item.cargo ?? item.Cargo ?? "Comercial") as CargoFuncionario,
     notas: (item.notas ?? item.Notas) as string | undefined,
     dataRegisto: String(item.dataRegisto ?? item.DataRegisto ?? new Date().toISOString()),
-    contaAssociada: Boolean(item.userId ?? item.UserId),
-    emailConfirmado: contaEmailConfirmada ?? (item.emailConfirmado as boolean | undefined),
+    contaAssociada: Boolean(
+      item.contaAssociada ?? item.ContaAssociada ?? item.userId ?? item.UserId
+    ),
+    emailConfirmado,
     userId: (item.userId ?? item.UserId) as string | undefined,
+    associadoAoUtilizadorAtual:
+      associadoAoUtilizadorAtual ?? (item.associadoAoUtilizadorAtual as boolean | undefined),
     documentos,
   };
 }
@@ -124,10 +135,18 @@ export async function fetchFuncionarioPorId(
     throw new Error(res.status === 404 ? "Funcionário não encontrado." : text || `Erro ${res.status}`);
   }
   const value = (await safeParseJson(res)) as unknown;
-  const data = value as { item?: Record<string, unknown>; contaEmailConfirmada?: boolean };
+  const data = value as {
+    item?: Record<string, unknown>;
+    contaEmailConfirmada?: boolean;
+    associadoAoUtilizadorAtual?: boolean;
+  };
   const raw = data?.item ?? data;
   if (raw && typeof raw === "object")
-    return mapApiItemToFuncionarioDetalhe(raw as Record<string, unknown>, data.contaEmailConfirmada);
+    return mapApiItemToFuncionarioDetalhe(
+      raw as Record<string, unknown>,
+      data.contaEmailConfirmada,
+      data.associadoAoUtilizadorAtual
+    );
   return null;
 }
 

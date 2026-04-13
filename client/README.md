@@ -40,11 +40,35 @@ npm start
 
 ## CI
 
-Em PRs e em `push` às branches `main` e `next`, alterações em `client/**` executam [`.github/workflows/client-ci.yml`](../.github/workflows/client-ci.yml): `npm ci`, em paralelo `npm run typecheck` (`tsc --noEmit`) e `npm run lint`, depois `npm run build`.
+Em PRs e em `push` às branches `main` e `next`, alterações em `client/**` executam [`.github/workflows/client-ci.yml`](../.github/workflows/client-ci.yml): `npm ci`, em paralelo `npm run typecheck` (`tsc --noEmit`), `npm run lint` e `npm run test` (Vitest), depois `npm run build`, instalação do Chromium do Playwright e `npm run test:e2e` (sem backend real — os specs usam `page.route` onde necessário).
 
 No `eslint.config.mjs`, as regras `react-hooks/set-state-in-effect` e `react-hooks/incompatible-library` estão **desligadas** (`off`): com Next.js e TanStack Query/Table geram avisos em padrões válidos; ver comentários no próprio ficheiro.
 
 ## Chamadas API (lib)
 
 **Regra de equipa:** na **segunda vez** que o **mesmo endpoint** (mesmo método + caminho) for usado noutro sítio, extrair para uma **função** no módulo `app/lib/*Api.ts` adequado (ex.: `encomendasApi.ts`, `paiolApi.ts`). A primeira ocorrência pode ficar inline; não é obrigatório refatorar código já existente de uma só vez.
+
+## Testes (organizados)
+
+- Stack: `Vitest` + `Testing Library` + `jsdom`.
+- Estrutura:
+  - `tests/unit/` para lógica pura;
+  - `tests/component/` para componentes/páginas;
+  - `tests/setup/` para setup global;
+  - `tests/mocks/` para mocks/fixtures partilhados.
+- Scripts:
+  - `npm run test`
+  - `npm run test:watch`
+  - `npm run test:coverage`
+  - `npm run test:e2e`
+  - `npm run test:e2e:headed`
+- E2E Playwright: ver `tests/e2e/README.md`
+- Checklist de PR: [Docs/frontend/CHECKLIST-QUALIDADE-PR.md](../Docs/frontend/CHECKLIST-QUALIDADE-PR.md)
+
+## Área de documentação de serviços
+
+- Nova rota: `"/documentacao"`.
+- Objetivo: centralizar ações de documentação por serviço (ex.: licenças/papelada por tipo).
+- Acesso: apenas utilizadores com role `Admin` ou `Gestor`.
+- A página de detalhe `"/servicos/[id]"` mantém dados operacionais e encaminha para esta área para gerir documentação.
 

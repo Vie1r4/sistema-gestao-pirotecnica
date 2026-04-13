@@ -38,5 +38,8 @@ export function getRequiredPermissionsForPath(pathname: string | null): string[]
   // Serviços
   if (pathname === "/servicos" || pathname.startsWith("/servicos/")) return ["servicos.gerir"];
 
+  // Documentação (acesso final validado por role na própria página)
+  if (pathname === "/documentacao" || pathname.startsWith("/documentacao/")) return ["servicos.gerir"];
+
   return null;
 }

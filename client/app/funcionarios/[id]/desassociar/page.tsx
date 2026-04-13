@@ -77,9 +77,10 @@ export default function DesassociarContaPage() {
   });
 
   const isOwnAccount =
-    !!funcionario?.contaAssociada &&
-    !!currentUserId &&
-    (funcionario.userId === currentUserId || funcionario.email === currentUserId);
+    funcionario?.associadoAoUtilizadorAtual === true ||
+    (!!funcionario?.contaAssociada &&
+      !!currentUserId &&
+      (funcionario.userId === currentUserId || funcionario.email === currentUserId));
 
   const handleConfirmar = async () => {
     if (desassociarMutation.isPending) return;

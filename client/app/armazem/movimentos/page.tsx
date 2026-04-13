@@ -9,9 +9,8 @@ import type { ColumnDef } from "@tanstack/react-table";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import { DataTable } from "@/app/components/ui/DataTable";
 import { getToken } from "@/app/lib/auth";
-import { safeParseJson } from "@/app/lib/api";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
-import { apiPath } from "@/app/lib/apiConfig";
+import { fetchPaiolMovimentos } from "@/app/lib/paiolApi";
 
 const ITENS_POR_PAGINA = 20;
 const inputClass =
@@ -25,6 +24,9 @@ type EntradaRow = {
   produtoId: number;
   quantidade: number;
   dataEntrada: string;
+  /** Preenchido pelo servidor (preferível aos maps por userId). */
+  registadoPor?: string;
+  RegistadoPor?: string;
   funcionarioRegistouUserId?: string;
   numeroLote?: string;
   paiol?: { nome?: string; Nome?: string };
@@ -37,6 +39,8 @@ type SaidaRow = {
   produtoId: number;
   quantidade: number;
   dataSaida: string;
+  retiradoPor?: string;
+  RetiradoPor?: string;
   funcionarioRetirouUserId?: string;
   encomendaId?: number;
   paiol?: { nome?: string; Nome?: string };
@@ -192,25 +196,21 @@ async function fetchMovimentos(
     router.replace("/login");
     throw new Error("Não autenticado");
   }
-  const params = new URLSearchParams();
-  if (tipo) params.set("tipo", tipo);
-  if (paiolIdParam) params.set("paiolId", paiolIdParam);
-  params.set("pagina", String(pagina));
-  params.set("itensPorPagina", String(ITENS_POR_PAGINA));
-  const res = await fetch(`${apiPath("api/paiol/movimentos")}?${params.toString()}`, {
-    method: "GET",
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (res.status === 401) {
-    router.replace("/login");
-    throw new Error("Não autenticado");
+  let data: Record<string, unknown>;
+  try {
+    data = await fetchPaiolMovimentos(token, {
+      tipo: tipo || undefined,
+      paiolId: paiolIdParam || undefined,
+      pagina,
+      itensPorPagina: ITENS_POR_PAGINA,
+    });
+  } catch (e) {
+    if (e instanceof Error && e.message === "UNAUTHORIZED") {
+      router.replace("/login");
+      throw new Error("Não autenticado");
+    }
+    throw e;
   }
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `Erro ${res.status}`);
-  }
-  const data = (await safeParseJson(res)) as Record<string, unknown> | null;
-  if (!data) throw new Error("Resposta inválida");
   const paioisRaw = (data.paiois ?? data.paióis ?? []) as Array<{ id?: number; Id?: number; nome?: string; Nome?: string }>;
   return {
     paiois: paioisRaw.map((p) => ({
@@ -257,9 +257,12 @@ function MovimentosContent() {
     return entradas.map((e) => {
       const nemU = e.produto?.nemPorUnidade ?? e.produto?.NemPorUnidade;
       const nem = nemU != null ? (e.quantidade * Number(nemU)).toFixed(2) : "—";
-      const registadoPor = e.funcionarioRegistouUserId
-        ? (nomesEntradas[e.funcionarioRegistouUserId] ?? e.funcionarioRegistouUserId)
-        : "—";
+      const registadoPor =
+        e.registadoPor ??
+        e.RegistadoPor ??
+        (e.funcionarioRegistouUserId
+          ? (nomesEntradas[e.funcionarioRegistouUserId] ?? e.funcionarioRegistouUserId)
+          : "—");
       const paiolNome = e.paiol?.nome ?? e.paiol?.Nome ?? String(e.paiolId);
       const produtoNome = e.produto?.nome ?? e.produto?.Nome ?? String(e.produtoId);
       return {
@@ -278,9 +281,12 @@ function MovimentosContent() {
     const saidas = apiData?.saidas ?? [];
     const nomesSaidas = apiData?.nomesSaidas ?? {};
     return saidas.map((s) => {
-      const retiradoPor = s.funcionarioRetirouUserId
-        ? (nomesSaidas[s.funcionarioRetirouUserId] ?? s.funcionarioRetirouUserId)
-        : "—";
+      const retiradoPor =
+        s.retiradoPor ??
+        s.RetiradoPor ??
+        (s.funcionarioRetirouUserId
+          ? (nomesSaidas[s.funcionarioRetirouUserId] ?? s.funcionarioRetirouUserId)
+          : "—");
       const paiolNome = s.paiol?.nome ?? s.paiol?.Nome ?? String(s.paiolId);
       const produtoNome = s.produto?.nome ?? s.produto?.Nome ?? String(s.produtoId);
       return {

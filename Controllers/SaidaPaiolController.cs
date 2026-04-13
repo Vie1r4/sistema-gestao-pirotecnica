@@ -142,7 +142,7 @@ namespace Finalproj.Controllers
 
             return Ok(new
             {
-                saida,
+                saida = ArmazemResponseDtoMapping.MapSaidaRegistada(saida),
                 saidaSucesso = $"Saída registada: {model.Quantidade} × {produto.Nome} do paiol {paiol.Nome}.",
                 conteudoPaiolUrl = $"api/paiol/{model.PaiolId}/conteudo"
             });

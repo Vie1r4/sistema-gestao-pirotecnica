@@ -59,7 +59,7 @@ public class ServicosApiController : ControllerBase
         IQueryable<Servico> query = _context.Servicos
             .AsNoTracking()
             .Include(s => s.Cliente)
-            .Include(s => s.Encomenda)
+            .Include(s => s.Encomenda).ThenInclude(e => e.Cliente)
             .Include(s => s.ResponsavelTecnico);
 
         if (clienteId.HasValue)
@@ -79,11 +79,13 @@ public class ServicosApiController : ControllerBase
             .Take(itensPorPagina)
             .ToListAsync(cancellationToken);
 
+        var listaDto = lista.Select(s => ServicoResponseDtoMapping.Map(s)).ToList();
+
         var clientes = await _context.Clientes.OrderBy(c => c.Nome).Select(c => new { c.Id, c.Nome }).ToListAsync(cancellationToken);
 
         return Ok(new
         {
-            lista,
+            lista = listaDto,
             clientes,
             clienteIdFiltro = clienteId,
             dataDesde = dataDesde?.ToString("yyyy-MM-dd") ?? "",
@@ -144,8 +146,8 @@ public class ServicosApiController : ControllerBase
         if (documentosGuardados.Count > 0)
             await _servicoService.AdicionarDocumentosExtrasAsync(created.Id, documentosGuardados, cancellationToken);
 
-        var createdFull = await _context.Servicos.AsNoTracking().Include(s => s.Cliente).Include(s => s.Encomenda).Include(s => s.ResponsavelTecnico).Include(s => s.Equipa).ThenInclude(e => e.Funcionario).Include(s => s.DocumentosExtras).Include(s => s.Licencas).FirstAsync(s => s.Id == created.Id, cancellationToken);
-        return CreatedAtAction(nameof(Details), new { id = created.Id }, new { servico = MapServicoToResponse(createdFull) });
+        var createdFull = await _context.Servicos.AsNoTracking().Include(s => s.Cliente).Include(s => s.Encomenda).ThenInclude(e => e.Cliente).Include(s => s.ResponsavelTecnico).Include(s => s.Equipa).ThenInclude(e => e.Funcionario).Include(s => s.DocumentosExtras).Include(s => s.Licencas).FirstAsync(s => s.Id == created.Id, cancellationToken);
+        return CreatedAtAction(nameof(Details), new { id = created.Id }, new { servico = ServicoResponseDtoMapping.Map(createdFull) });
     }
 
     // GET: api/servicos/5
@@ -155,7 +157,7 @@ public class ServicosApiController : ControllerBase
         var servico = await _context.Servicos
             .AsNoTracking()
             .Include(s => s.Cliente)
-            .Include(s => s.Encomenda)
+            .Include(s => s.Encomenda).ThenInclude(e => e.Cliente)
             .Include(s => s.ResponsavelTecnico)
             .Include(s => s.Equipa).ThenInclude(e => e.Funcionario)
             .Include(s => s.DocumentosExtras)
@@ -178,6 +180,8 @@ public class ServicosApiController : ControllerBase
             itensEncomenda = itens;
         }
 
+        var itensEncomendaDto = itensEncomenda.Select(EncomendaResponseDtoMapping.MapItem).ToList();
+
         await _servicoService.EnsureDistanciasSegurancaAsync(servico.Id, resumoMaterial?.DivisaoDominante, cancellationToken);
         var distanciasSeguranca = await _context.ServicoDistanciasSeguranca
             .AsNoTracking()
@@ -185,7 +189,7 @@ public class ServicosApiController : ControllerBase
             .OrderBy(d => d.TipoReferencia)
             .ToListAsync(cancellationToken);
 
-        Paiol? paiolParaRota = null;
+        PaiolResponseDto? paiolParaRotaDto = null;
         double? distanciaPaiolKm = null;
         if (servico.EncomendaId > 0 && servico.CoordenadasLat.HasValue && servico.CoordenadasLng.HasValue)
         {
@@ -196,7 +200,7 @@ public class ServicosApiController : ControllerBase
                 .FirstOrDefaultAsync(cancellationToken);
             if (saida?.Paiol != null)
             {
-                paiolParaRota = saida.Paiol;
+                paiolParaRotaDto = PaiolResponseDtoMapping.Map(saida.Paiol);
                 distanciaPaiolKm = (double)GeoHelper.CalcularDistanciaKm(
                     saida.Paiol.CoordenadasLat!.Value, saida.Paiol.CoordenadasLng!.Value,
                     servico.CoordenadasLat!.Value, servico.CoordenadasLng!.Value);
@@ -259,13 +263,15 @@ public class ServicosApiController : ControllerBase
             licencaDefinitiva = l.LicencaDefinitiva,
         }).ToList();
 
+        var servicoDto = ServicoResponseDtoMapping.Map(servico, distanciasSeguranca);
+
         return Ok(new
         {
-            servico = MapServicoToResponse(servico),
+            servico = servicoDto,
             resumoMaterial,
-            itensEncomenda,
-            distanciasSeguranca,
-            paiolParaRota,
+            itensEncomenda = itensEncomendaDto,
+            distanciasSeguranca = servicoDto.DistanciasSeguranca,
+            paiolParaRota = paiolParaRotaDto,
             distanciaPaiolKm,
             licencasEvento = licencasEventoDto,
             licencasObrigatoriasTotal = totalObr,
@@ -278,12 +284,18 @@ public class ServicosApiController : ControllerBase
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
     public async Task<IActionResult> Edit(int id, CancellationToken cancellationToken = default)
     {
-        var servico = await _context.Servicos.Include(s => s.Equipa).Include(s => s.DocumentosExtras).FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+        var servico = await _context.Servicos
+            .Include(s => s.Cliente)
+            .Include(s => s.Encomenda).ThenInclude(e => e.Cliente)
+            .Include(s => s.ResponsavelTecnico)
+            .Include(s => s.Equipa).ThenInclude(e => e.Funcionario)
+            .Include(s => s.DocumentosExtras)
+            .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
         if (servico == null) return NotFound();
 
         var dados = await _servicoService.ObterDadosFormularioAsync(servicoIdParaExcluirEncomenda: id, encomendaIdSugerido: servico.EncomendaId, cancellationToken);
         var equipaIds = servico.Equipa.Select(e => e.FuncionarioId).ToList();
-        var servicoDto = MapServicoToResponse(servico);
+        var servicoDto = ServicoResponseDtoMapping.Map(servico);
         var responsaveisDto = dados.ResponsaveisTecnicos.Select(f => FuncionarioResponseDtoMapping.Map(f, false)).ToList();
         var equipaDto = dados.FuncionariosEquipa.Select(f => FuncionarioResponseDtoMapping.Map(f, false)).ToList();
 
@@ -337,8 +349,8 @@ public class ServicosApiController : ControllerBase
             throw;
         }
 
-        var updatedFull = await _context.Servicos.Include(s => s.Cliente).Include(s => s.Encomenda).Include(s => s.ResponsavelTecnico).Include(s => s.Equipa).ThenInclude(e => e.Funcionario).Include(s => s.DocumentosExtras).Include(s => s.Licencas).FirstAsync(s => s.Id == id, cancellationToken);
-        return Ok(new { servico = MapServicoToResponse(updatedFull) });
+        var updatedFull = await _context.Servicos.Include(s => s.Cliente).Include(s => s.Encomenda).ThenInclude(e => e.Cliente).Include(s => s.ResponsavelTecnico).Include(s => s.Equipa).ThenInclude(e => e.Funcionario).Include(s => s.DocumentosExtras).Include(s => s.Licencas).FirstAsync(s => s.Id == id, cancellationToken);
+        return Ok(new { servico = ServicoResponseDtoMapping.Map(updatedFull) });
     }
 
     // GET: api/servicos/5/delete
@@ -346,9 +358,9 @@ public class ServicosApiController : ControllerBase
     [Authorize(Policy = PoliticasAutorizacao.PodeApagarServicos)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken = default)
     {
-        var servico = await _context.Servicos.AsNoTracking().Include(s => s.Cliente).Include(s => s.Encomenda).Include(s => s.ResponsavelTecnico).Include(s => s.Equipa).ThenInclude(e => e.Funcionario).Include(s => s.DocumentosExtras).Include(s => s.Licencas).FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+        var servico = await _context.Servicos.AsNoTracking().Include(s => s.Cliente).Include(s => s.Encomenda).ThenInclude(e => e.Cliente).Include(s => s.ResponsavelTecnico).Include(s => s.Equipa).ThenInclude(e => e.Funcionario).Include(s => s.DocumentosExtras).Include(s => s.Licencas).FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
         if (servico == null) return NotFound();
-        return Ok(MapServicoToResponse(servico));
+        return Ok(ServicoResponseDtoMapping.Map(servico));
     }
 
     // DELETE: api/servicos/5
@@ -511,39 +523,7 @@ public class ServicosApiController : ControllerBase
         if (d == null) return NotFound();
         d.DistanciaMedida_m = dto.DistanciaMedida_m;
         await _context.SaveChangesAsync(cancellationToken);
-        return Ok(new { distancia = d });
-    }
-
-    // --- Helpers (espelho do ServicosController) ---
-
-    /// <summary>Converte Servico em resposta sem caminhos de ficheiros; Cliente, ResponsavelTecnico e Equipa como DTOs.</summary>
-    private static object MapServicoToResponse(Servico s)
-    {
-        return new
-        {
-            s.Id,
-            s.EncomendaId,
-            s.ClienteId,
-            s.DataServico,
-            s.Local,
-            s.MoradaCompleta,
-            s.Distrito,
-            s.Cidade,
-            s.Municipio,
-            s.CoordenadasLat,
-            s.CoordenadasLng,
-            s.RaioPublico,
-            s.PublicoPrivado,
-            s.ResponsavelTecnicoId,
-            s.Observacoes,
-            Cliente = s.Cliente != null ? ClienteResponseDtoMapping.Map(s.Cliente, false) : null,
-            Encomenda = s.Encomenda,
-            ResponsavelTecnico = s.ResponsavelTecnico != null ? FuncionarioResponseDtoMapping.Map(s.ResponsavelTecnico, false) : null,
-            DocumentosExtras = (s.DocumentosExtras ?? new List<ServicoDocumentoExtra>()).Select(d => new ServicoDocumentoExtraDto { Id = d.Id, Nome = d.Nome }).ToList(),
-            Licencas = (s.Licencas ?? new List<ServicoLicenca>()).Select(ServicoLicencaDto.FromEntity).ToList(),
-            Equipa = (s.Equipa ?? new List<ServicoEquipa>()).Where(e => e.Funcionario != null).Select(e => FuncionarioResponseDtoMapping.Map(e.Funcionario!, false)).ToList(),
-            DistanciasSeguranca = s.DistanciasSeguranca
-        };
+        return Ok(new { distancia = ServicoResponseDtoMapping.MapDistancia(d) });
     }
 
     private IActionResult ServirFicheiro(string caminhoRelativo)

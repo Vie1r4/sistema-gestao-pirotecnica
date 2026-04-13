@@ -1,8 +1,9 @@
 /**
- * Formulário GET api/entrada-paiol/registar + catálogo produtos (filtros).
+ * Formulário GET api/entrada-paiol/registar + catálogo produtos (filtros), POST registar entrada.
  */
 
 import { apiPath } from "./apiConfig";
+import { parseApiErrorBody } from "./apiErrors";
 
 export type PaiolOption = { id: number; nome: string; estado?: string; perfilRisco?: string };
 export type ProdutoOption = {
@@ -81,4 +82,29 @@ export async function fetchEntradaRegistarForm(
   const produtos = list.map((x) => mapProduto(x));
 
   return { paiois, produtos };
+}
+
+export type RegistarEntradaBody = {
+  PaiolId: number;
+  ProdutoId: number;
+  Quantidade: number;
+  NumeroLote: string | null;
+  DataFabrico: string | null;
+  DataValidade: string | null;
+};
+
+/** POST api/entrada-paiol/registar */
+export async function postRegistarEntrada(
+  token: string,
+  body: RegistarEntradaBody
+): Promise<{ entradaSucesso?: string } & Record<string, unknown>> {
+  const res = await fetch(`${apiPath("api/entrada-paiol")}/registar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  if (res.status === 401) throw new Error("UNAUTHORIZED");
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) throw new Error(parseApiErrorBody(data).message);
+  return data as { entradaSucesso?: string } & Record<string, unknown>;
 }

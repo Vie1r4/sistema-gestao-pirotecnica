@@ -25,6 +25,8 @@ export type Funcionario = {
   contaAssociada: boolean;
   emailConfirmado?: boolean;
   userId?: string;
+  /** Definido no GET detalhe quando a API indica conta do utilizador atual (sem depender do UserId no JSON). */
+  associadoAoUtilizadorAtual?: boolean;
   documentos?: DocumentosFuncionario;
 };
 

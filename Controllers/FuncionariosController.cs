@@ -75,15 +75,20 @@ namespace Finalproj.Controllers
                     userIdsConfirmados.Add(uid);
             }
 
-            var items = lista.Select(f => FuncionarioResponseDtoMapping.Map(f, includeSensitive: false)).ToList();
+            var items = lista.Select(f =>
+            {
+                bool? emailConf = null;
+                if (!string.IsNullOrEmpty(f.UserId))
+                    emailConf = userIdsConfirmados.Contains(f.UserId);
+                return FuncionarioResponseDtoMapping.Map(f, includeSensitive: false, contaEmailConfirmada: emailConf);
+            }).ToList();
             return Ok(new
             {
                 items,
                 pesquisa = pesquisa ?? string.Empty,
                 cargo = cargo ?? string.Empty,
                 ordenar = ordenar ?? "nome",
-                cargos = ConstantesFuncionariosClientes.CargosParaDropdown(),
-                userIdsConfirmados = userIdsConfirmados.ToList()
+                cargos = ConstantesFuncionariosClientes.CargosParaDropdown()
             });
         }
 
@@ -104,7 +109,16 @@ namespace Finalproj.Controllers
                 contaEmail = user?.Email ?? user?.UserName;
                 contaEmailConfirmada = user != null && user.EmailConfirmed;
             }
-            return Ok(new { item = FuncionarioResponseDtoMapping.Map(item, includeSensitive: false), contaEmail, contaEmailConfirmada });
+            var currentUserId = _userManager.GetUserId(User);
+            var associadoAoUtilizadorAtual = !string.IsNullOrEmpty(item.UserId) && item.UserId == currentUserId;
+            bool? emailConfParaDto = string.IsNullOrEmpty(item.UserId) ? null : contaEmailConfirmada;
+            return Ok(new
+            {
+                item = FuncionarioResponseDtoMapping.Map(item, includeSensitive: false, contaEmailConfirmada: emailConfParaDto),
+                contaEmail,
+                contaEmailConfirmada,
+                associadoAoUtilizadorAtual
+            });
         }
 
         // GET: formulário criar funcionário; dropdown cargo e roles para conta (sem paths)
@@ -252,7 +266,6 @@ namespace Finalproj.Controllers
         // Actualiza ficha, documentos; opcionalmente cria conta (quando UserId é null)
         public async Task<IActionResult> Edit(int id, [FromForm] EditFuncionarioInputDto input, CancellationToken cancellationToken = default)
         {
-            Console.WriteLine("EDIT PUT CHAMADO, id: " + id);
             var funcionario = input.Funcionario;
             var criarConta = input.CriarConta;
             var contaEmail = input.ContaEmail;
@@ -265,11 +278,6 @@ namespace Finalproj.Controllers
             var removerCartaoCidadao = input.RemoverCartaoCidadao;
             var removerDocumentoADDR = input.RemoverDocumentoADDR;
             var removerLicencaOperador = input.RemoverLicencaOperador;
-
-            // Logs para verificar se os ficheiros estão a chegar
-            Console.WriteLine($"CartaoCidadaoFicheiro: {input.CartaoCidadaoFicheiro?.FileName ?? "null"}");
-            Console.WriteLine($"DocumentoADDRFicheiro: {input.DocumentoADDRFicheiro?.FileName ?? "null"}");
-            Console.WriteLine($"LicencaOperadorFicheiro: {input.LicencaOperadorFicheiro?.FileName ?? "null"}");
 
             if (id != funcionario.Id)
                 return NotFound();
@@ -336,7 +344,6 @@ namespace Finalproj.Controllers
                     {
                         _documentoStorage.ApagarFicheiroSeExistir(existing.CartaoCidadaoCaminho);
                         var caminhoCc = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, existing.Id, input.CartaoCidadaoFicheiro, "cc", cancellationToken);
-                        Console.WriteLine($"[IDocumentoStorageService] CartaoCidadao guardado: {caminhoCc}");
                         existing.CartaoCidadaoCaminho = caminhoCc;
                     }
                     else if (!string.IsNullOrEmpty(funcionario.CartaoCidadaoCaminho))
@@ -351,7 +358,6 @@ namespace Finalproj.Controllers
                     {
                         _documentoStorage.ApagarFicheiroSeExistir(existing.DocumentoADDRCaminho);
                         var caminhoAddr = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, existing.Id, input.DocumentoADDRFicheiro, "addr", cancellationToken);
-                        Console.WriteLine($"[IDocumentoStorageService] DocumentoADDR guardado: {caminhoAddr}");
                         existing.DocumentoADDRCaminho = caminhoAddr;
                     }
                     else if (!string.IsNullOrEmpty(funcionario.DocumentoADDRCaminho))
@@ -366,7 +372,6 @@ namespace Finalproj.Controllers
                     {
                         _documentoStorage.ApagarFicheiroSeExistir(existing.LicencaOperadorCaminho);
                         var caminhoLic = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, existing.Id, input.LicencaOperadorFicheiro, "licenca", cancellationToken);
-                        Console.WriteLine($"[IDocumentoStorageService] LicencaOperador guardado: {caminhoLic}");
                         existing.LicencaOperadorCaminho = caminhoLic;
                     }
                     else if (!string.IsNullOrEmpty(funcionario.LicencaOperadorCaminho))

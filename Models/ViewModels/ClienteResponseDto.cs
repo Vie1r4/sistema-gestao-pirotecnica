@@ -15,6 +15,7 @@ public class ClienteResponseDto
     public string? Localidade { get; set; }
     public string? Notas { get; set; }
     public DateTime? DataRegisto { get; set; }
+    /// <summary>Id da conta Identity — apenas em respostas com <c>includeSensitive: true</c> (edição).</summary>
     public string? UserId { get; set; }
 
     /// <summary>NIF — apenas quando necessário para o formulário de edição.</summary>
@@ -47,7 +48,7 @@ public static class ClienteResponseDtoMapping
             Localidade = c.Localidade,
             Notas = c.Notas,
             DataRegisto = c.DataRegisto,
-            UserId = c.UserId,
+            UserId = includeSensitive ? c.UserId : null,
             NIF = includeSensitive ? c.NIF : null,
             Morada = includeSensitive ? c.Morada : null,
             DocumentosExtras = (c.DocumentosExtras ?? new List<ClienteDocumentoExtra>())

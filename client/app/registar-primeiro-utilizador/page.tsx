@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { safeParseJson } from "@/app/lib/api";
-import { apiPath } from "@/app/lib/apiConfig";
+import { postRegistarPrimeiroUtilizador } from "@/app/lib/authApi";
 import { setTokens } from "@/app/lib/auth";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 
@@ -42,14 +42,10 @@ export default function RegistarPrimeiroUtilizadorPage() {
     }
     setLoading(true);
     try {
-      const res = await fetch(apiPath("api/auth/registar-primeiro-utilizador"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim(),
-          password,
-          nome: nome.trim() || undefined,
-        }),
+      const res = await postRegistarPrimeiroUtilizador({
+        email: email.trim(),
+        password,
+        nome: nome.trim() || undefined,
       });
       const data = (await safeParseJson(res)) as Record<string, unknown>;
       const token =

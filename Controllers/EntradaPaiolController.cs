@@ -170,21 +170,22 @@ namespace Finalproj.Controllers
                 mle_total_paiol_apos = mleTotalApos
             });
 
-            var entrada = await _context.EntradasPaiol
+            var entradaRegistada = await _context.EntradasPaiol
+                .AsNoTracking()
                 .Where(e => e.PaiolId == paiol.Id && e.ProdutoId == produto.Id)
                 .OrderByDescending(e => e.DataEntrada)
-                .FirstOrDefaultAsync(cancellationToken);
+                .FirstAsync(cancellationToken);
 
             return Ok(new
             {
-                entrada,
+                entrada = ArmazemResponseDtoMapping.MapEntradaRegistada(entradaRegistada),
                 entradaSucesso = $"Entrada registada: {model.Quantidade} × {produto.Nome} no paiol {paiol.Nome}.",
                 avisos = resultado.Avisos.Count > 0 ? resultado.Avisos.Select(a => a.Mensagem).ToList() : null
             });
         }
 
         // Preenche dropdowns paiol (com acesso) e produtos (com filtros)
-        private async Task<(List<Paiol> paióisComAcesso, List<Produto> produtos)> PopularDropdownsAsync(int? paiolId, int? produtoId, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, CancellationToken cancellationToken)
+        private async Task<(List<PaiolResponseDto> paióisComAcesso, List<ProdutoResponseDto> produtos)> PopularDropdownsAsync(int? paiolId, int? produtoId, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, CancellationToken cancellationToken)
         {
             var user = await _userManager.GetUserAsync(User);
             var rolesDoUtilizador = user == null ? Array.Empty<string>() : (await _userManager.GetRolesAsync(user)).ToArray();
@@ -209,9 +210,11 @@ namespace Finalproj.Controllers
                 query = query.Where(p => p.FiltroTecnico == filtroTecnico);
             if (!string.IsNullOrEmpty(calibre))
                 query = query.Where(p => p.Calibre == calibre);
-            var produtos = await query.OrderBy(p => p.Nome).ToListAsync(cancellationToken);
+            var produtosEnt = await query.OrderBy(p => p.Nome).ToListAsync(cancellationToken);
 
-            return (paióisComAcesso, produtos);
+            return (
+                paióisComAcesso.Select(PaiolResponseDtoMapping.Map).ToList(),
+                produtosEnt.Select(ProdutoResponseDtoMapping.Map).ToList());
         }
     }
 }

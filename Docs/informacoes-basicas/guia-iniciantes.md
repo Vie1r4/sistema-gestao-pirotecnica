@@ -2,6 +2,8 @@
 
 Este texto explica **o que é** o projeto, **como está organizado** e **porquê** se faz assim. Não é preciso dominar todas as tecnologias para perceber a ideia geral.
 
+**Atualização:** março de 2026 — alinhado à documentação em `Docs/visao-geral/` (stack atual, pasta `client/app/lib`, refresh de sessão).
+
 ---
 
 ## 1. O que é este projeto?
@@ -31,12 +33,15 @@ Assim a lógica e os dados ficam **num sítio controlado**. Qualquer cliente (we
 
 ### Frontend (pasta `client/`)
 
-- É feito em **Next.js** (JavaScript/TypeScript + React).
+- É feito em **Next.js** (versão recente, com **App Router**), **TypeScript** e **React**.
 - Corre normalmente na porta **3000** em desenvolvimento.
 - É o que **vês e clicás**: ecrãs, formulários, listas, mapas.
 
 **Porquê assim?**  
 O browser dos utilizadores é o melhor sítio para interfaces ricas. O servidor não precisa de desenhar HTML “clássico” para cada página: o frontend **pede dados à API** e mostra-os.
+
+**Onde está o código que chama a API?**  
+Em geral, nas **páginas** (`client/app/.../page.tsx`) e em ficheiros **`client/app/lib/`**. Há vários ficheiros `*Api.ts` (por exemplo `encomendasApi.ts`, `paiolApi.ts`, `authApi.ts`) onde se concentram os **endereços** e os **pedidos HTTP** para não repetir o mesmo `fetch` em dez sítios. Ficheiros como `apiConfig.ts` sabem qual é o **URL base** da API (por defeito o backend em `https://localhost:7225`, configurável com `NEXT_PUBLIC_API_URL`).
 
 ---
 
@@ -57,14 +62,22 @@ Nem todos os dados são públicos. Só utilizadores **registados** podem ver ou 
 Fluxo simples:
 
 1. O utilizador faz **login** (email + palavra-passe).
-2. O backend verifica na base de dados e devolve um **JWT** (um “bilhete” digital assinado).
-3. Os pedidos seguintes levam esse bilhete no cabeçalho (`Authorization: Bearer ...`).
-4. O servidor **confia** no bilhete se a assinatura estiver correta (usa uma **chave secreta** guardada em configuração segura, não no Git).
+2. O backend verifica na base de dados e devolve um **JWT** (access token) e, em muitos casos, um **refresh token** (outro segredo de sessão que serve para **pedir um JWT novo** sem voltar a pôr a palavra-passe).
+3. Os pedidos seguintes levam o JWT no cabeçalho (`Authorization: Bearer ...`).
+4. O servidor **confia** no JWT se a assinatura estiver correta (usa uma **chave secreta** guardada em configuração segura, não no Git).
 
-**Porquê JWT e não só “sessão no servidor”?**  
-É um padrão comum em APIs modernas: o servidor não precisa de guardar cada sessão em memória para tudo; o token leva informação mínima (quem és e que permissões tens).
+**Quem és depois do login?**  
+A aplicação web chama **`GET /api/auth/me`** (com o JWT) e o servidor devolve nome, email, **papéis** (roles) e uma lista de **permissões** em texto (ex.: `encomendas.gerir`, `armazem.stock`). O menu e os botões podem **esconder** o que o utilizador não pode fazer — mas a **validação real** continua no backend.
+
+**Porquê JWT e refresh?**  
+O JWT expira ao fim de algum tempo (por segurança). O **refresh token** permite renovar o access token **sem** novo login, desde que ainda seja válido. O frontend agenda essa renovação antes do JWT expirar.
+
+**Porquê JWT e não só “sessão no servidor” para tudo?**  
+É um padrão comum em APIs modernas: o access token leva informação mínima; o refresh fica armazenado de forma segura no cliente para renovações.
 
 A **chave secreta do JWT** (`Jwt:Secret`) **não** deve ir para o repositório: em desenvolvimento usa-se **user-secrets**; em produção **variáveis de ambiente** ou cofre de segredos.
+
+**localStorage:** não serve para guardar listas de clientes, encomendas ou stock — isso vem sempre da **API** (fonte de verdade). Só há exceções pequenas (tokens de sessão, tema, etc.); ver `Docs/frontend/AUDITORIA-LOCALSTORAGE.md`.
 
 ---
 
@@ -73,6 +86,8 @@ A **chave secreta do JWT** (`Jwt:Secret`) **não** deve ir para o repositório: 
 Os dados persistentes (clientes, encomendas, stock, etc.) estão numa base **SQL Server**. O projeto usa **Entity Framework Core**: em vez de escrever SQL à mão para tudo, o código C# descreve **entidades** e **migrações** criam/atualizam tabelas.
 
 Em desenvolvimento costuma usar-se **LocalDB** (SQL Server simplificado no Windows). Em produção usa-se uma instância SQL real; a **connection string** vem da configuração do ambiente, não de um ficheiro público com passwords.
+
+O servidor pode também **fazer cópias de segurança** (ficheiros `.bak`) da base num horário configurável — útil em máquinas de desenvolvimento ou servidores pequenos. Isto está descrito em **`Docs/backend/BACKUPS-AUTOMATICOS.md`** (opcional para iniciantes).
 
 ---
 
@@ -85,15 +100,18 @@ Na **raiz** do repositório (backend):
 | `Controllers/` | Rotas da API: o que acontece em `GET /api/clientes`, `POST /api/...`, etc. |
 | `Models/` | Forma dos dados (entidades, DTOs). |
 | `Data/` | Contexto da base de dados, seed inicial (roles, dados mínimos). |
-| `Services/` | Lógica mais pesada (regras de negócio, ficheiros, email) separada dos controllers. |
-| `Program.cs` | Arranque da aplicação: serviços, JWT, CORS, pipeline HTTP. |
+| `Services/` | Lógica mais pesada (regras de negócio, ficheiros, email, cópias de segurança agendadas) separada dos controllers. |
+| `Program.cs` | Arranque da aplicação: serviços, JWT, CORS, pipeline HTTP, tarefas em segundo plano (ex.: backup). |
 
 Em **`client/`** (frontend):
 
-| Pasta | Ideia simples |
-|-------|----------------|
+| Pasta / ficheiro | Ideia simples |
+|------------------|----------------|
 | `app/` | Páginas e rotas (Next.js App Router). |
-| `app/lib/` | Funções que chamam a API, helpers, configuração da URL base. |
+| `app/lib/*Api.ts` | Um sítio por área para **pedidos à API** (encomendas, paióis, login, etc.). |
+| `app/lib/auth.ts` | Ler e guardar **tokens** no browser; **renovar** JWT; logout — sem misturar com cada ecrã. |
+| `app/lib/apiConfig.ts` | URL base da API (`apiPath`, `getApiBaseUrl`). |
+| `app/context/` | Contexto React, por exemplo **quem está autenticado** (`UserContext` + dados de `/api/auth/me`). |
 | `app/components/` | Componentes reutilizáveis (navbar, tabelas, etc.). |
 
 ---
@@ -102,15 +120,21 @@ Em **`client/`** (frontend):
 
 - **TanStack Query (React Query):** ajuda a **carregar** e **atualizar** dados da API no frontend, com cache e estados de “a carregar” / erro, sem reinventar tudo em `useEffect`.
 - **Tailwind CSS:** estilos com classes; não é obrigatório perceber logo toda a sintaxe para seguir o projeto.
+- **Zustand / toasts:** pequenos estados globais (ex.: mensagens “sucesso” ou “erro”) sem gravar dados de negócio.
+- **Testes no client:** **Vitest** (testes automáticos) e **Playwright** (browser); no GitHub o workflow do client também corre Playwright após o build — ver `client/README.md`.
 - **Swagger:** em **desenvolvimento**, página que lista endpoints e permite testar a API. Em **produção** costuma estar **desligada** para não expor a superfície da API ao público.
 
 ---
 
 ## 8. Onde está a documentação “técnica” completa?
 
-- **Índice geral:** [`Docs/README.md`](../README.md)
-- **API detalhada:** [`Docs/api/API.md`](../api/API.md)
-- **Visão do produto e stack:** [`Docs/visao-geral/PROJETO.md`](../visao-geral/PROJETO.md)
+| Documento | Para quê |
+|-----------|----------|
+| [`Docs/README.md`](../README.md) | Índice de **toda** a pasta `Docs/`. |
+| [`Docs/visao-geral/PROJETO.md`](../visao-geral/PROJETO.md) | Produto, módulos da API, domínio, segurança, arranque. |
+| [`Docs/visao-geral/ARQUITETURA-E-VISAO-GERAL.md`](../visao-geral/ARQUITETURA-E-VISAO-GERAL.md) | Arquitetura mais **fina** (Program.cs, EF, camada `lib/`, convenções). |
+| [`Docs/api/API.md`](../api/API.md) | Endpoints, autenticação, exemplos. |
+| [`README.md`](../../README.md) na raiz | Instalar, correr backend e frontend, JWT, primeiro utilizador. |
 
 Este ficheiro (`guia-iniciantes.md`) não substitui esses documentos: serve de **ponte** para quem precisa primeiro de uma explicação em linguagem básica.
 
@@ -128,7 +152,10 @@ Este ficheiro (`guia-iniciantes.md`) não substitui esses documentos: serve de *
 | **Migration** | Alteração versionada à estrutura da base de dados. |
 | **DTO** | Objeto “só para transporte” na API, às vezes diferente da tabela na BD. |
 | **CORS** | Mecanismo do browser que controla pedidos entre domínios/portas diferentes. |
+| **Refresh token** | Segundo token (não é o JWT principal) usado só para **pedir um JWT novo** quando o antigo expira. |
+| **Permissões** | Strings que o backend calcula a partir das roles (ex.: `clientes.gerir`); o frontend usa para mostrar ou esconder menus. |
+| **App Router** | Forma atual do Next.js de organizar pastas = rotas (`app/pagina/page.tsx`). |
 
 ---
 
-*Última ideia:* se algo no código parecer confuso, pergunta primeiro **“isto é backend ou frontend?”** e **“isto lê dados ou só mostra?”** — muitas vezes isso já reduz pela metade o sítio onde procurar.
+*Última ideia:* se algo no código parecer confuso, pergunta primeiro **“isto é backend ou frontend?”** e **“isto lê dados ou só mostra?”** — muitas vezes isso já reduz pela metade o sítio onde procurar. Para pedidos HTTP repetidos, pergunta **“já existe isto num `*Api.ts`?”**.

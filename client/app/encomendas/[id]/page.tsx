@@ -49,9 +49,7 @@ function mapApiToEncomendaDetalhe(data: Record<string, unknown>): EncomendaComCl
     dataEntrega: dataEntrega ? (typeof dataEntrega === "string" ? dataEntrega : new Date(dataEntrega as string).toISOString().slice(0, 10)) : undefined,
     observacoes: (get("observacoes") ?? get("Observacoes")) as string | undefined,
     motivoRejeicao: (get("motivoRejeicao") ?? get("MotivoRejeicao")) as string | undefined,
-    funcionarioAceiteUserId: (get("funcionarioAceiteUserId") ?? get("FuncionarioAceiteUserId")) as string | undefined,
     funcionarioAceiteNome,
-    funcionarioPreparouUserId: (get("funcionarioPreparouUserId") ?? get("FuncionarioPreparouUserId")) as string | undefined,
     funcionarioPreparouNome,
     dataConclusao: dataConclusao ? (typeof dataConclusao === "string" ? dataConclusao : new Date(dataConclusao as string).toISOString()) : undefined,
     cliente: clienteObj
@@ -349,11 +347,11 @@ export default function EncomendaDetalhePage() {
               </div>
               <div>
                 <dt className={labelClass}>Aceite por</dt>
-                <dd className={valueClass}>{encomenda.funcionarioAceiteNome ?? encomenda.funcionarioAceiteUserId ?? "—"}</dd>
+                <dd className={valueClass}>{encomenda.funcionarioAceiteNome ?? "—"}</dd>
               </div>
               <div>
                 <dt className={labelClass}>Preparado por</dt>
-                <dd className={valueClass}>{encomenda.funcionarioPreparouNome ?? encomenda.funcionarioPreparouUserId ?? "—"}</dd>
+                <dd className={valueClass}>{encomenda.funcionarioPreparouNome ?? "—"}</dd>
               </div>
               <div>
                 <dt className={labelClass}>Data de conclusão</dt>

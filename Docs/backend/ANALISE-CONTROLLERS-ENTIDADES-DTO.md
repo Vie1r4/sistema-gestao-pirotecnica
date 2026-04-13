@@ -5,6 +5,16 @@
 - **Vários controllers devolvem entidades EF diretamente** (ou dentro de objetos anónimos), o que expõe toda a estrutura das entidades e **pode incluir dados sensíveis** (PII, UserIds do Identity, caminhos de ficheiros).
 - **AdminController e AuthController** já usam DTOs/ViewModels e **não expõem Identity** (sem PasswordHash, SecurityStamp, etc.).
 
+### Atualização (refactor DTOs — encomendas, paiol/movimentos, entrada/saída)
+
+- **EncomendasController**: respostas de listagem e detalhe usam **EncomendaListResponseDto** / **EncomendaDetailResponseDto**; **não** são serializados `FuncionarioAceiteUserId` / `FuncionarioPreparouUserId` no objeto `encomenda`. Em **GET Details**, `funcionarioAceiteNome` e `funcionarioPreparouNome` vêm no **JSON raiz**.
+- **PaiolController**: **GET movimentos** devolve linhas como **EntradaPaiolMovimentoDto** / **SaidaPaiolMovimentoDto** (com `registadoPor` / `retiradoPor`); stock e vários endpoints de `paiol` usam **ProdutoResponseDto** / **PaiolResponseDto** (ver `Docs/api/CONTRATOS-API-DTOs.md`).
+- **EntradaPaiolController** / **SaidaPaiolController**: POST **registar** devolve **EntradaPaiolRegistadaDto** / **SaidaPaiolRegistadaDto** (sem UserId na resposta).
+- **ClientesController** / **FuncionariosController**: respostas já eram em grande parte DTOs; **UserId** (Identity) do cliente/funcionário **omitido** nas respostas não sensíveis; funcionários — lista com **contaAssociada** / **contaEmailConfirmada** por item (removido **userIdsConfirmados**); GET detalhe com **associadoAoUtilizadorAtual**.
+- **ServicosApiController**: **ServicoResponseDto** na lista e nos corpos principais; **itensEncomenda** como **EncomendaItemResponseDto**; **paiolParaRota** como **PaiolResponseDto**; distâncias como DTO com **Cumpre**; PUT distância devolve DTO (não a entidade).
+
+As tabelas abaixo mantêm o histórico de risco; linhas já mitigadas estão assinaladas.
+
 ---
 
 ## 1. Onde são devolvidas entidades EF diretamente
@@ -12,51 +22,54 @@
 ### ClientesController
 | Ação | Devolve | Risco |
 |------|---------|--------|
-| `Create` POST | `new { cliente, clienteCriado = true }` | **Cliente** (UserId, NIF, Morada, contacto) |
-| `Edit` GET | `new { item, tiposCliente }` | **Cliente** com `DocumentosExtras` |
-| `Edit` PUT | `new { cliente = existente, clienteEditado = true }` | **Cliente** |
-| `Delete` GET | `return Ok(item)` | **Cliente** (entidade pura) |
+| Lista / detalhe / create-delete | **ClienteResponseDto** | ✅ **DTO**; **UserId** só com `includeSensitive: true` (edição) |
+| `Create` POST | `ClienteResponseDto` | ✅ |
+| `Edit` GET/PUT / BadRequest | **ClienteResponseDto** (sensível no formulário: NIF, Morada, UserId) | ✅ DTO; PII limitado ao necessário para edição |
 
 ### FuncionariosController
 | Ação | Devolve | Risco |
 |------|---------|--------|
-| `Details` GET | `new { item, contaEmail, contaEmailConfirmada }` | **Funcionario** com `DocumentosExtras` (NIF, NSS, IBAN, UserId, caminhos de docs) |
-| `Create` POST | `new { funcionario, funcionarioCriado = true }` | **Funcionario** |
-| `Edit` GET | `new { item, cargos, rolesConta, contaEmail }` | **Funcionario** com `DocumentosExtras` |
-| `Edit` PUT | `new { funcionario = existing, ... }` | **Funcionario** |
-| `Delete` GET | `return Ok(item)` | **Funcionario** (entidade pura) |
-| `Desassociar` GET | `return Ok(item)` | **Funcionario** |
-| `Desassociar` POST | `new { item, ... }` | **Funcionario** |
+| `Index` GET | **FuncionarioResponseDto** (sem **UserId**; **contaAssociada**, **contaEmailConfirmada**) | ✅ |
+| `Details` GET | **FuncionarioResponseDto** + **associadoAoUtilizadorAtual** no raiz | ✅ |
+| `Create` POST | **FuncionarioResponseDto** | ✅ |
+| `Edit` GET | **FuncionarioResponseDto** com `includeSensitive: true` (**UserId** para o form) | ✅ |
+| `Edit` PUT | **FuncionarioResponseDto** | ✅ |
+| `Delete` GET | **FuncionarioResponseDto** | ✅ |
+| `Desassociar` GET/POST | **FuncionarioResponseDto** | ✅ |
 
 ### EncomendasController
 | Ação | Devolve | Risco |
 |------|---------|--------|
 | `Create` GET | `new { clientes, model }` | **Lista de Cliente** (todas as propriedades) |
 | `AdicionarItens` GET | `new { cliente, produtosFiltrados, ... }` | **Cliente** + **lista de Produto** |
-| `Details` GET | `new { encomenda, stockPorProduto, ... }` | **Encomenda** com `Cliente`, `Itens` (e Produto), `Servicos` |
-| `Create` POST | `new { encomenda, encomendaCriada = true }` | **Encomenda** (e navegações carregadas) |
-| `Update` PUT | `new { encomenda = updated, ... }` | **Encomenda** com Cliente, Itens, Produto |
-| `Aceitar` POST | `new { encomenda, ... }` | **Encomenda** |
-| `Rejeitar` GET | `return Ok(encomenda)` | **Encomenda** com **Cliente** (entidade pura) |
-| `Rejeitar` POST | `new { encomenda, ... }` | **Encomenda** |
-| `Preparar` GET | `new { encomenda, paióis, ... }` | **Encomenda** (Cliente, Itens, Produto) + **lista de Paiol** |
-| `Concluir` POST | `new { encomenda, ... }` | **Encomenda** |
+| `Details` GET | `new { encomenda = EncomendaDetailResponseDto, stockPorProduto, funcionarioAceiteNome, funcionarioPreparouNome }` | ✅ **DTO** para `encomenda`; inclui `Servicos` apenas se ainda carregados no include (rever se necessário expor serviços como DTO) |
+| `Create` POST | `new { encomenda = EncomendaDetailResponseDto, ... }` | ✅ **DTO** |
+| `Update` PUT | `new { encomenda = EncomendaDetailResponseDto, ... }` | ✅ **DTO** |
+| `Aceitar` POST | `new { encomenda = EncomendaDetailResponseDto, ... }` | ✅ **DTO** |
+| `Rejeitar` GET | `Ok(EncomendaDetailResponseDto)` — corpo é o DTO diretamente | ✅ **DTO** |
+| `Rejeitar` POST | `new { encomenda = EncomendaDetailResponseDto, ... }` | ✅ **DTO** |
+| `Preparar` GET | `new { encomenda = DTO, paióis = PaiolResponseDto[], ... }` | ✅ **DTOs** (rever restantes campos do payload) |
+| `Concluir` POST | `new { encomenda = EncomendaDetailResponseDto, ... }` | ✅ **DTO** |
+| `Index` GET | `items` = EncomendaListResponseDto | ✅ **DTO** |
 
 ### PaiolController
 | Ação | Devolve | Risco |
 |------|---------|--------|
-| `Index` GET | `Ok(viewModel)` | **List&lt;PaiolComOcupacaoViewModel&gt;** onde cada item tem `.Paiol` = entidade **Paiol** completa |
-| Vários `Details` / Create/Edit | `new { paiol, carga }`, `new { paiol }`, `return Ok(paiol)` | **Paiol** (por vezes com DocumentosExtras, PaiolAcessos) |
+| `Index` GET | `Ok(viewModel)` | **List&lt;PaiolComOcupacaoResponseDto&gt;** (Paiol como DTO) — ✅ mitigado para lista principal |
+| `Movimentos` GET | entradas/saídas como DTOs de movimento | ✅ **EntradaPaiolMovimentoDto** / **SaidaPaiolMovimentoDto** |
+| Vários `Details` / Create/Edit / Conteudo | `PaiolResponseDto` / mapeamentos | ✅ em grande parte **DTO** (confirmar cada ação no código) |
 
 ### ServicosApiController
 | Ação | Devolve | Risco |
 |------|---------|--------|
-| `Create` POST | `new { servico }` | **Servico** |
-| `Details` GET | `new { servico, itensEncomenda, distanciasSeguranca, paiolParaRota, licencasEvento, ... }` | **Servico** com Cliente, Encomenda, **ResponsavelTecnico** (Funcionario), **Equipa.ThenInclude(Funcionario)**, DocumentosExtras, Licencas; **itensEncomenda** (EncomendaItem+Produto); **paiolParaRota** (Paiol) |
-| `Edit` GET | `new { servico, encomendas, funcionariosEquipa, ... }` | **Servico**, lista de **Encomenda**, lista de **Funcionario** |
-| `Edit` PUT | `new { servico }` | **Servico** |
-| `Delete` GET | `return Ok(servico)` | **Servico** com Cliente, Encomenda (entidade pura) |
-| `UploadLicenca` POST | `new { licenca = lic }` | **ServicoLicenca** (FicheiroPath, etc.) |
+| `Index` GET | `lista` = **ServicoResponseDto** | ✅ |
+| `Create` POST | **ServicoResponseDto** | ✅ |
+| `Details` GET | **servico** = **ServicoResponseDto**; **itensEncomenda** = **EncomendaItemResponseDto**; **paiolParaRota** = **PaiolResponseDto**; distâncias alinhadas ao DTO | ✅ |
+| `Edit` GET | **servico** = **ServicoResponseDto**; dropdowns encomendas como objetos `{ id, texto }`; responsáveis/equipa como **FuncionarioResponseDto** | ✅ |
+| `Edit` PUT | **ServicoResponseDto** | ✅ |
+| `Delete` GET | **ServicoResponseDto** | ✅ |
+| `UploadLicenca` POST | **ServicoLicencaDto** (sem **FicheiroPath**; **HasFicheiro**) | ✅ |
+| `GuardarDistanciaSeguranca` PUT | **ServicoDistanciaSegurancaResponseDto** | ✅ |
 
 ### ProdutosController
 | Ação | Devolve | Risco |
@@ -70,13 +83,13 @@
 ### EntradaPaiolController
 | Ação | Devolve | Risco |
 |------|---------|--------|
-| Index/Create GET | `new { model, paióis, produtos }` | **List&lt;Paiol&gt;** e **List&lt;Produto&gt;** (entidades completas) |
-| Create POST | `new { entrada, ... }` | **EntradaPaiol** |
+| Index/Create GET | `new { model, paióis, produtos }` | **PaiolResponseDto** / **ProdutoResponseDto** nos dropdowns — ✅ |
+| Create POST | `new { entrada = EntradaPaiolRegistadaDto, ... }` | ✅ **DTO** (sem UserId na resposta) |
 
 ### SaidaPaiolController
 | Ação | Devolve | Risco |
 |------|---------|--------|
-| Create POST | `new { saida, ... }` | **SaidaPaiol** (inclui **FuncionarioRetirouUserId**) |
+| Create POST | `new { saida = SaidaPaiolRegistadaDto, ... }` | ✅ **DTO** (sem **FuncionarioRetirouUserId** na resposta) |
 
 ---
 
@@ -84,14 +97,12 @@
 
 ### Dados sensíveis / PII
 
-- **Funcionario** (exposto em FuncionariosController e dentro de Servico.Details/Edit):
-  - **NIF**, **NumeroSegurancaSocial**, **IBAN**, **Morada**, **UserId** (id da conta Identity), caminhos de documentos (CC, ADR, licença).
-- **Cliente** (exposto em ClientesController e em EncomendasController / dentro de Encomenda):
-  - **NIF**, **Morada**, **UserId**, email, telefone.
-- **Encomenda**:
-  - **FuncionarioAceiteUserId**, **FuncionarioPreparouUserId** (identificadores do Identity).
-- **SaidaPaiol**:
-  - **FuncionarioRetirouUserId** (identificador do Identity).
+- **Funcionario**: em **DTOs** de listagem/detalhe **não** vai **UserId**; NSS/IBAN só em edição (`includeSensitive`). Documentos: apenas flags **Has*** e extras Id/Nome.
+- **Cliente**: **UserId** omitido fora do modo sensível; NIF/Morada só quando necessário para o formulário de edição.
+- **Encomenda** (na API JSON):
+  - Os UserIds de aceite/preparação **já não** são expostos nas DTOs de listagem/detalhe; o cliente recebe **nomes** no detalhe (raiz do JSON). A entidade EF na base de dados mantém os campos.
+- **SaidaPaiol** / **EntradaPaiol** (na API JSON):
+  - Respostas de **movimentos** e POST **registar** usam DTOs **sem** expor UserIds de quem registou/retirou; maps auxiliares podem ainda existir na resposta de movimentos para compatibilidade.
 - **ServicoLicenca**:
   - **FicheiroPath** (caminho interno no servidor).
 
@@ -103,7 +114,7 @@
 ### Informação interna
 
 - **Caminhos de ficheiros** em respostas (Funcionario: CartaoCidadaoCaminho, DocumentoADDRCaminho, LicencaOperadorCaminho, OutrosCaminho; ServicoLicenca.FicheiroPath; documentos extras em várias entidades).
-- **UserIds do Identity** em várias entidades (Funcionario.UserId, Cliente.UserId, Encomenda.FuncionarioAceiteUserId/FuncionarioPreparouUserId, SaidaPaiol.FuncionarioRetirouUserId) — permitem correlacionar utilizador com dados de negócio.
+- **UserIds do Identity** ainda presentes em entidades e em alguns endpoints não migrados (Funcionario, Cliente, etc.). Encomendas (DTOs) e movimentos/registo entrada-saída (DTOs) **reduziram** esta exposição na API.
 - **Estrutura completa das entidades** (navegações, coleções) — acoplamento ao modelo EF e possível evolução indesejada da API.
 
 ---

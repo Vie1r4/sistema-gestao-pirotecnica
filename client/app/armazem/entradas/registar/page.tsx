@@ -8,12 +8,14 @@ import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
-import { parseApiErrorBody } from "@/app/lib/apiErrors";
 import { textoClassificacao, CLASSIFICACOES_RISCO, GRUPOS_COMPATIBILIDADE, FILTROS_TECNICOS, CALIBRES } from "@/app/lib/produtos";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
-import { fetchEntradaRegistarForm, type PaiolOption, type ProdutoOption } from "@/app/lib/entradaPaiolApi";
-
-import { apiPath } from "@/app/lib/apiConfig";
+import {
+  fetchEntradaRegistarForm,
+  postRegistarEntrada,
+  type PaiolOption,
+  type ProdutoOption,
+} from "@/app/lib/entradaPaiolApi";
 
 const cardClass =
   "card-hover rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111] sm:p-8";
@@ -115,20 +117,15 @@ function RegistarEntradaContent() {
         DataFabrico: form.dataFabrico ? new Date(form.dataFabrico).toISOString().slice(0, 10) : null,
         DataValidade: form.dataValidade ? new Date(form.dataValidade).toISOString().slice(0, 10) : null,
       };
-      const res = await fetch(`${apiPath("api/entrada-paiol")}/registar`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body),
-      });
-      if (res.status === 401) {
-        router.replace("/login");
-        throw new Error("Sessão expirada.");
+      try {
+        return await postRegistarEntrada(token, body);
+      } catch (e) {
+        if (e instanceof Error && e.message === "UNAUTHORIZED") {
+          router.replace("/login");
+          throw new Error("Sessão expirada.");
+        }
+        throw e;
       }
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(parseApiErrorBody(data).message);
-      }
-      return data as { entradaSucesso?: string };
     },
     onSuccess: (data) => {
       const sucesso = data.entradaSucesso;

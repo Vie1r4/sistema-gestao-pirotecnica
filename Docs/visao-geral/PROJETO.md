@@ -2,6 +2,8 @@
 
 Visão geral, stack técnica, domínio, segurança, API e convenções do sistema de gestão pirotécnica.
 
+**Última revisão:** março de 2026 (alinhada à estrutura atual do repositório: client `lib/*Api`, backups automáticos).
+
 ---
 
 ## 1. Visão geral
@@ -38,9 +40,12 @@ No arranque (`Program.cs`):
 
 ### Frontend
 
-- **Next.js** (pasta `client/`) — React 19, TanStack Query, Tailwind CSS, Leaflet.
-- Comunicação com a API em `https://localhost:7225` (configurável via `NEXT_PUBLIC_API_URL`).
-- Autenticação via token e refresh token; dados de negócio vêm da API (não de localStorage), exceto estado de UI (tema, etc.) e token de sessão.
+- **Next.js** (pasta `client/`) — App Router, React 19, TanStack Query v5, Tailwind CSS 4, Leaflet, Recharts, TanStack Table, Zustand (toasts).
+- Comunicação com a API em `https://localhost:7225` (configurável via `NEXT_PUBLIC_API_URL`); `client/app/lib/apiConfig.ts` expõe `getApiBaseUrl()` e `apiPath()` para montar URLs.
+- **Chamadas HTTP** concentradas em `client/app/lib/*Api.ts` e módulos relacionados (`encomendasApi`, `paiolApi`, `produtosApi`, `servicosApi`, `funcionariosApi`, `entradaPaiolApi`, **`saidaPaiolApi`**, **`authApi`** — login, primeiro utilizador, `existem-utilizadores`, `/me`, etc.). `auth.ts` trata apenas tokens locais, refresh e logout.
+- Autenticação via access token + refresh token; **`UserContext`** obtém o utilizador com `GET /api/auth/me` (via `authApi`) e agenda renovação do JWT antes de expirar.
+- Dados de negócio vêm da API (não de localStorage), exceto estado de UI (tema, etc.) e tokens de sessão — ver `Docs/frontend/AUDITORIA-LOCALSTORAGE.md`.
+- **CI:** workflow em `.github/workflows/client-ci.yml` (typecheck, lint, testes Vitest em paralelo, build, Playwright E2E em `main`/`next`).
 
 ### Serviços (backend)
 
@@ -55,6 +60,7 @@ Os serviços estão organizados em **domínio** e **infraestrutura** (detalhes e
   - **DocumentoStorageService** — ficheiros em wwwroot.
   - **EmailSender** — envio de email (SMTP ou ficheiro).
   - **IdentityErrorDescriberPt** — mensagens do Identity em português.
+  - **DatabaseBackupHostedService** / **IDatabaseBackupService** — agendamento diário de backup SQL Server (ficheiros `.bak` na raiz do projeto; retenção e hora configuráveis em `Backups` no `appsettings`). Detalhes: **`Docs/backend/BACKUPS-AUTOMATICOS.md`**.
 
 Os controllers dependem apenas das interfaces; o DI regista as implementações pelos namespaces `Finalproj.Services.Domain.*` e `Finalproj.Services.Infrastructure.*`.
 
@@ -198,7 +204,7 @@ CRUD; associação a utilizador Identity; documentos (cartão cidadão, licença
 - **Decimais:** lat/lng com precisão alta no EF; `DecimalInvariantModelBinder` para form/query (evitar problemas de cultura).
 - **Erros da API:** para `/api/*`, middleware devolve 500 em JSON; JWT em falta/inválido devolve 401 em JSON (sem redirect).
 - **Documentos:** guardados em `wwwroot/Documentos/...`; servidos com `Content-Disposition: inline` e content-type adequado.
-- **Frontend:** dados de negócio via API; localStorage apenas para token/sessão e estado de UI (tema, etc.). Ver `client/.cursor/rules` e [**`Docs/frontend/`**](../frontend/) para auditoria e padrões.
+- **Frontend:** dados de negócio via API; localStorage apenas para token/sessão e estado de UI (tema, etc.). Endpoints repetidos → funções em **`client/app/lib/*Api.ts`** (regra em `client/.cursor/rules` e `client/README.md`). Ver [**`Docs/frontend/`**](../frontend/) para auditoria, APIs utilizadas e padrões.
 
 ---
 
@@ -207,7 +213,7 @@ CRUD; associação a utilizador Identity; documentos (cartão cidadão, licença
 - **Contratos de API:** DTOs de resposta explícitos em vez de expor entidades EF (evitar acoplamento e overfetch).
 - **Observabilidade:** logs estruturados com correlation id; métricas de latência e erros por endpoint.
 - **Segurança de ficheiros:** validação MIME/assinatura nos uploads; confirmação de permissões nos downloads (acesso ao paiol/serviço/cliente).
-- **Testes:** unitários e/ou integração para transições de encomenda, regras de equipa e licenças, cálculo de stock e FIFO na preparação.
+- **Testes:** existem **testes unitários** em `Finalproj.Tests/` (xUnit + EF InMemory) para `EncomendaService` (preparação, FIFO, validações) e `StockDisponivelService` (entradas/saídas/reservas). Ver **`Docs/backend/TESTES-DOMINIO.md`**. Falta alargar a integração (SQL real) e outros módulos (equipa, licenças).
 - **Frontend:** manter padrões que evitam loops em `useEffect`; acessibilidade (labels, contraste, teclado) nas novas páginas.
 - **Serviços:** continuar a extrair lógica dos controllers para serviços de domínio/aplicação onde reduza duplicação e facilite testes.
 
@@ -221,4 +227,5 @@ CRUD; associação a utilizador Identity; documentos (cartão cidadão, licença
 | [**Docs/README.md**](../README.md) | Índice de toda a documentação em `Docs/`. |
 | [**Docs/api/API.md**](../api/API.md) | Documentação da API: base URL, autenticação, tabelas de recursos, paginação, códigos de resposta, cURL. |
 | [**Services/README.md**](../../Services/README.md) | Organização dos serviços (Domain vs Infrastructure). |
+| [**Docs/visao-geral/ARQUITETURA-E-VISAO-GERAL.md**](ARQUITETURA-E-VISAO-GERAL.md) | Arquitetura técnica aprofundada (Program.cs, domínio EF, segurança, API, frontend). |
 | [**Docs/frontend/**](../frontend/) | Auditoria localStorage vs API, verificação de endpoints, tarefas em aberto. |

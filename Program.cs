@@ -4,6 +4,8 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Finalproj.Data;
+using Finalproj.Middleware;
+using Microsoft.Extensions.Logging;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
@@ -56,6 +58,8 @@ builder.Services.AddScoped<FluentValidation.IValidator<Finalproj.Models.EntradaP
 
 // Opções de documentos (tamanho máximo de upload)
 builder.Services.Configure<Finalproj.Services.DocumentosOptions>(builder.Configuration.GetSection(Finalproj.Services.DocumentosOptions.SectionName));
+builder.Services.Configure<Finalproj.Services.Infrastructure.DatabaseBackupOptions>(
+    builder.Configuration.GetSection(Finalproj.Services.Infrastructure.DatabaseBackupOptions.SectionName));
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
 {
     var maxBytes = builder.Configuration.GetValue<long>("Documentos:MaxFileSizeBytes", 10 * 1024 * 1024);
@@ -69,6 +73,10 @@ builder.Services.AddScoped<Finalproj.Services.IStockDisponivelService, Finalproj
 builder.Services.AddScoped<Finalproj.Services.IEncomendaService, Finalproj.Services.Domain.EncomendaService>();
 builder.Services.AddScoped<Finalproj.Services.IServicoService, Finalproj.Services.Domain.ServicoService>();
 builder.Services.AddScoped<Finalproj.Services.IDocumentoStorageService, Finalproj.Services.Infrastructure.DocumentoStorageService>();
+builder.Services.AddSingleton<Finalproj.Services.Infrastructure.DatabaseBackupHostedService>();
+builder.Services.AddSingleton<Finalproj.Services.Infrastructure.IDatabaseBackupService>(sp =>
+    sp.GetRequiredService<Finalproj.Services.Infrastructure.DatabaseBackupHostedService>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<Finalproj.Services.Infrastructure.DatabaseBackupHostedService>());
 
 // Sessão (para rascunho de encomenda) e cookies de autenticação
 builder.Services.AddDistributedMemoryCache();
@@ -177,19 +185,24 @@ builder.Services.AddCors(options =>
             policy.SetIsOriginAllowed(IsAllowedDevelopmentFrontendOrigin)
                 .AllowAnyHeader()
                 .AllowAnyMethod()
-                .AllowCredentials();
+                .AllowCredentials()
+                .WithExposedHeaders(CorrelationIdConstants.HttpHeaderName);
         }
         else
         {
             policy.WithOrigins(origins)
                 .AllowAnyHeader()
                 .AllowAnyMethod()
-                .AllowCredentials(); // necessário para pedidos com credentials: 'include' (ex.: POST create encomenda)
+                .AllowCredentials() // necessário para pedidos com credentials: 'include' (ex.: POST create encomenda)
+                .WithExposedHeaders(CorrelationIdConstants.HttpHeaderName);
         }
     });
 });
 
 var app = builder.Build();
+
+// Correlation id + log estruturado de latência por pedido (antes do resto do pipeline)
+app.UseMiddleware<RequestDiagnosticsMiddleware>();
 
 // Aplica migrações e garante roles/admin no arranque
 await InicializarAsync(app);
@@ -220,6 +233,7 @@ static async Task GarantirColunaOrigemRegistoServicoLicencaAsync(FinalprojContex
 
 // Pipeline: erros, HTTPS, estáticos, sessão, auth
 var isDevelopment = app.Environment.IsDevelopment();
+var apiErrorLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Finalproj.Http.ApiErrorHandling");
 if (!isDevelopment)
 {
     app.UseHsts();
@@ -228,6 +242,7 @@ if (!isDevelopment)
 // Rotas /api/*: em caso de exceção devolver sempre JSON (não HTML). Em produção não expor detalhes.
 app.Use(async (context, next) =>
 {
+    Exception? exceptionHandledAsApi500 = null;
     try
     {
         await next(context);
@@ -238,16 +253,31 @@ app.Use(async (context, next) =>
         var path = context.Request.Path.Value ?? "";
         if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
         {
+            exceptionHandledAsApi500 = ex;
             context.Response.Clear();
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
             context.Response.ContentType = "application/json";
+            var correlationId = context.GetCorrelationId();
             if (isDevelopment)
-                await context.Response.WriteAsJsonAsync(new { error = "Erro no servidor.", detail = ex.Message });
+                await context.Response.WriteAsJsonAsync(new { error = "Erro no servidor.", detail = ex.Message, correlationId });
             else
-                await context.Response.WriteAsJsonAsync(new { error = "Erro no servidor. Tente novamente mais tarde." });
+                await context.Response.WriteAsJsonAsync(new { error = "Erro no servidor. Tente novamente mais tarde.", correlationId });
         }
         else
             throw;
+    }
+    finally
+    {
+        var path = context.Request.Path.Value ?? "";
+        if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase)
+            && context.Response.StatusCode == StatusCodes.Status500InternalServerError)
+        {
+            var correlationId = context.GetCorrelationId();
+            if (exceptionHandledAsApi500 != null)
+                apiErrorLogger.LogError(exceptionHandledAsApi500, "Resposta HTTP 500 (API). CorrelationId={CorrelationId}", correlationId);
+            else
+                apiErrorLogger.LogWarning("Resposta HTTP 500 (API) sem exceção propagada a este middleware. CorrelationId={CorrelationId}", correlationId);
+        }
     }
 });
 

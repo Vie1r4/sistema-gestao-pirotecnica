@@ -17,6 +17,12 @@ public class FuncionarioResponseDto
     public string? UserId { get; set; }
     public DateTime? DataRegisto { get; set; }
 
+    /// <summary>True se existe conta Identity associada (sem expor o UserId nas listagens).</summary>
+    public bool ContaAssociada { get; set; }
+
+    /// <summary>Email da conta confirmado; null se não aplicável ou desconhecido.</summary>
+    public bool? ContaEmailConfirmada { get; set; }
+
     /// <summary>N.º Segurança Social — apenas quando necessário para o formulário de edição.</summary>
     public string? NumeroSegurancaSocial { get; set; }
     /// <summary>IBAN — apenas quando necessário para o formulário de edição.</summary>
@@ -40,7 +46,7 @@ public class FuncionarioDocumentoExtraDto
 
 public static class FuncionarioResponseDtoMapping
 {
-    public static FuncionarioResponseDto Map(Funcionario f, bool includeSensitive)
+    public static FuncionarioResponseDto Map(Funcionario f, bool includeSensitive, bool? contaEmailConfirmada = null)
     {
         return new FuncionarioResponseDto
         {
@@ -52,7 +58,9 @@ public static class FuncionarioResponseDtoMapping
             Morada = f.Morada,
             Cargo = f.Cargo,
             Notas = f.Notas,
-            UserId = f.UserId,
+            ContaAssociada = !string.IsNullOrEmpty(f.UserId),
+            ContaEmailConfirmada = contaEmailConfirmada,
+            UserId = includeSensitive ? f.UserId : null,
             DataRegisto = f.DataRegisto,
             NumeroSegurancaSocial = includeSensitive ? f.NumeroSegurancaSocial : null,
             IBAN = includeSensitive ? f.IBAN : null,

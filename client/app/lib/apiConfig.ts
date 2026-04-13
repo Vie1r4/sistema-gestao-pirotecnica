@@ -13,6 +13,17 @@
 const DEFAULT_HTTPS_PORT = 7225;
 const DEFAULT_HTTP_PORT = 5078;
 
+/** Alinhado com `RequestDiagnosticsMiddleware` no backend — envio opcional e leitura na resposta. */
+export const API_CORRELATION_ID_HEADER = "X-Correlation-Id";
+
+/** Id por pedido ou ação; pode ser enviado em `fetch` e comparado com o header da resposta. */
+export function createClientCorrelationId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 export function getApiBaseUrl(): string {
   const fromEnv = process.env.NEXT_PUBLIC_API_URL?.trim();
   if (fromEnv) return fromEnv.replace(/\/$/, "");
