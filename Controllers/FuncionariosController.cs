@@ -1,37 +1,45 @@
+using Finalproj.Authorization;
 using Finalproj.Data;
 using Finalproj.Models;
 using Finalproj.Services;
+using Finalproj.Validators;
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 namespace Finalproj.Controllers
 {
     // Funcionários: CRUD, documentos (CC, ADR, licença), associação a conta Identity; acesso por cargo
-    [Authorize]
-    public class FuncionariosController : Controller
+    [Route("api/funcionarios")]
+    [ApiController]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    public class FuncionariosController : ControllerBase
     {
         private readonly FinalprojContext _context;
         private readonly IWebHostEnvironment _env;
         private readonly UserManager<IdentityUser> _userManager;
         private readonly IDocumentoStorageService _documentoStorage;
         private readonly IEmailSender _emailSender;
+        private readonly IValidator<CreateFuncionarioInputDto> _createFuncionarioValidator;
         private const string PastaDocumentosFuncionarios = "Documentos/Funcionarios";
-        private static readonly string[] RolesParaConta = { "Admin", "Armazém", "Técnico", "Comercial" };
+        private static readonly string[] RolesParaConta = ConstantesRoles.ParaContaFuncionario;
 
-        public FuncionariosController(FinalprojContext context, IWebHostEnvironment env, UserManager<IdentityUser> userManager, IDocumentoStorageService documentoStorage, IEmailSender emailSender)
+        public FuncionariosController(FinalprojContext context, IWebHostEnvironment env, UserManager<IdentityUser> userManager, IDocumentoStorageService documentoStorage, IEmailSender emailSender, IValidator<CreateFuncionarioInputDto> createFuncionarioValidator)
         {
             _context = context;
             _env = env;
             _userManager = userManager;
             _documentoStorage = documentoStorage;
             _emailSender = emailSender;
+            _createFuncionarioValidator = createFuncionarioValidator;
         }
 
-        // Lista com pesquisa e filtro por cargo
+        // Lista com pesquisa e filtro por cargo (sem NSS, IBAN nem caminhos de ficheiros)
+        [HttpGet]
         public async Task<IActionResult> Index(string? pesquisa, string? cargo, string? ordenar, CancellationToken cancellationToken = default)
         {
             var query = _context.Funcionarios.AsNoTracking();
@@ -66,16 +74,26 @@ namespace Finalproj.Controllers
                 if (user != null && user.EmailConfirmed)
                     userIdsConfirmados.Add(uid);
             }
-            ViewData["UserIdEmailConfirmados"] = userIdsConfirmados;
 
-            ViewData["Pesquisa"] = pesquisa ?? string.Empty;
-            ViewData["Cargo"] = cargo ?? string.Empty;
-            ViewData["Ordenar"] = ordenar ?? "nome";
-            ViewData["Cargos"] = ConstantesFuncionariosClientes.CargosParaDropdown();
-            return View(lista);
+            var items = lista.Select(f =>
+            {
+                bool? emailConf = null;
+                if (!string.IsNullOrEmpty(f.UserId))
+                    emailConf = userIdsConfirmados.Contains(f.UserId);
+                return FuncionarioResponseDtoMapping.Map(f, includeSensitive: false, contaEmailConfirmada: emailConf);
+            }).ToList();
+            return Ok(new
+            {
+                items,
+                pesquisa = pesquisa ?? string.Empty,
+                cargo = cargo ?? string.Empty,
+                ordenar = ordenar ?? "nome",
+                cargos = ConstantesFuncionariosClientes.CargosParaDropdown()
+            });
         }
 
-        // Detalhe do funcionário com documentos
+        // Detalhe do funcionário (sem NSS, IBAN nem caminhos de ficheiros)
+        [HttpGet("{id:int}")]
         public async Task<IActionResult> Details(int? id, CancellationToken cancellationToken = default)
         {
             if (id == null)
@@ -83,41 +101,53 @@ namespace Finalproj.Controllers
             var item = await _context.Funcionarios.AsNoTracking().Include(f => f.DocumentosExtras).FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
             if (item == null)
                 return NotFound();
+            string? contaEmail = null;
+            bool contaEmailConfirmada = false;
             if (!string.IsNullOrEmpty(item.UserId))
             {
                 var user = await _userManager.FindByIdAsync(item.UserId);
-                ViewData["ContaEmail"] = user?.Email ?? user?.UserName;
-                ViewData["ContaEmailConfirmada"] = user != null && user.EmailConfirmed;
+                contaEmail = user?.Email ?? user?.UserName;
+                contaEmailConfirmada = user != null && user.EmailConfirmed;
             }
-            return View(item);
+            var currentUserId = _userManager.GetUserId(User);
+            var associadoAoUtilizadorAtual = !string.IsNullOrEmpty(item.UserId) && item.UserId == currentUserId;
+            bool? emailConfParaDto = string.IsNullOrEmpty(item.UserId) ? null : contaEmailConfirmada;
+            return Ok(new
+            {
+                item = FuncionarioResponseDtoMapping.Map(item, includeSensitive: false, contaEmailConfirmada: emailConfParaDto),
+                contaEmail,
+                contaEmailConfirmada,
+                associadoAoUtilizadorAtual
+            });
         }
 
-        // GET: formulário criar funcionário; dropdown cargo e roles para conta
-        [Authorize(Roles = "Admin")]
+        // GET: formulário criar funcionário; dropdown cargo e roles para conta (sem paths)
+        [HttpGet("create")]
+        [Authorize(Policy = PoliticasAutorizacao.PodeGerirFuncionarios)]
         public IActionResult Create()
         {
-            PreencherDropdownCargo(null);
-            PreencherDropdownRolesConta(null);
-            return View(new Funcionario());
+            var cargos = ConstantesFuncionariosClientes.CargosParaDropdown();
+            var rolesConta = ConstantesFuncionariosClientes.CargosParaDropdown();
+            var funcionario = FuncionarioResponseDtoMapping.Map(new Funcionario(), includeSensitive: false);
+            return Ok(new { funcionario, cargos, rolesConta });
         }
 
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Policy = PoliticasAutorizacao.PodeGerirFuncionarios)]
         // Grava funcionário, opcionalmente cria conta de acesso; CC/ADR/licença e documentos extras
-        public async Task<IActionResult> Create(
-            [Bind("NomeCompleto,NIF,Email,Telefone,Morada,NumeroSegurancaSocial,IBAN,Cargo,Notas")] Funcionario funcionario,
-            IFormFile? cartaoCidadaoFicheiro,
-            IFormFile? documentoADDRFicheiro,
-            IFormFile? licencaOperadorFicheiro,
-            List<DocumentoExtraInput>? documentosExtras,
-            bool criarConta = false,
-            string? contaEmail = null,
-            string? contaPassword = null,
-            string? contaConfirmPassword = null,
-            string? contaRole = null,
-            CancellationToken cancellationToken = default)
+        public async Task<IActionResult> Create([FromForm] CreateFuncionarioInputDto input, CancellationToken cancellationToken = default)
         {
+            var funcionario = input.Funcionario;
+            var criarConta = input.CriarConta;
+            var contaEmail = input.ContaEmail;
+            var contaPassword = input.ContaPassword;
+            var contaConfirmPassword = input.ContaConfirmPassword;
+            var contaRole = input.ContaRole;
+            var documentosExtras = input.DocumentosExtras;
+
+            var validationResult = await _createFuncionarioValidator.ValidateAsync(input, cancellationToken);
+            ModelState.AddValidationResult(validationResult);
+
             if (criarConta)
             {
                 var email = (contaEmail ?? funcionario.Email ?? "").Trim();
@@ -139,17 +169,17 @@ namespace Finalproj.Controllers
                 _context.Funcionarios.Add(funcionario);
                 await _context.SaveChangesAsync(cancellationToken);
 
-                if (cartaoCidadaoFicheiro != null && _documentoStorage.ExtensaoPermitida(cartaoCidadaoFicheiro.FileName))
+                if (input.CartaoCidadaoFicheiro != null && _documentoStorage.ExtensaoPermitida(input.CartaoCidadaoFicheiro.FileName))
                 {
-                    funcionario.CartaoCidadaoCaminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, cartaoCidadaoFicheiro, "cc", cancellationToken);
+                    funcionario.CartaoCidadaoCaminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, input.CartaoCidadaoFicheiro, "cc", cancellationToken);
                 }
-                if (documentoADDRFicheiro != null && _documentoStorage.ExtensaoPermitida(documentoADDRFicheiro.FileName))
+                if (input.DocumentoADDRFicheiro != null && _documentoStorage.ExtensaoPermitida(input.DocumentoADDRFicheiro.FileName))
                 {
-                    funcionario.DocumentoADDRCaminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, documentoADDRFicheiro, "addr", cancellationToken);
+                    funcionario.DocumentoADDRCaminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, input.DocumentoADDRFicheiro, "addr", cancellationToken);
                 }
-                if (licencaOperadorFicheiro != null && _documentoStorage.ExtensaoPermitida(licencaOperadorFicheiro.FileName))
+                if (input.LicencaOperadorFicheiro != null && _documentoStorage.ExtensaoPermitida(input.LicencaOperadorFicheiro.FileName))
                 {
-                    funcionario.LicencaOperadorCaminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, licencaOperadorFicheiro, "licenca", cancellationToken);
+                    funcionario.LicencaOperadorCaminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, input.LicencaOperadorFicheiro, "licenca", cancellationToken);
                 }
                 if (documentosExtras != null)
                 {
@@ -190,32 +220,28 @@ namespace Finalproj.Controllers
                             DataRegisto = DateTime.UtcNow
                         });
                         await _context.SaveChangesAsync(cancellationToken);
-                        TempData["CredenciaisCriadas"] = true;
-                        TempData["CredenciaisEmail"] = email;
-                        TempData["CredenciaisPassword"] = contaPassword;
                         var confirmCode = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                        var confirmUrl = Url.Page("/Account/ConfirmEmail", null, new { area = "Identity", userId = user.Id, code = confirmCode, returnUrl = Url.Content("~/") }, Request.Scheme);
+                        var confirmUrl = $"{Request.Scheme}://{Request.Host}/api/auth/confirm-email?userId={Uri.EscapeDataString(user.Id)}&code={Uri.EscapeDataString(confirmCode)}";
                         await EnviarEmailContaCriadaAsync(email, funcionario.NomeCompleto, contaPassword!, confirmUrl);
                     }
                     else
                     {
                         foreach (var err in createResult.Errors)
                             ModelState.AddModelError("ContaPassword", err.Description);
-                        PreencherDropdownCargo(funcionario.Cargo);
-                        PreencherDropdownRolesConta(contaRole);
-                        return View(funcionario);
+                        return BadRequest(new { funcionario = FuncionarioResponseDtoMapping.Map(funcionario, includeSensitive: false), cargos = ConstantesFuncionariosClientes.CargosParaDropdown(), rolesConta = ConstantesFuncionariosClientes.CargosParaDropdown(), errors = ModelState });
                     }
                 }
 
-                TempData["FuncionarioCriado"] = true;
-                return RedirectToAction(nameof(Details), new { id = funcionario.Id });
+                var created = await _context.Funcionarios.AsNoTracking().Include(f => f.DocumentosExtras).FirstAsync(f => f.Id == funcionario.Id, cancellationToken);
+                var body = new { funcionario = FuncionarioResponseDtoMapping.Map(created, includeSensitive: false), funcionarioCriado = true };
+                return CreatedAtAction(nameof(Details), new { id = funcionario.Id }, body);
             }
-            PreencherDropdownCargo(funcionario.Cargo);
-            PreencherDropdownRolesConta(contaRole);
-            return View(funcionario);
+            var dtoBadRequest = FuncionarioResponseDtoMapping.Map(funcionario, includeSensitive: false);
+            return BadRequest(new { funcionario = dtoBadRequest, cargos = ConstantesFuncionariosClientes.CargosParaDropdown(), rolesConta = ConstantesFuncionariosClientes.CargosParaDropdown(), errors = ModelState });
         }
 
-        [Authorize(Roles = "Admin")]
+        [HttpGet("{id:int}/edit")]
+        [Authorize(Policy = PoliticasAutorizacao.PodeGerirFuncionarios)]
         // GET: edição com dropdown cargo; secção Criar conta se não tiver UserId
         public async Task<IActionResult> Edit(int? id, CancellationToken cancellationToken = default)
         {
@@ -224,38 +250,52 @@ namespace Finalproj.Controllers
             var item = await _context.Funcionarios.Include(f => f.DocumentosExtras).FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
             if (item == null)
                 return NotFound();
-            PreencherDropdownCargo(item.Cargo);
-            PreencherDropdownRolesConta(null);
+            string? contaEmail = null;
             if (!string.IsNullOrEmpty(item.UserId))
             {
                 var user = await _userManager.FindByIdAsync(item.UserId);
-                ViewData["ContaEmail"] = user?.Email ?? user?.UserName;
+                contaEmail = user?.Email ?? user?.UserName;
             }
-            return View(item);
+            var cargos = ConstantesFuncionariosClientes.CargosParaDropdown();
+            var rolesConta = ConstantesFuncionariosClientes.CargosParaDropdown();
+            return Ok(new { item = FuncionarioResponseDtoMapping.Map(item, includeSensitive: true), cargos, rolesConta, contaEmail });
         }
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin")]
+        [HttpPut("{id:int}")]
+        [Authorize(Policy = PoliticasAutorizacao.PodeGerirFuncionarios)]
         // Actualiza ficha, documentos; opcionalmente cria conta (quando UserId é null)
-        public async Task<IActionResult> Edit(
-            int id,
-            [Bind("Id,NomeCompleto,NIF,Email,Telefone,Morada,NumeroSegurancaSocial,IBAN,Cargo,Notas,UserId,DataRegisto,CartaoCidadaoCaminho,DocumentoADDRCaminho,LicencaOperadorCaminho,OutrosCaminho")] Funcionario funcionario,
-            IFormFile? cartaoCidadaoFicheiro,
-            IFormFile? documentoADDRFicheiro,
-            IFormFile? licencaOperadorFicheiro,
-            List<DocumentoExtraInput>? documentosExtras,
-            List<int>? removerDocumentoExtraIds,
-            bool removerOutrosAntigo = false,
-            bool criarConta = false,
-            string? contaEmail = null,
-            string? contaPassword = null,
-            string? contaConfirmPassword = null,
-            string? contaRole = null,
-            CancellationToken cancellationToken = default)
+        public async Task<IActionResult> Edit(int id, [FromForm] EditFuncionarioInputDto input, CancellationToken cancellationToken = default)
         {
+            var funcionario = input.Funcionario;
+            var criarConta = input.CriarConta;
+            var contaEmail = input.ContaEmail;
+            var contaPassword = input.ContaPassword;
+            var contaConfirmPassword = input.ContaConfirmPassword;
+            var contaRole = input.ContaRole;
+            var documentosExtras = input.DocumentosExtras;
+            var removerDocumentoExtraIds = input.RemoverDocumentoExtraIds;
+            var removerOutrosAntigo = input.RemoverOutrosAntigo;
+            var removerCartaoCidadao = input.RemoverCartaoCidadao;
+            var removerDocumentoADDR = input.RemoverDocumentoADDR;
+            var removerLicencaOperador = input.RemoverLicencaOperador;
+
             if (id != funcionario.Id)
                 return NotFound();
+
+            var existing = await _context.Funcionarios.Include(f => f.DocumentosExtras).FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
+            if (existing == null)
+                return NotFound();
+
+            existing.NomeCompleto = funcionario.NomeCompleto;
+            existing.NIF = funcionario.NIF;
+            existing.Email = funcionario.Email;
+            existing.Telefone = funcionario.Telefone;
+            existing.Morada = funcionario.Morada;
+            existing.NumeroSegurancaSocial = funcionario.NumeroSegurancaSocial;
+            existing.IBAN = funcionario.IBAN;
+            existing.Cargo = funcionario.Cargo;
+            existing.Notas = funcionario.Notas;
+            existing.UserId = funcionario.UserId;
 
             if (criarConta && string.IsNullOrEmpty(funcionario.UserId))
             {
@@ -287,27 +327,56 @@ namespace Finalproj.Controllers
                             _context.FuncionarioDocumentoExtras.Remove(e);
                         }
                     }
-                    if (removerOutrosAntigo && !string.IsNullOrEmpty(funcionario.OutrosCaminho))
+                    if (removerOutrosAntigo && !string.IsNullOrEmpty(existing.OutrosCaminho))
                     {
-                        _documentoStorage.ApagarFicheiroSeExistir(funcionario.OutrosCaminho);
-                        funcionario.OutrosCaminho = null;
+                        _documentoStorage.ApagarFicheiroSeExistir(existing.OutrosCaminho);
+                        existing.OutrosCaminho = null;
                     }
+                    else if (!string.IsNullOrEmpty(funcionario.OutrosCaminho))
+                        existing.OutrosCaminho = funcionario.OutrosCaminho;
 
-                    if (cartaoCidadaoFicheiro != null && _documentoStorage.ExtensaoPermitida(cartaoCidadaoFicheiro.FileName))
+                    if (removerCartaoCidadao && !string.IsNullOrEmpty(existing.CartaoCidadaoCaminho))
                     {
-                        _documentoStorage.ApagarFicheiroSeExistir(funcionario.CartaoCidadaoCaminho);
-                        funcionario.CartaoCidadaoCaminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, cartaoCidadaoFicheiro, "cc", cancellationToken);
+                        _documentoStorage.ApagarFicheiroSeExistir(existing.CartaoCidadaoCaminho);
+                        existing.CartaoCidadaoCaminho = null;
                     }
-                    if (documentoADDRFicheiro != null && _documentoStorage.ExtensaoPermitida(documentoADDRFicheiro.FileName))
+                    else if (input.CartaoCidadaoFicheiro != null && _documentoStorage.ExtensaoPermitida(input.CartaoCidadaoFicheiro.FileName))
                     {
-                        _documentoStorage.ApagarFicheiroSeExistir(funcionario.DocumentoADDRCaminho);
-                        funcionario.DocumentoADDRCaminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, documentoADDRFicheiro, "addr", cancellationToken);
+                        _documentoStorage.ApagarFicheiroSeExistir(existing.CartaoCidadaoCaminho);
+                        var caminhoCc = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, existing.Id, input.CartaoCidadaoFicheiro, "cc", cancellationToken);
+                        existing.CartaoCidadaoCaminho = caminhoCc;
                     }
-                    if (licencaOperadorFicheiro != null && _documentoStorage.ExtensaoPermitida(licencaOperadorFicheiro.FileName))
+                    else if (!string.IsNullOrEmpty(funcionario.CartaoCidadaoCaminho))
+                        existing.CartaoCidadaoCaminho = funcionario.CartaoCidadaoCaminho;
+
+                    if (removerDocumentoADDR && !string.IsNullOrEmpty(existing.DocumentoADDRCaminho))
                     {
-                        _documentoStorage.ApagarFicheiroSeExistir(funcionario.LicencaOperadorCaminho);
-                        funcionario.LicencaOperadorCaminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, licencaOperadorFicheiro, "licenca", cancellationToken);
+                        _documentoStorage.ApagarFicheiroSeExistir(existing.DocumentoADDRCaminho);
+                        existing.DocumentoADDRCaminho = null;
                     }
+                    else if (input.DocumentoADDRFicheiro != null && _documentoStorage.ExtensaoPermitida(input.DocumentoADDRFicheiro.FileName))
+                    {
+                        _documentoStorage.ApagarFicheiroSeExistir(existing.DocumentoADDRCaminho);
+                        var caminhoAddr = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, existing.Id, input.DocumentoADDRFicheiro, "addr", cancellationToken);
+                        existing.DocumentoADDRCaminho = caminhoAddr;
+                    }
+                    else if (!string.IsNullOrEmpty(funcionario.DocumentoADDRCaminho))
+                        existing.DocumentoADDRCaminho = funcionario.DocumentoADDRCaminho;
+
+                    if (removerLicencaOperador && !string.IsNullOrEmpty(existing.LicencaOperadorCaminho))
+                    {
+                        _documentoStorage.ApagarFicheiroSeExistir(existing.LicencaOperadorCaminho);
+                        existing.LicencaOperadorCaminho = null;
+                    }
+                    else if (input.LicencaOperadorFicheiro != null && _documentoStorage.ExtensaoPermitida(input.LicencaOperadorFicheiro.FileName))
+                    {
+                        _documentoStorage.ApagarFicheiroSeExistir(existing.LicencaOperadorCaminho);
+                        var caminhoLic = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, existing.Id, input.LicencaOperadorFicheiro, "licenca", cancellationToken);
+                        existing.LicencaOperadorCaminho = caminhoLic;
+                    }
+                    else if (!string.IsNullOrEmpty(funcionario.LicencaOperadorCaminho))
+                        existing.LicencaOperadorCaminho = funcionario.LicencaOperadorCaminho;
+
                     if (documentosExtras != null)
                     {
                         var idx = 0;
@@ -317,10 +386,10 @@ namespace Finalproj.Controllers
                             {
                                 var nome = string.IsNullOrWhiteSpace(ext.Nome) ? "Documento " + (idx + 1) : ext.Nome.Trim();
                                 if (nome.Length > 100) nome = nome[..100];
-                                var caminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, ext.Ficheiro, "extra_" + Guid.NewGuid().ToString("N")[..8], cancellationToken);
+                                var caminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, existing.Id, ext.Ficheiro, "extra_" + Guid.NewGuid().ToString("N")[..8], cancellationToken);
                                 _context.FuncionarioDocumentoExtras.Add(new FuncionarioDocumentoExtra
                                 {
-                                    FuncionarioId = funcionario.Id,
+                                    FuncionarioId = existing.Id,
                                     Nome = nome,
                                     Caminho = caminho
                                 });
@@ -329,57 +398,49 @@ namespace Finalproj.Controllers
                         }
                     }
 
-                    if (criarConta && string.IsNullOrEmpty(funcionario.UserId))
+                    if (criarConta && string.IsNullOrEmpty(existing.UserId))
                     {
-                        var email = (contaEmail ?? funcionario.Email ?? "").Trim();
+                        var email = (contaEmail ?? existing.Email ?? "").Trim();
                         var user = new IdentityUser { UserName = email, Email = email };
                         var createResult = await _userManager.CreateAsync(user, contaPassword!);
                         if (createResult.Succeeded)
                         {
                             await _userManager.AddToRoleAsync(user, contaRole!);
-                            funcionario.UserId = user.Id;
+                            existing.UserId = user.Id;
                             _context.Perfis.Add(new Perfil
                             {
                                 UserId = user.Id,
-                                Nome = funcionario.NomeCompleto,
-                                Telefone = funcionario.Telefone,
+                                Nome = existing.NomeCompleto,
+                                Telefone = existing.Telefone,
                                 DataRegisto = DateTime.UtcNow
                             });
-                            TempData["CredenciaisCriadas"] = true;
-                            TempData["CredenciaisEmail"] = email;
-                            TempData["CredenciaisPassword"] = contaPassword;
                             var confirmCode = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                            var confirmUrl = Url.Page("/Account/ConfirmEmail", null, new { area = "Identity", userId = user.Id, code = confirmCode, returnUrl = Url.Content("~/") }, Request.Scheme);
-                            await EnviarEmailContaCriadaAsync(email, funcionario.NomeCompleto, contaPassword!, confirmUrl);
+                            var confirmUrl = $"{Request.Scheme}://{Request.Host}/api/auth/confirm-email?userId={Uri.EscapeDataString(user.Id)}&code={Uri.EscapeDataString(confirmCode)}";
+                            await EnviarEmailContaCriadaAsync(email, existing.NomeCompleto, contaPassword!, confirmUrl);
                         }
                         else
                         {
                             foreach (var err in createResult.Errors)
                                 ModelState.AddModelError("ContaPassword", err.Description);
-                            PreencherDropdownCargo(funcionario.Cargo);
-                            PreencherDropdownRolesConta(contaRole);
-                            return View(funcionario);
+                            return BadRequest(new { funcionario = FuncionarioResponseDtoMapping.Map(existing, includeSensitive: true), cargos = ConstantesFuncionariosClientes.CargosParaDropdown(), rolesConta = ConstantesFuncionariosClientes.CargosParaDropdown(), errors = ModelState });
                         }
                     }
 
-                    _context.Update(funcionario);
                     await _context.SaveChangesAsync(cancellationToken);
-                    TempData["FuncionarioEditado"] = true;
-                    return RedirectToAction(nameof(Details), new { id = funcionario.Id });
+                    return Ok(new { funcionario = FuncionarioResponseDtoMapping.Map(existing, includeSensitive: false), funcionarioEditado = true });
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!await _context.Funcionarios.AnyAsync(e => e.Id == funcionario.Id, cancellationToken))
+                    if (!await _context.Funcionarios.AnyAsync(e => e.Id == id, cancellationToken))
                         return NotFound();
                     throw;
                 }
             }
-            PreencherDropdownCargo(funcionario.Cargo);
-            PreencherDropdownRolesConta(contaRole);
-            return View(funcionario);
+            return BadRequest(new { funcionario = FuncionarioResponseDtoMapping.Map(existing, includeSensitive: true), cargos = ConstantesFuncionariosClientes.CargosParaDropdown(), rolesConta = ConstantesFuncionariosClientes.CargosParaDropdown(), errors = ModelState });
         }
 
-        [Authorize(Roles = "Admin")]
+        [HttpGet("{id:int}/delete")]
+        [Authorize(Policy = PoliticasAutorizacao.PodeGerirFuncionarios)]
         // GET: confirmação antes de apagar (conta Identity não é apagada)
         public async Task<IActionResult> Delete(int? id, CancellationToken cancellationToken = default)
         {
@@ -388,12 +449,11 @@ namespace Finalproj.Controllers
             var item = await _context.Funcionarios.AsNoTracking().FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
             if (item == null)
                 return NotFound();
-            return View(item);
+            return Ok(FuncionarioResponseDtoMapping.Map(item, includeSensitive: false));
         }
 
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin")]
+        [HttpDelete("{id:int}")]
+        [Authorize(Policy = PoliticasAutorizacao.PodeGerirFuncionarios)]
         // Apaga ficha, pasta de documentos e conta Identity associada (se não for a conta do utilizador atual)
         public async Task<IActionResult> DeleteConfirmed(int id, CancellationToken cancellationToken = default)
         {
@@ -419,23 +479,22 @@ namespace Finalproj.Controllers
                 _documentoStorage.ApagarPastaRecursiva(Path.Combine(PastaDocumentosFuncionarios, id.ToString()));
                 _context.Funcionarios.Remove(item);
                 await _context.SaveChangesAsync(cancellationToken);
-                TempData["FuncionarioEliminado"] = true;
             }
-            return RedirectToAction(nameof(Index));
+            return NoContent();
         }
 
-        [Authorize(Roles = "Admin")]
+        [HttpGet("{id:int}/desassociar")]
+        [Authorize(Policy = PoliticasAutorizacao.PodeGerirFuncionarios)]
         public async Task<IActionResult> DesassociarConta(int? id, CancellationToken cancellationToken = default)
         {
             if (id == null) return NotFound();
             var item = await _context.Funcionarios.AsNoTracking().FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
             if (item == null || string.IsNullOrEmpty(item.UserId)) return NotFound();
-            return View(item);
+            return Ok(FuncionarioResponseDtoMapping.Map(item, includeSensitive: false));
         }
 
-        [HttpPost, ActionName("DesassociarConta")]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin")]
+        [HttpPost("{id:int}/desassociar")]
+        [Authorize(Policy = PoliticasAutorizacao.PodeGerirFuncionarios)]
         public async Task<IActionResult> DesassociarContaConfirmar(int id, CancellationToken cancellationToken = default)
         {
             var item = await _context.Funcionarios.FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
@@ -444,16 +503,13 @@ namespace Finalproj.Controllers
             var userId = item.UserId;
             var currentUserId = _userManager.GetUserId(User);
             if (currentUserId == userId)
-            {
-                TempData["DesassociarErro"] = "Não pode desassociar a sua própria conta.";
-                return RedirectToAction(nameof(Details), new { id });
-            }
+                return BadRequest(new { error = "Não pode desassociar a sua própria conta." });
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
                 item.UserId = null;
                 await _context.SaveChangesAsync(cancellationToken);
-                return RedirectToAction(nameof(Details), new { id });
+                return Ok(new { item = FuncionarioResponseDtoMapping.Map(item, includeSensitive: false), contaDesassociada = true });
             }
             item.UserId = null;
             foreach (var f in await _context.Funcionarios.Where(f => f.UserId == userId).ToListAsync(cancellationToken))
@@ -464,28 +520,29 @@ namespace Finalproj.Controllers
             _context.Perfis.RemoveRange(perfis);
             await _context.SaveChangesAsync(cancellationToken);
             var result = await _userManager.DeleteAsync(user);
-            if (!result.Succeeded)
-            {
-                TempData["DesassociarErro"] = "Não foi possível remover a conta. A ficha foi desassociada.";
-            }
-            TempData["ContaDesassociada"] = true;
-            return RedirectToAction(nameof(Details), new { id });
+            var message = result.Succeeded ? null : "Não foi possível remover a conta. A ficha foi desassociada.";
+            return Ok(new { item = FuncionarioResponseDtoMapping.Map(item, includeSensitive: false), contaDesassociada = true, aviso = message });
         }
 
-        // Devolve documento (CC, ADR, licença, outros ou extra por id) inline
-        public IActionResult Download(int id, string tipo, int? extraId = null)
+        // Devolve documento (CC, ADR, licença, outros ou extra por id) inline. Admin pode ver qualquer; outros apenas os seus.
+        [HttpGet("{id:int}/documentos")]
+        public async Task<IActionResult> Download(int id, string tipo, int? extraId = null, CancellationToken cancellationToken = default)
         {
+            var funcionario = await _context.Funcionarios.AsNoTracking().FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
+            if (funcionario == null)
+                return NotFound();
+            var currentUserId = _userManager.GetUserId(User);
+            if (!User.IsInRole(ConstantesRoles.Admin) && !User.IsInRole(ConstantesRoles.Gestor) && funcionario.UserId != currentUserId)
+                return Forbid();
+
             if (tipo?.ToLowerInvariant() == "extra" && extraId.HasValue)
             {
-                var extra = _context.FuncionarioDocumentoExtras.AsNoTracking()
-                    .FirstOrDefault(e => e.Id == extraId.Value && e.FuncionarioId == id);
+                var extra = await _context.FuncionarioDocumentoExtras.AsNoTracking()
+                    .FirstOrDefaultAsync(e => e.Id == extraId.Value && e.FuncionarioId == id, cancellationToken);
                 if (extra == null)
                     return NotFound();
                 return ServirFicheiro(extra.Caminho);
             }
-            var funcionario = _context.Funcionarios.AsNoTracking().FirstOrDefault(f => f.Id == id);
-            if (funcionario == null)
-                return NotFound();
             string? caminhoRelativo = tipo?.ToLowerInvariant() switch
             {
                 "cc" => funcionario.CartaoCidadaoCaminho,
@@ -520,7 +577,9 @@ namespace Finalproj.Controllers
 
         private async Task EnviarEmailContaCriadaAsync(string email, string nomeFuncionario, string password, string? confirmarEmailUrl = null)
         {
-            var loginUrl = $"{Request.Scheme}://{Request.Host}/Identity/Account/Login";
+            var req = HttpContext.Request;
+            // API-only: a UI de login é do frontend (Next.js). Este link é apenas informativo.
+            var loginUrl = $"{req.Scheme}://{req.Host}";
             var assunto = "Conta de acesso criada – confirme o seu email";
             var corpo = $@"
 <p>Olá {nomeFuncionario},</p>
@@ -549,22 +608,5 @@ namespace Finalproj.Controllers
             }
         }
 
-        // Preenche ViewData com SelectList de cargos
-        private void PreencherDropdownCargo(string? valorSelecionado)
-        {
-            ViewData["Cargo"] = new SelectList(
-                ConstantesFuncionariosClientes.CargosParaDropdown(),
-                "Value", "Text",
-                valorSelecionado);
-        }
-
-        // Preenche ViewData com SelectList de roles para criar conta de acesso
-        private void PreencherDropdownRolesConta(string? valorSelecionado)
-        {
-            ViewData["RolesConta"] = new SelectList(
-                ConstantesFuncionariosClientes.CargosParaDropdown(),
-                "Value", "Text",
-                valorSelecionado);
-        }
     }
 }

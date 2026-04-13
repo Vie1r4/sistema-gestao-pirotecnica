@@ -8,7 +8,7 @@ namespace Finalproj.Models;
 public static class ConstantesFuncionariosClientes
 {
     /// <summary> Cargos disponíveis (alinhado aos roles do sistema). </summary>
-    public static readonly string[] Cargos = { "Admin", "Armazém", "Técnico", "Comercial" };
+    public static readonly string[] Cargos = ConstantesRoles.ParaContaFuncionario;
 
     public static List<SelectListItem> CargosParaDropdown()
     {

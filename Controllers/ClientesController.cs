@@ -1,30 +1,38 @@
 using Finalproj.Data;
 using Finalproj.Models;
 using Finalproj.Services;
+using Finalproj.Validators;
+using FluentValidation;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 
 namespace Finalproj.Controllers
 {
     // Clientes: CRUD, documentos extras; detalhe com encomendas activas e histórico
-    [Authorize]
-    public class ClientesController : Controller
+    [Route("api/clientes")]
+    [ApiController]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    public class ClientesController : ControllerBase
     {
         private readonly FinalprojContext _context;
         private readonly IWebHostEnvironment _env;
         private readonly IDocumentoStorageService _documentoStorage;
+        private readonly IValidator<CreateClienteInputDto> _createClienteValidator;
         private const string PastaDocumentosClientes = "Documentos/Clientes";
+        private const int HistoricoEncomendasPageSize = 15;
 
-        public ClientesController(FinalprojContext context, IWebHostEnvironment env, IDocumentoStorageService documentoStorage)
+        public ClientesController(FinalprojContext context, IWebHostEnvironment env, IDocumentoStorageService documentoStorage, IValidator<CreateClienteInputDto> createClienteValidator)
         {
             _context = context;
             _env = env;
             _documentoStorage = documentoStorage;
+            _createClienteValidator = createClienteValidator;
         }
 
         // Lista com pesquisa (nome, email, telefone, NIF) e ordenação
+        [HttpGet]
         public async Task<IActionResult> Index(string? pesquisa, string? ordenar, CancellationToken cancellationToken = default)
         {
             var query = _context.Clientes.AsNoTracking();
@@ -47,15 +55,17 @@ namespace Finalproj.Controllers
             };
 
             var lista = await query.ToListAsync(cancellationToken);
-
-            ViewData["Pesquisa"] = pesquisa ?? string.Empty;
-            ViewData["Ordenar"] = ordenar ?? "nome";
-            return View(lista);
+            var items = lista.Select(c => ClienteResponseDtoMapping.Map(c, includeSensitive: false)).ToList();
+            return Ok(new
+            {
+                items,
+                pesquisa = pesquisa ?? string.Empty,
+                ordenar = ordenar ?? "nome"
+            });
         }
 
-        private const int HistoricoEncomendasPageSize = 15;
-
         // Detalhe do cliente + encomendas com reserva + histórico (concluídas/rejeitadas) paginado
+        [HttpGet("{id:int}")]
         public async Task<IActionResult> Details(int? id, int historicoPagina = 1, CancellationToken cancellationToken = default)
         {
             if (id == null)
@@ -86,29 +96,38 @@ namespace Finalproj.Controllers
                 .Take(HistoricoEncomendasPageSize)
                 .ToListAsync(cancellationToken);
 
-            ViewData["EncomendasAtivas"] = encomendasAtivas;
-            ViewData["EncomendasHistorico"] = encomendasHistorico;
-            ViewData["HistoricoPagina"] = historicoPagina;
-            ViewData["TotalPaginasHistorico"] = totalPaginasHistorico;
-            ViewData["TotalHistorico"] = totalHistorico;
-            return View(cliente);
+            var encomendasAtivasDto = encomendasAtivas.Select(EncomendaResponseDtoMapping.MapToResumo).ToList();
+            var encomendasHistoricoDto = encomendasHistorico.Select(EncomendaResponseDtoMapping.MapToResumo).ToList();
+
+            return Ok(new
+            {
+                cliente = ClienteResponseDtoMapping.Map(cliente, includeSensitive: false),
+                encomendasAtivas = encomendasAtivasDto,
+                encomendasHistorico = encomendasHistoricoDto,
+                historicoPagina,
+                totalPaginasHistorico,
+                totalHistorico
+            });
         }
 
         // GET: formulário novo cliente; dropdown tipo
+        [HttpGet("create")]
         public IActionResult Create()
         {
-            ViewData["TiposCliente"] = ConstantesFuncionariosClientes.TiposClienteParaDropdown();
-            return View(new Cliente());
+            var tiposCliente = ConstantesFuncionariosClientes.TiposClienteParaDropdown();
+            return Ok(new { cliente = ClienteResponseDtoMapping.Map(new Cliente(), includeSensitive: false), tiposCliente });
         }
 
         [HttpPost]
-        [ValidateAntiForgeryToken]
         // Grava cliente e documentos extras na pasta do cliente
-        public async Task<IActionResult> Create(
-            [Bind("Nome,TipoCliente,NIF,Email,Telefone,Morada,Notas")] Cliente cliente,
-            List<DocumentoExtraInput>? documentosExtras,
-            CancellationToken cancellationToken = default)
+        public async Task<IActionResult> Create([FromForm] CreateClienteInputDto input, CancellationToken cancellationToken = default)
         {
+            var cliente = input.Cliente;
+            var documentosExtras = input.DocumentosExtras;
+
+            var validationResult = await _createClienteValidator.ValidateAsync(input, cancellationToken);
+            ModelState.AddValidationResult(validationResult);
+
             if (ModelState.IsValid)
             {
                 cliente.DataRegisto = DateTime.UtcNow;
@@ -131,14 +150,20 @@ namespace Finalproj.Controllers
                     }
                     await _context.SaveChangesAsync(cancellationToken);
                 }
-                TempData["ClienteCriado"] = true;
-                return RedirectToAction(nameof(Index));
+
+                return CreatedAtAction(nameof(Details), new { id = cliente.Id }, new { cliente = ClienteResponseDtoMapping.Map(cliente, false), clienteCriado = true });
             }
-            ViewData["TiposCliente"] = ConstantesFuncionariosClientes.TiposClienteParaDropdown();
-            return View(cliente);
+
+            return BadRequest(new
+            {
+                cliente = ClienteResponseDtoMapping.Map(cliente, includeSensitive: false),
+                tiposCliente = ConstantesFuncionariosClientes.TiposClienteParaDropdown(),
+                errors = ModelState
+            });
         }
 
         // GET: formulário de edição com documentos
+        [HttpGet("{id:int}/edit")]
         public async Task<IActionResult> Edit(int? id, CancellationToken cancellationToken = default)
         {
             if (id == null)
@@ -146,22 +171,21 @@ namespace Finalproj.Controllers
             var item = await _context.Clientes.Include(c => c.DocumentosExtras).FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
             if (item == null)
                 return NotFound();
-            ViewData["TiposCliente"] = ConstantesFuncionariosClientes.TiposClienteParaDropdown();
-            return View(item);
+            var tiposCliente = ConstantesFuncionariosClientes.TiposClienteParaDropdown();
+            return Ok(new { item = ClienteResponseDtoMapping.Map(item, includeSensitive: true), tiposCliente });
         }
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
+        [HttpPut("{id:int}")]
         // Actualiza dados, remove/apaga documentos marcados e adiciona novos
-        public async Task<IActionResult> Edit(
-            int id,
-            [Bind("Id,Nome,TipoCliente,NIF,Email,Telefone,Morada,Notas,DataRegisto")] Cliente cliente,
-            List<DocumentoExtraInput>? documentosExtras,
-            List<int>? removerDocumentoExtraIds,
-            CancellationToken cancellationToken = default)
+        public async Task<IActionResult> Edit(int id, [FromForm] EditClienteInputDto input, CancellationToken cancellationToken = default)
         {
+            var cliente = input.Cliente;
+            var documentosExtras = input.DocumentosExtras;
+            var removerDocumentoExtraIds = input.RemoverDocumentoExtraIds;
+
             if (id != cliente.Id)
                 return NotFound();
+
             if (ModelState.IsValid)
             {
                 try
@@ -205,8 +229,8 @@ namespace Finalproj.Controllers
                         }
                     }
                     await _context.SaveChangesAsync(cancellationToken);
-                    TempData["ClienteEditado"] = true;
-                    return RedirectToAction(nameof(Index));
+                    var updated = await _context.Clientes.AsNoTracking().Include(c => c.DocumentosExtras).FirstAsync(c => c.Id == id, cancellationToken);
+                    return Ok(new { cliente = ClienteResponseDtoMapping.Map(updated, includeSensitive: false), clienteEditado = true });
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -215,11 +239,18 @@ namespace Finalproj.Controllers
                     throw;
                 }
             }
-            ViewData["TiposCliente"] = ConstantesFuncionariosClientes.TiposClienteParaDropdown();
-            return View(cliente);
+
+            var existenteForBadRequest = await _context.Clientes.Include(c => c.DocumentosExtras).FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+            return BadRequest(new
+            {
+                cliente = existenteForBadRequest != null ? ClienteResponseDtoMapping.Map(existenteForBadRequest, includeSensitive: true) : ClienteResponseDtoMapping.Map(cliente, includeSensitive: true),
+                tiposCliente = ConstantesFuncionariosClientes.TiposClienteParaDropdown(),
+                errors = ModelState
+            });
         }
 
         // GET: confirmação antes de apagar
+        [HttpGet("{id:int}/delete")]
         public async Task<IActionResult> Delete(int? id, CancellationToken cancellationToken = default)
         {
             if (id == null)
@@ -227,11 +258,10 @@ namespace Finalproj.Controllers
             var item = await _context.Clientes.AsNoTracking().FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
             if (item == null)
                 return NotFound();
-            return View(item);
+            return Ok(ClienteResponseDtoMapping.Map(item, includeSensitive: false));
         }
 
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
+        [HttpDelete("{id:int}")]
         // Apaga cliente e pasta de documentos
         public async Task<IActionResult> DeleteConfirmed(int id, CancellationToken cancellationToken = default)
         {
@@ -241,12 +271,14 @@ namespace Finalproj.Controllers
                 _documentoStorage.ApagarPastaRecursiva(Path.Combine(PastaDocumentosClientes, id.ToString()));
                 _context.Clientes.Remove(item);
                 await _context.SaveChangesAsync(cancellationToken);
-                TempData["ClienteEliminado"] = true;
             }
-            return RedirectToAction(nameof(Index));
+            return NoContent();
         }
 
         // Devolve ficheiro de documento extra (inline no browser)
+        /// <summary>Download de documento extra do cliente. Apenas Admin.</summary>
+        [HttpGet("{id:int}/documentos/{extraId:int}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Policy = Finalproj.Authorization.PoliticasAutorizacao.PodeGerirClientes)]
         public IActionResult Download(int id, int extraId)
         {
             var extra = _context.ClienteDocumentoExtras.AsNoTracking().FirstOrDefault(e => e.Id == extraId && e.ClienteId == id);
@@ -267,5 +299,6 @@ namespace Finalproj.Controllers
             Response.Headers["Content-Disposition"] = "inline; filename=\"" + nomeFicheiro.Replace("\"", "\\\"") + "\"";
             return PhysicalFile(caminhoFisico, contentType);
         }
+
     }
 }

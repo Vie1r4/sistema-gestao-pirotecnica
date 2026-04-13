@@ -1,0 +1,40 @@
+# Testes unitários do backend (Finalproj.Tests).
+name: .NET tests
+
+on:
+  pull_request:
+    paths:
+      - "Controllers/**"
+      - "Data/**"
+      - "Models/**"
+      - "Services/**"
+      - "Finalproj.Tests/**"
+      - "Program.cs"
+      - "Finalproj.csproj"
+      - "Finalproj.sln"
+      - ".github/workflows/dotnet-tests.yml"
+  push:
+    branches: [main, next]
+    paths:
+      - "Controllers/**"
+      - "Data/**"
+      - "Models/**"
+      - "Services/**"
+      - "Finalproj.Tests/**"
+      - "Program.cs"
+      - "Finalproj.csproj"
+      - "Finalproj.sln"
+      - ".github/workflows/dotnet-tests.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Test
+        run: dotnet test Finalproj.Tests/Finalproj.Tests.csproj -c Release

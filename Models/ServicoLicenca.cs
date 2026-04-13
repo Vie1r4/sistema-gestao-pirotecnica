@@ -13,6 +13,9 @@ public class ServicoLicenca
     [Required(ErrorMessage = "O tipo de licença é obrigatório.")]
     public TipoLicencaServico TipoLicenca { get; set; }
 
+    /// <summary>Pedido/papelada gerada (0) ou autorização definitiva das entidades (1).</summary>
+    public OrigemRegistoServicoLicenca OrigemRegisto { get; set; } = OrigemRegistoServicoLicenca.AutorizacaoDefinitiva;
+
     [StringLength(200)]
     [Display(Name = "Nome personalizado")]
     public string? NomePersonalizado { get; set; }

@@ -38,7 +38,7 @@ public static class ConstantesPaiol
     public static readonly string[] PerfisRisco = LicencasPaiol;
 
     /// <summary> Cargos que podem ser atribuídos ao acesso a um paiol (Class 8 – roles). </summary>
-    public static readonly string[] CargosDisponiveis = { "Admin", "Armazém", "Técnico", "Comercial" };
+    public static readonly string[] CargosDisponiveis = ConstantesRoles.ParaContaFuncionario;
 
     /// <summary> Opções para dropdown de licença do paiol com texto em formato 1.3G, 1.4G, etc. </summary>
     public static List<SelectListItem> LicencasParaDropdown()

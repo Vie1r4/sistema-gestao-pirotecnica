@@ -91,3 +91,12 @@ body {
 .text-muted {
   color: #aaa !important;
 }
+
+/* Página de boas-vindas / Início (tema escuro) */
+.welcome-title {
+  color: #e8e8e8;
+}
+
+.welcome-card:hover {
+  box-shadow: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.4) !important;
+}

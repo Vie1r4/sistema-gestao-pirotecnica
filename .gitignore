@@ -6,6 +6,12 @@
 # dotenv files
 .env
 
+# Cursor IDE (regras e pastas locais; não versionar)
+.cursor/
+client/.cursor/
+.cursorrules
+client/.cursorrules
+
 # User-specific files
 *.rsuser
 *.suo
@@ -47,8 +53,7 @@ Generated\ Files/
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
 
-# NUnit
-*.VisualState.xml
+# NUnitq
 TestResult.xml
 nunit-*.xml
 
@@ -64,6 +69,9 @@ BenchmarkDotNet.Artifacts/
 project.lock.json
 project.fragment.lock.json
 artifacts/
+
+# Saída local de testes (ex.: dotnet build -o _build_test_out)
+_build_test_out/
 
 # Tye
 .tye/

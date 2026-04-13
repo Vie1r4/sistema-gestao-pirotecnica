@@ -1,0 +1,37 @@
+export const servicosListaFixture = [
+  {
+    id: "1",
+    dataServico: "2026-03-26",
+    clienteId: "10",
+    cliente: { nome: "Cliente Teste" },
+  },
+];
+
+export const servicoDetalheFixture = {
+  id: "1",
+  encomendaId: "20",
+  clienteId: "30",
+  dataServico: "2026-03-26",
+  local: "Braga",
+  distrito: "Braga",
+  cidade: "Braga",
+  municipio: "Braga",
+  publicoPrivado: "Público",
+  responsavelTecnicoId: "5",
+  observacoes: "obs",
+  coordenadasLat: 41.54,
+  coordenadasLng: -8.42,
+  raioPublico: 50,
+  cliente: { nome: "Cliente Demo" },
+  encomenda: null,
+  responsavelTecnico: null,
+  equipa: [{ funcionarioId: "5", funcionario: { nomeCompleto: "Tecnico A" } }],
+  documentosExtras: [{ id: "55", nome: "Doc Existente" }],
+  licencas: [],
+  licencasEvento: [],
+  distanciasSeguranca: [],
+  resumoMaterial: null,
+  itensEncomenda: [],
+  licencasObrigatoriasTotal: 0,
+  licencasObrigatoriasEntregues: 0,
+};

@@ -32,6 +32,7 @@ public class FinalprojContext : IdentityDbContext<Microsoft.AspNetCore.Identity.
         public DbSet<ServicoLicenca> ServicoLicencas => Set<ServicoLicenca>();
         public DbSet<ServicoDistanciaSeguranca> ServicoDistanciasSeguranca => Set<ServicoDistanciaSeguranca>();
         public DbSet<LogSistema> LogSistema => Set<LogSistema>();
+        public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -179,10 +180,10 @@ public class FinalprojContext : IdentityDbContext<Microsoft.AspNetCore.Identity.
 
             modelBuilder.Entity<Paiol>()
                 .Property(p => p.CoordenadasLat)
-                .HasPrecision(18, 9);
+                .HasPrecision(18, 14);
             modelBuilder.Entity<Paiol>()
                 .Property(p => p.CoordenadasLng)
-                .HasPrecision(18, 9);
+                .HasPrecision(18, 14);
 
             modelBuilder.Entity<Reserva>()
                 .HasOne(r => r.Produto)
@@ -219,5 +220,10 @@ public class FinalprojContext : IdentityDbContext<Microsoft.AspNetCore.Identity.
                 .WithMany(c => c.DocumentosExtras)
                 .HasForeignKey(d => d.ClienteId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<RefreshToken>()
+                .HasIndex(r => r.TokenHash);
+            modelBuilder.Entity<RefreshToken>()
+                .HasIndex(r => new { r.UserId, r.RevokedAtUtc });
         }
     }
