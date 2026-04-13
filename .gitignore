@@ -6,6 +6,12 @@
 # dotenv files
 .env
 
+# Cursor IDE (regras e pastas locais; não versionar)
+.cursor/
+client/.cursor/
+.cursorrules
+client/.cursorrules
+
 # User-specific files
 *.rsuser
 *.suo
