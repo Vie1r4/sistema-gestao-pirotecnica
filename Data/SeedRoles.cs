@@ -53,19 +53,6 @@ namespace Finalproj.Data
                     await userManager.AddToRoleAsync(users[0], ConstantesRoles.Admin);
             }
 
-            const string emailPermissoesMaximas = "Shovieira@gmail.com";
-            var userMax = await userManager.FindByEmailAsync(emailPermissoesMaximas);
-            if (userMax != null)
-            {
-                if (!await userManager.IsInRoleAsync(userMax, ConstantesRoles.Admin))
-                    await userManager.AddToRoleAsync(userMax, ConstantesRoles.Admin);
-                foreach (var roleName in ConstantesRoles.Todas)
-                {
-                    if (roleName != ConstantesRoles.Admin && !await userManager.IsInRoleAsync(userMax, roleName))
-                        await userManager.AddToRoleAsync(userMax, roleName);
-                }
-            }
-
             // Criar uma conta por cargo (se o email ainda não existir)
             await CriarContasPorCargoAsync(serviceProvider, userManager);
         }
@@ -73,9 +60,13 @@ namespace Finalproj.Data
         private static async Task CriarContasPorCargoAsync(IServiceProvider serviceProvider, UserManager<IdentityUser> userManager)
         {
             var config = serviceProvider.GetService<IConfiguration>();
+            var enabled = string.Equals(config?["SeedUsers:Enabled"]?.Trim(), "true", StringComparison.OrdinalIgnoreCase);
+            if (!enabled)
+                return;
+
             var password = config?["SeedUsers:Password"]?.Trim();
             if (string.IsNullOrEmpty(password))
-                password = "Teste123!"; // Palavra-passe padrão para desenvolvimento (cumpre RequireDigit, Upper, Lower, Length 6)
+                return;
 
             foreach (var (email, role) in ContasPorCargo)
             {
@@ -92,6 +83,22 @@ namespace Finalproj.Data
                 var result = await userManager.CreateAsync(user, password);
                 if (result.Succeeded)
                     await userManager.AddToRoleAsync(user, role);
+            }
+
+            var adminEmail = config?["SeedUsers:AdminEmail"]?.Trim();
+            if (!string.IsNullOrWhiteSpace(adminEmail))
+            {
+                var userMax = await userManager.FindByEmailAsync(adminEmail);
+                if (userMax != null)
+                {
+                    if (!await userManager.IsInRoleAsync(userMax, ConstantesRoles.Admin))
+                        await userManager.AddToRoleAsync(userMax, ConstantesRoles.Admin);
+                    foreach (var roleName in ConstantesRoles.Todas)
+                    {
+                        if (roleName != ConstantesRoles.Admin && !await userManager.IsInRoleAsync(userMax, roleName))
+                            await userManager.AddToRoleAsync(userMax, roleName);
+                    }
+                }
             }
         }
     }

@@ -37,12 +37,15 @@ Authorization: Bearer <token>
 3. **Login**  
    `POST /api/auth/login`  
    Body: `{ "email": "...", "password": "..." }`  
-   Resposta: `{ "token": "...", "refreshToken": "...", "expiresAt": "...", "userName": "..." }`.
+   Resposta: `{ "token": "...", "expiresInSeconds": 3600, ... }`.  
+   **Nota**: o login só é permitido após **confirmação do email** (Identity `EmailConfirmed=true`).
 
 4. **Refresh do token**  
    `POST /api/auth/refresh`  
-   Body: `{ "refreshToken": "..." }`  
-   Resposta: novo `token` e opcionalmente novo `refreshToken`.
+   Usa **cookie HttpOnly** de refresh token (não acessível a JavaScript).  
+   - Body: `{}` (ou vazio)  
+   - Requer `credentials: include` no frontend.  
+   Resposta: novo `token`.
 
 5. **Perfil do utilizador autenticado**  
    `GET /api/auth/me`  
@@ -50,7 +53,27 @@ Authorization: Bearer <token>
 
 6. **Logout** (invalidar refresh token)  
    `POST /api/auth/logout`  
-   Body: `{ "refreshToken": "..." }`.
+   Body: `{}` (ou vazio). O refresh token é revogado no servidor (se existir) e o cookie é limpo.
+
+7. **Recuperar palavra-passe** (público)  
+   `POST /api/auth/forgot-password`  
+   Body: `{ "email": "..." }`  
+   Resposta: 200 sempre (não revela se o email existe). Se existir, envia email com link de reset.
+
+8. **Redefinir palavra-passe** (público; link do email)  
+   `POST /api/auth/reset-password`  
+   Body: `{ "email": "...", "token": "...", "newPassword": "...", "confirmPassword": "..." }`  
+   Resposta: 200 se sucesso; 400 se token inválido/expirado ou password não cumprir regras.
+
+9. **Confirmar email** (público; link enviado ao criar conta)  
+   `GET /api/auth/confirm-email?userId=...&code=...`  
+   Confirma o email do utilizador e **inicia sessão** (devolve JWT; refresh token em cookie HttpOnly).  
+   O token do link tem **tempo limite de 1 hora**. No frontend existe a página `/confirm-email` que chama este endpoint.
+
+10. **Reenviar confirmação de email** (público)  
+   `POST /api/auth/resend-confirm-email`  
+   Body: `{ "email": "..." }`  
+   Resposta: 200 sempre (não revela se o email existe). Se existir e ainda não estiver confirmado, envia novo link de confirmação.
 
 ---
 
@@ -78,10 +101,13 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 |--------|----------|-----------|
 | GET | `/existem-utilizadores` | Verifica se já existem utilizadores (público) |
 | POST | `/registar-primeiro-utilizador` | Regista o primeiro utilizador (Admin) |
-| POST | `/login` | Login; devolve JWT e refresh token |
+| POST | `/login` | Login; devolve JWT (refresh token em cookie HttpOnly) |
 | GET | `/me` | Dados do utilizador autenticado |
 | POST | `/refresh` | Renovar access token |
 | POST | `/logout` | Invalidar refresh token |
+| POST | `/forgot-password` | Envia link para redefinir palavra-passe (resposta 200 sempre) |
+| POST | `/reset-password` | Redefine palavra-passe com token enviado por email |
+| POST | `/resend-confirm-email` | Reenvia link de confirmação de email (resposta 200 sempre) |
 
 ### Clientes — `/api/clientes`
 
@@ -209,7 +235,7 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | PUT | `/utilizadores/{id}` | Atualizar (roles, etc.) |
 | DELETE | `/utilizadores/{id}` | Eliminar |
 | POST | `/backups/run` | Executar backup manual da BD |
-| POST | `/clear-all-data` | Limpar dados (cuidado) |
+| POST | `/clear-all-data` | Limpar dados (cuidado; apenas em Development) |
 
 ### Home / Preferências — `/api/home`
 

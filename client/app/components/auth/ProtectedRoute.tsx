@@ -7,7 +7,14 @@ import { UserProvider } from "@/app/context/UserContext";
 import RoutePermissionGuard from "./RoutePermissionGuard";
 
 /** Rotas acessíveis sem login (exceção à proteção). */
-const ROTAS_PUBLICAS = ["/", "/login", "/registar-primeiro-utilizador"];
+const ROTAS_PUBLICAS = [
+  "/",
+  "/login",
+  "/registar-primeiro-utilizador",
+  "/forgot-password",
+  "/reset-password",
+  "/confirm-email",
+];
 
 function isRotaPublica(pathname: string | null): boolean {
   if (!pathname) return false;

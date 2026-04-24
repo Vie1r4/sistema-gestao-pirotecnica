@@ -39,6 +39,34 @@ export async function postRegistarPrimeiroUtilizador(body: {
   });
 }
 
+/** POST api/auth/forgot-password — inicia o reset e envia email (resposta 200 sempre). */
+export async function postForgotPassword(email: string): Promise<Response> {
+  return fetch(apiPath("api/auth/forgot-password"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: email.trim() }),
+  });
+}
+
+/** POST api/auth/reset-password — aplica token e define nova palavra-passe. */
+export async function postResetPassword(body: {
+  email: string;
+  token: string;
+  newPassword: string;
+  confirmPassword?: string;
+}): Promise<Response> {
+  return fetch(apiPath("api/auth/reset-password"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: body.email.trim(),
+      token: body.token,
+      newPassword: body.newPassword,
+      confirmPassword: body.confirmPassword,
+    }),
+  });
+}
+
 /** GET api/auth/me — payload do utilizador atual ou null se 401/outro erro. */
 export async function fetchAuthMe(token: string): Promise<Record<string, unknown> | null> {
   const res = await fetch(apiPath("api/auth/me"), {

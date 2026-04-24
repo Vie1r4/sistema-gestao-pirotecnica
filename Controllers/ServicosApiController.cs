@@ -45,6 +45,7 @@ public class ServicosApiController : ControllerBase
 
     // GET: api/servicos
     [HttpGet]
+    [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
     public async Task<IActionResult> Index(
         int? clienteId,
         DateTime? dataDesde,
@@ -152,6 +153,7 @@ public class ServicosApiController : ControllerBase
 
     // GET: api/servicos/5
     [HttpGet("{id:int}")]
+    [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
     public async Task<IActionResult> Details(int id, CancellationToken cancellationToken = default)
     {
         var servico = await _context.Servicos
@@ -379,6 +381,7 @@ public class ServicosApiController : ControllerBase
 
     // GET: api/servicos/5/documentos/123
     [HttpGet("{id:int}/documentos/{extraId:int}")]
+    [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
     public IActionResult DownloadDocumento(int id, int extraId)
     {
         var doc = _context.ServicoDocumentoExtras.AsNoTracking().FirstOrDefault(d => d.Id == extraId && d.ServicoId == id);
@@ -507,6 +510,7 @@ public class ServicosApiController : ControllerBase
 
     // GET: api/servicos/5/licenca/123/ficheiro
     [HttpGet("{id:int}/licenca/{licencaId:int}/ficheiro")]
+    [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
     public IActionResult DownloadLicenca(int id, int licencaId)
     {
         var lic = _context.ServicoLicencas.AsNoTracking().FirstOrDefault(l => l.Id == licencaId && l.ServicoId == id);

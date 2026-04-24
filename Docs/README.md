@@ -57,6 +57,7 @@ Regras para o Cursor: `client/.cursor/rules/` (ex.: API em primeiro lugar). **Co
 |-----------|-----------|
 | [**backend/ANALISE-CONTROLLERS-ENTIDADES-DTO.md**](backend/ANALISE-CONTROLLERS-ENTIDADES-DTO.md) | Relação controllers, entidades e DTOs. |
 | [**backend/ROLES-E-PERMISSOES.md**](backend/ROLES-E-PERMISSOES.md) | Roles e políticas de autorização. |
+| [**backend/AUDITORIA-CYBERSEG.md**](backend/AUDITORIA-CYBERSEG.md) | Auditoria pesada de cibersegurança (pontos críticos e mitigação). |
 | [**backend/SERVICOS-EXTRACAO-SERVICO.md**](backend/SERVICOS-EXTRACAO-SERVICO.md) | Notas sobre o módulo de serviços. |
 | [**backend/BACKUPS-AUTOMATICOS.md**](backend/BACKUPS-AUTOMATICOS.md) | Agendamento diário de backups SQL Server via ASP.NET Core. |
 | [**backend/TESTES-DOMINIO.md**](backend/TESTES-DOMINIO.md) | Testes unitários xUnit (`Finalproj.Tests`): encomendas (FIFO, preparação), stock disponível. |

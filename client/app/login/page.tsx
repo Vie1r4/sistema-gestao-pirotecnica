@@ -16,7 +16,7 @@ const btnPrimary =
   "data-button w-full rounded-xl bg-[#f97316] px-5 py-3 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
 
 import { fetchExistemUtilizadores, postLogin } from "@/app/lib/authApi";
-import { setTokens } from "@/app/lib/auth";
+import { setToken } from "@/app/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -57,7 +57,8 @@ export default function LoginPage() {
           (data.refreshToken as string) ?? (data.RefreshToken as string);
         if (token) {
           if (refreshToken) {
-            setTokens(token, refreshToken);
+            // refresh token passou para cookie HttpOnly no backend
+            setToken(token);
           } else {
             localStorage.setItem("token", token);
           }
@@ -66,7 +67,12 @@ export default function LoginPage() {
         }
       }
       if (res.status === 401) {
-        setMessage("Credenciais inválidas.");
+        const data = (await safeParseJson(res)) as Record<string, unknown> | null;
+        const apiMsg =
+          (data?.error as string | undefined) ??
+          (data?.message as string | undefined) ??
+          (data?.title as string | undefined);
+        setMessage(apiMsg?.trim() ? apiMsg : "Credenciais inválidas.");
         setLoading(false);
         return;
       }
@@ -164,6 +170,15 @@ export default function LoginPage() {
                 className={inputClass}
                 placeholder="••••••••"
               />
+            </div>
+
+            <div className="flex items-center justify-end">
+              <Link
+                href="/forgot-password"
+                className="text-sm text-gray-600 hover:underline dark:text-gray-400"
+              >
+                Esqueci-me da palavra-passe
+              </Link>
             </div>
 
             {message && (

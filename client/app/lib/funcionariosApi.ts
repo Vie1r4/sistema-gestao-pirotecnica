@@ -6,6 +6,7 @@
 import { safeParseJson } from "./api";
 import { apiPath } from "./apiConfig";
 import { parseApiErrorBody } from "./apiErrors";
+import { API_CORRELATION_ID_HEADER } from "./apiConfig";
 import type { CargoFuncionario, Funcionario } from "./funcionarios";
 
 function authHeaders(token: string): HeadersInit {
@@ -51,8 +52,19 @@ export async function putFuncionario(token: string, id: string, formData: FormDa
     body: formData,
   });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `Erro ${res.status}`);
+    const correlationId = res.headers.get(API_CORRELATION_ID_HEADER);
+    let body: unknown = null;
+    let nonJsonMessage: string | null = null;
+    try {
+      body = await safeParseJson(res);
+    } catch {
+      body = null;
+      nonJsonMessage = "A API devolveu uma resposta não-JSON. Confirma se o backend está em Development e se a rota está correta.";
+    }
+    const parsed = parseApiErrorBody(body);
+    const baseMsg = nonJsonMessage ?? parsed.message ?? `Erro ${res.status}`;
+    const msg = correlationId ? `${baseMsg} (correlationId: ${correlationId})` : baseMsg;
+    throw new Error(msg);
   }
 }
 
@@ -168,8 +180,20 @@ export async function postCreate(token: string, formData: FormData): Promise<{ f
     headers: authHeaders(token),
     body: formData,
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(parseApiErrorBody(data).message);
+  const correlationId = res.headers.get(API_CORRELATION_ID_HEADER);
+  let data: unknown = {};
+  let nonJsonMessage: string | null = null;
+  try {
+    data = await safeParseJson(res);
+  } catch (e) {
+    data = {};
+    nonJsonMessage = e instanceof Error ? e.message : "A API devolveu uma resposta não-JSON.";
+  }
+  if (!res.ok) {
+    const msgBase = nonJsonMessage ?? parseApiErrorBody(data).message;
+    const msg = correlationId ? `${msgBase} (correlationId: ${correlationId})` : msgBase;
+    throw new Error(msg);
+  }
   return data as { funcionario: Record<string, unknown>; funcionarioCriado: boolean };
 }
 

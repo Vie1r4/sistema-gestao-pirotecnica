@@ -10,8 +10,10 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,9 +43,18 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
         options.Password.RequireUppercase = true;
         options.Password.RequireNonAlphanumeric = false;
         options.Password.RequiredLength = 6;
+        // Token do link de confirmação expira em 1 hora
+        options.Tokens.EmailConfirmationTokenProvider = "email_confirm_1h";
     })
     .AddEntityFrameworkStores<FinalprojContext>()
+    .AddTokenProvider<DataProtectorTokenProvider<IdentityUser>>("email_confirm_1h")
     .AddDefaultTokenProviders();
+
+// Lifespan específico para o token de confirmação do email (1h).
+builder.Services.Configure<DataProtectionTokenProviderOptions>("email_confirm_1h", options =>
+{
+    options.TokenLifespan = TimeSpan.FromHours(1);
+});
 
 // Erros do Identity em português
 builder.Services.AddScoped<Microsoft.AspNetCore.Identity.IdentityErrorDescriber, Finalproj.Services.Infrastructure.IdentityErrorDescriberPt>();
@@ -86,8 +97,50 @@ builder.Services.AddSession(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
     // Permite enviar o cookie de sessão em pedidos cross-origin (frontend localhost:3000 → API localhost:7225)
-    options.Cookie.SameSite = SameSiteMode.None;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    // Como frontend e API são normalmente "same-site" (mesmo host, portas diferentes), Lax reduz CSRF sem quebrar o fluxo.
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    // Em development pode existir HTTP (ex.: telemóvel na LAN). Em produção deve ser HTTPS.
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+});
+
+// Rate limiting (protege endpoints sensíveis: login/reset/refresh/admin)
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = (context, token) =>
+    {
+        if (!context.HttpContext.Response.HasStarted)
+        {
+            context.HttpContext.Response.ContentType = "application/json";
+            return new ValueTask(context.HttpContext.Response.WriteAsJsonAsync(
+                new { error = "Demasiadas tentativas. Aguarde e tente novamente." }, token));
+        }
+        return ValueTask.CompletedTask;
+    };
+
+    options.AddPolicy("auth", httpContext =>
+    {
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0
+        });
+    });
+
+    options.AddPolicy("admin", httpContext =>
+    {
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 30,
+            Window = TimeSpan.FromMinutes(1),
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0
+        });
+    });
 });
 
 var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "";
@@ -215,6 +268,8 @@ static async Task InicializarAsync(WebApplication app)
     await context.Database.MigrateAsync();
     // Se o histórico de migrações estiver desalinhado, a coluna pode faltar e o GET serviço falha (500).
     await GarantirColunaOrigemRegistoServicoLicencaAsync(context);
+    await GarantirColunaCargoFuncionarioAsync(context);
+    await GarantirColunaTemaPerfilAsync(context);
     DbInitializer.Initialize(context);
     await SeedRoles.InitializeAsync(scope.ServiceProvider);
 }
@@ -227,6 +282,30 @@ static async Task GarantirColunaOrigemRegistoServicoLicencaAsync(FinalprojContex
            AND COL_LENGTH(N'ServicoLicencas', N'OrigemRegisto') IS NULL
         BEGIN
             ALTER TABLE [ServicoLicencas] ADD [OrigemRegisto] TINYINT NOT NULL CONSTRAINT DF_ServicoLicencas_OrigemRegisto DEFAULT 1;
+        END
+        """);
+}
+
+static async Task GarantirColunaCargoFuncionarioAsync(FinalprojContext context)
+{
+    await context.Database.ExecuteSqlRawAsync(
+        """
+        IF OBJECT_ID(N'[dbo].[Funcionarios]', N'U') IS NOT NULL
+           AND COL_LENGTH(N'Funcionarios', N'Cargo') IS NULL
+        BEGIN
+            ALTER TABLE [Funcionarios] ADD [Cargo] NVARCHAR(50) NULL;
+        END
+        """);
+}
+
+static async Task GarantirColunaTemaPerfilAsync(FinalprojContext context)
+{
+    await context.Database.ExecuteSqlRawAsync(
+        """
+        IF OBJECT_ID(N'[dbo].[Perfis]', N'U') IS NOT NULL
+           AND COL_LENGTH(N'Perfis', N'Tema') IS NULL
+        BEGIN
+            ALTER TABLE [Perfis] ADD [Tema] NVARCHAR(10) NULL;
         END
         """);
 }
@@ -288,6 +367,17 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+// Headers de hardening (API e ficheiros servidos pelo backend)
+app.Use((context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Content-Security-Policy"] = "frame-ancestors 'none'; base-uri 'self'; object-src 'none'";
+    return next();
+});
+
 app.UseCors("FrontendPolicy");
 
 if (app.Environment.IsDevelopment())
@@ -301,6 +391,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseSession();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

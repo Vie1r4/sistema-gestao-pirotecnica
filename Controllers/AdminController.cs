@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace Finalproj.Controllers
@@ -13,24 +14,28 @@ namespace Finalproj.Controllers
     [Route("api/admin")]
     [ApiController]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Policy = PoliticasAutorizacao.PodeAcederAdmin)]
+    [EnableRateLimiting("admin")]
     public class AdminController : ControllerBase
     {
         private readonly UserManager<IdentityUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly FinalprojContext _context;
         private readonly IDatabaseBackupService _databaseBackupService;
+        private readonly IWebHostEnvironment _env;
         private static readonly string[] RolesDisponiveis = ConstantesRoles.Todas;
 
         public AdminController(
             UserManager<IdentityUser> userManager,
             RoleManager<IdentityRole> roleManager,
             FinalprojContext context,
-            IDatabaseBackupService databaseBackupService)
+            IDatabaseBackupService databaseBackupService,
+            IWebHostEnvironment env)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _context = context;
             _databaseBackupService = databaseBackupService;
+            _env = env;
         }
 
         // Dashboard Admin
@@ -226,6 +231,9 @@ namespace Finalproj.Controllers
         [HttpPost("clear-all-data")]
         public async Task<IActionResult> ClearAllData(CancellationToken cancellationToken = default)
         {
+            if (!_env.IsDevelopment())
+                return NotFound();
+
             // Ordem: apagar entidades que referenciam outras primeiro
             _context.ServicoDistanciasSeguranca.RemoveRange(await _context.ServicoDistanciasSeguranca.ToListAsync(cancellationToken));
             _context.ServicoLicencas.RemoveRange(await _context.ServicoLicencas.ToListAsync(cancellationToken));
@@ -271,7 +279,6 @@ namespace Finalproj.Controllers
             return Ok(new
             {
                 message = "Backup executado com sucesso.",
-                caminho = backupPath,
                 nomeFicheiro = info.Name,
                 tamanhoBytes = info.Exists ? info.Length : 0
             });

@@ -53,9 +53,15 @@ dotnet user-secrets set "Email:SmtpHost" "smtp.gmail.com"
 dotnet user-secrets set "Email:SmtpUser" "seu-email@gmail.com"
 dotnet user-secrets set "Email:SmtpPassword" "sua-password-app"
 dotnet user-secrets set "Email:From" "seu-email@gmail.com"
+dotnet user-secrets set "Frontend:BaseUrl" "http://localhost:3000"
 ```
 
 Em **produção**, use variáveis de ambiente ou Azure Key Vault (por exemplo `Jwt__Secret`, `Cors__AllowedOrigins`).
+
+### Seed de utilizadores (opcional; desativado por defeito)
+
+O projeto suporta criação opcional de contas de teste por cargo (admin/gestor/comercial/armazém) **apenas se** `SeedUsers:Enabled=true` e existir `SeedUsers:Password` definido via segredos (User Secrets / env vars).  
+Por segurança, **não** guardes passwords de seed no repositório.
 
 ### CORS
 

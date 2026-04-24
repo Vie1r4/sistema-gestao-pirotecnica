@@ -52,7 +52,7 @@ export default function NovoFuncionarioPage() {
     contaEmail: "",
     contaPassword: "",
     contaConfirmar: "",
-    contaPerfil: "Gestor" as CargoFuncionario,
+    contaPerfil: "Gestor" as CargoFuncionario, // UI-only; backend força = cargo
   });
   const [docs, setDocs] = useState<DocumentosFuncionario>({ extras: [] });
   const queryClient = useQueryClient();
@@ -151,7 +151,8 @@ export default function NovoFuncionarioPage() {
       formData.append("ContaEmail", form.contaEmail.trim());
       formData.append("ContaPassword", form.contaPassword);
       formData.append("ContaConfirmPassword", form.contaConfirmar);
-      formData.append("ContaRole", form.contaPerfil);
+      // Backend força a role da conta = cargo do funcionário (fonte única de verdade)
+      formData.append("ContaRole", form.cargo);
     }
     const ccFile = refCartaoCidadao.current?.files?.[0];
     if (ccFile) formData.append("CartaoCidadaoFicheiro", ccFile);
@@ -503,16 +504,15 @@ export default function NovoFuncionarioPage() {
                   </div>
                   <div>
                     <label htmlFor="contaPerfil" className={labelClass}>Perfil de acesso (role)</label>
-                    <select
+                    <input
                       id="contaPerfil"
-                      value={form.contaPerfil}
-                      onChange={(e) => setForm((f) => ({ ...f, contaPerfil: e.target.value as CargoFuncionario }))}
+                      value={form.cargo}
+                      readOnly
                       className={inputClass}
-                    >
-                      {(createOptions?.rolesConta?.length ? createOptions.rolesConta : CARGOS).map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
+                    />
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      O perfil é automaticamente igual ao cargo do funcionário.
+                    </p>
                   </div>
                 </div>
               )}

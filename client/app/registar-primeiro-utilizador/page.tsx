@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { safeParseJson } from "@/app/lib/api";
 import { postRegistarPrimeiroUtilizador } from "@/app/lib/authApi";
-import { setTokens } from "@/app/lib/auth";
+import { setToken } from "@/app/lib/auth";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 
 const inputClass =
@@ -53,8 +53,8 @@ export default function RegistarPrimeiroUtilizadorPage() {
       const refreshToken = (data.refreshToken ?? data.RefreshToken) as string | undefined;
       if (res.ok && token) {
         if (typeof window !== "undefined") {
-          if (refreshToken) setTokens(token, refreshToken);
-          else localStorage.setItem("token", token);
+          // refresh token passou para cookie HttpOnly no backend
+          setToken(token);
           window.location.href = "/";
         }
         return;

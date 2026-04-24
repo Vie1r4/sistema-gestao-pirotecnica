@@ -4,7 +4,6 @@ import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode }
 import { useQuery } from "@tanstack/react-query";
 import {
   getToken,
-  getRefreshToken,
   getTokenExpirationSeconds,
   refreshAccessToken,
   logout,
@@ -48,8 +47,7 @@ function useRefreshTokenScheduler() {
   useEffect(() => {
     function scheduleRefresh() {
       const token = getToken();
-      const refreshToken = getRefreshToken();
-      if (!token || !refreshToken) return;
+      if (!token) return;
       const exp = getTokenExpirationSeconds(token);
       if (exp == null) return;
       const nowSec = Date.now() / 1000;
@@ -70,7 +68,7 @@ function useRefreshTokenScheduler() {
       }, delayMs);
     }
 
-    if (!getToken() || !getRefreshToken()) return;
+    if (!getToken()) return;
     scheduleRefresh();
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);

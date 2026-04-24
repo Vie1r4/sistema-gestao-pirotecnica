@@ -1,3 +1,4 @@
+using System.Text;
 using Finalproj.Authorization;
 using Finalproj.Data;
 using Finalproj.Models;
@@ -6,6 +7,7 @@ using Finalproj.Validators;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -24,17 +26,36 @@ namespace Finalproj.Controllers
         private readonly UserManager<IdentityUser> _userManager;
         private readonly IDocumentoStorageService _documentoStorage;
         private readonly IEmailSender _emailSender;
+        private readonly IConfiguration _configuration;
         private readonly IValidator<CreateFuncionarioInputDto> _createFuncionarioValidator;
         private const string PastaDocumentosFuncionarios = "Documentos/Funcionarios";
         private static readonly string[] RolesParaConta = ConstantesRoles.ParaContaFuncionario;
 
-        public FuncionariosController(FinalprojContext context, IWebHostEnvironment env, UserManager<IdentityUser> userManager, IDocumentoStorageService documentoStorage, IEmailSender emailSender, IValidator<CreateFuncionarioInputDto> createFuncionarioValidator)
+        private static string NormalizarCargo(string? cargo)
+        {
+            var c = (cargo ?? "").Trim();
+            // Compatibilidade: cargo antigo "Técnico" foi renomeado para "Gestor"
+            if (string.Equals(c, "Técnico", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(c, "Tecnico", StringComparison.OrdinalIgnoreCase))
+                return ConstantesRoles.Gestor;
+            return c;
+        }
+
+        public FuncionariosController(
+            FinalprojContext context,
+            IWebHostEnvironment env,
+            UserManager<IdentityUser> userManager,
+            IDocumentoStorageService documentoStorage,
+            IEmailSender emailSender,
+            IConfiguration configuration,
+            IValidator<CreateFuncionarioInputDto> createFuncionarioValidator)
         {
             _context = context;
             _env = env;
             _userManager = userManager;
             _documentoStorage = documentoStorage;
             _emailSender = emailSender;
+            _configuration = configuration;
             _createFuncionarioValidator = createFuncionarioValidator;
         }
 
@@ -145,6 +166,8 @@ namespace Finalproj.Controllers
             var contaRole = input.ContaRole;
             var documentosExtras = input.DocumentosExtras;
 
+            funcionario.Cargo = NormalizarCargo(funcionario.Cargo);
+
             var validationResult = await _createFuncionarioValidator.ValidateAsync(input, cancellationToken);
             ModelState.AddValidationResult(validationResult);
 
@@ -159,8 +182,10 @@ namespace Finalproj.Controllers
                     ModelState.AddModelError("ContaPassword", "A palavra-passe é obrigatória.");
                 else if (contaPassword != contaConfirmPassword)
                     ModelState.AddModelError("ContaConfirmPassword", "A confirmação da palavra-passe não coincide.");
-                if (string.IsNullOrEmpty(contaRole) || !RolesParaConta.Contains(contaRole))
-                    ModelState.AddModelError("ContaRole", "Selecione um perfil de acesso.");
+                var roleFromCargo = NormalizarCargo(funcionario.Cargo);
+                if (string.IsNullOrEmpty(roleFromCargo) || !RolesParaConta.Contains(roleFromCargo))
+                    ModelState.AddModelError("ContaRole", "O cargo do funcionário deve ser um perfil de acesso válido para a conta.");
+                contaRole = roleFromCargo;
             }
 
             if (ModelState.IsValid)
@@ -221,8 +246,13 @@ namespace Finalproj.Controllers
                         });
                         await _context.SaveChangesAsync(cancellationToken);
                         var confirmCode = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                        var confirmUrl = $"{Request.Scheme}://{Request.Host}/api/auth/confirm-email?userId={Uri.EscapeDataString(user.Id)}&code={Uri.EscapeDataString(confirmCode)}";
-                        await EnviarEmailContaCriadaAsync(email, funcionario.NomeCompleto, contaPassword!, confirmUrl);
+                        var confirmCodeEncoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(confirmCode));
+                        var baseUrl = (_configuration["Frontend:BaseUrl"] ?? "").Trim();
+                        if (string.IsNullOrWhiteSpace(baseUrl))
+                            baseUrl = "http://localhost:3000";
+                        baseUrl = baseUrl.TrimEnd('/');
+                        var confirmUrl = $"{baseUrl}/confirm-email?userId={Uri.EscapeDataString(user.Id)}&code={Uri.EscapeDataString(confirmCodeEncoded)}";
+                        await EnviarEmailContaCriadaAsync(email, funcionario.NomeCompleto, contaPassword!, confirmUrl, baseUrl);
                     }
                     else
                     {
@@ -251,14 +281,16 @@ namespace Finalproj.Controllers
             if (item == null)
                 return NotFound();
             string? contaEmail = null;
+            bool? contaEmailConfirmada = null;
             if (!string.IsNullOrEmpty(item.UserId))
             {
                 var user = await _userManager.FindByIdAsync(item.UserId);
                 contaEmail = user?.Email ?? user?.UserName;
+                if (user != null) contaEmailConfirmada = user.EmailConfirmed;
             }
             var cargos = ConstantesFuncionariosClientes.CargosParaDropdown();
             var rolesConta = ConstantesFuncionariosClientes.CargosParaDropdown();
-            return Ok(new { item = FuncionarioResponseDtoMapping.Map(item, includeSensitive: true), cargos, rolesConta, contaEmail });
+            return Ok(new { item = FuncionarioResponseDtoMapping.Map(item, includeSensitive: true, contaEmailConfirmada: contaEmailConfirmada), cargos, rolesConta, contaEmail, contaEmailConfirmada });
         }
 
         [HttpPut("{id:int}")]
@@ -293,7 +325,7 @@ namespace Finalproj.Controllers
             existing.Morada = funcionario.Morada;
             existing.NumeroSegurancaSocial = funcionario.NumeroSegurancaSocial;
             existing.IBAN = funcionario.IBAN;
-            existing.Cargo = funcionario.Cargo;
+            existing.Cargo = NormalizarCargo(funcionario.Cargo);
             existing.Notas = funcionario.Notas;
             existing.UserId = funcionario.UserId;
 
@@ -308,8 +340,10 @@ namespace Finalproj.Controllers
                     ModelState.AddModelError("ContaPassword", "A palavra-passe é obrigatória.");
                 else if (contaPassword != contaConfirmPassword)
                     ModelState.AddModelError("ContaConfirmPassword", "A confirmação da palavra-passe não coincide.");
-                if (string.IsNullOrEmpty(contaRole) || !RolesParaConta.Contains(contaRole))
-                    ModelState.AddModelError("ContaRole", "Selecione um perfil de acesso.");
+                var roleFromCargo = NormalizarCargo(existing.Cargo ?? funcionario.Cargo);
+                if (string.IsNullOrEmpty(roleFromCargo) || !RolesParaConta.Contains(roleFromCargo))
+                    ModelState.AddModelError("ContaRole", "O cargo do funcionário deve ser um perfil de acesso válido para a conta.");
+                contaRole = roleFromCargo;
             }
 
             if (ModelState.IsValid)
@@ -414,9 +448,27 @@ namespace Finalproj.Controllers
                                 Telefone = existing.Telefone,
                                 DataRegisto = DateTime.UtcNow
                             });
+                            try
+                            {
+                                await _context.SaveChangesAsync(cancellationToken);
+                            }
+                            catch (DbUpdateException ex)
+                            {
+                                return StatusCode(500, new
+                                {
+                                    error = "Erro no servidor.",
+                                    detail = ex.InnerException?.Message ?? ex.Message
+                                });
+                            }
+
                             var confirmCode = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                            var confirmUrl = $"{Request.Scheme}://{Request.Host}/api/auth/confirm-email?userId={Uri.EscapeDataString(user.Id)}&code={Uri.EscapeDataString(confirmCode)}";
-                            await EnviarEmailContaCriadaAsync(email, existing.NomeCompleto, contaPassword!, confirmUrl);
+                            var confirmCodeEncoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(confirmCode));
+                            var baseUrl = (_configuration["Frontend:BaseUrl"] ?? "").Trim();
+                            if (string.IsNullOrWhiteSpace(baseUrl))
+                                baseUrl = "http://localhost:3000";
+                            baseUrl = baseUrl.TrimEnd('/');
+                            var confirmUrl = $"{baseUrl}/confirm-email?userId={Uri.EscapeDataString(user.Id)}&code={Uri.EscapeDataString(confirmCodeEncoded)}";
+                            await EnviarEmailContaCriadaAsync(email, existing.NomeCompleto, contaPassword!, confirmUrl, baseUrl);
                         }
                         else
                         {
@@ -518,6 +570,9 @@ namespace Finalproj.Controllers
                 c.UserId = null;
             var perfis = await _context.Perfis.Where(p => p.UserId == userId).ToListAsync(cancellationToken);
             _context.Perfis.RemoveRange(perfis);
+            var refreshTokens = await _context.RefreshTokens.Where(r => r.UserId == userId && r.RevokedAtUtc == null).ToListAsync(cancellationToken);
+            foreach (var rt in refreshTokens)
+                rt.RevokedAtUtc = DateTime.UtcNow;
             await _context.SaveChangesAsync(cancellationToken);
             var result = await _userManager.DeleteAsync(user);
             var message = result.Succeeded ? null : "Não foi possível remover a conta. A ficha foi desassociada.";
@@ -575,29 +630,102 @@ namespace Finalproj.Controllers
             return PhysicalFile(caminhoFisico, contentType);
         }
 
-        private async Task EnviarEmailContaCriadaAsync(string email, string nomeFuncionario, string password, string? confirmarEmailUrl = null)
+        private async Task EnviarEmailContaCriadaAsync(
+            string email,
+            string nomeFuncionario,
+            string password,
+            string? confirmarEmailUrl = null,
+            string? frontendBaseUrl = null)
         {
-            var req = HttpContext.Request;
-            // API-only: a UI de login é do frontend (Next.js). Este link é apenas informativo.
-            var loginUrl = $"{req.Scheme}://{req.Host}";
             var assunto = "Conta de acesso criada – confirme o seu email";
-            var corpo = $@"
-<p>Olá {nomeFuncionario},</p>
-<p>Foi criada uma conta de acesso para si.</p>
-<p><strong>Email:</strong> {email}<br/>
-<strong>Palavra-passe:</strong> {password}</p>
-";
-            if (!string.IsNullOrEmpty(confirmarEmailUrl))
-            {
-                corpo += $@"<p><strong>Confirme o seu email</strong> clicando no link abaixo. Só depois poderá entrar no site.</p>
-<p><a href=""{confirmarEmailUrl}"">Confirmar email e ativar conta</a></p>
-<p>Depois de confirmar, pode entrar em: <a href=""{loginUrl}"">{loginUrl}</a></p>";
-            }
-            else
-            {
-                corpo += $@"<p>Pode entrar em: <a href=""{loginUrl}"">{loginUrl}</a></p>";
-            }
-            corpo += "<p>Recomendamos que altere a palavra-passe após o primeiro login.</p>";
+            var baseUrl = (frontendBaseUrl ?? "").Trim().TrimEnd('/');
+            if (string.IsNullOrWhiteSpace(baseUrl))
+                baseUrl = "http://localhost:3000";
+            var loginUrl = $"{baseUrl}/login";
+
+            var safeNome = System.Net.WebUtility.HtmlEncode(nomeFuncionario);
+            var safeEmail = System.Net.WebUtility.HtmlEncode(email);
+            var safePassword = System.Net.WebUtility.HtmlEncode(password);
+            var safeLoginUrl = System.Net.WebUtility.HtmlEncode(loginUrl);
+            var safeConfirmUrl = string.IsNullOrWhiteSpace(confirmarEmailUrl)
+                ? ""
+                : System.Net.WebUtility.HtmlEncode(confirmarEmailUrl);
+
+            var corpo =
+                $"""
+                <!doctype html>
+                <html lang="pt">
+                  <head>
+                    <meta charset="utf-8" />
+                    <meta name="viewport" content="width=device-width, initial-scale=1" />
+                    <meta name="color-scheme" content="light dark" />
+                    <meta name="supported-color-schemes" content="light dark" />
+                    <title>PIROFAFE — Conta criada</title>
+                  </head>
+                  <body style="margin:0;padding:0;background:#f8f7f5;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8f7f5;padding:28px 14px;">
+                      <tr>
+                        <td align="center">
+                          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
+                            <tr>
+                              <td style="padding:0 0 14px 0;text-align:center;">
+                                <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; font-weight:800; letter-spacing:-0.02em; font-size:18px; color:#ea580c;">
+                                  PIROFAFE
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td style="background:#ffffff;border:1px solid #e7e5e4;border-radius:18px;padding:22px 22px 18px 22px;">
+                                <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; font-size:22px; line-height:1.25; font-weight:800; letter-spacing:-0.02em; color:#111827;">
+                                  Conta de acesso criada
+                                </div>
+                                <div style="height:10px;"></div>
+                                <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; font-size:14px; line-height:1.55; color:#374151;">
+                                  Olá {safeNome}, foi criada uma conta de acesso para si.
+                                </div>
+                                <div style="height:14px;"></div>
+                                <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; font-size:14px; line-height:1.55; color:#374151;">
+                                  <strong>Email:</strong> {safeEmail}<br/>
+                                  <strong>Palavra-passe:</strong> {safePassword}
+                                </div>
+                                <div style="height:18px;"></div>
+                                {(string.IsNullOrWhiteSpace(confirmarEmailUrl) ? "" : $"""
+                                <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; font-size:14px; line-height:1.55; color:#374151;">
+                                  <strong>Confirme o seu email</strong> para ativar a conta.
+                                </div>
+                                <div style="height:12px;"></div>
+                                <table role="presentation" cellpadding="0" cellspacing="0">
+                                  <tr>
+                                    <td style="background:#f97316;border-radius:14px;">
+                                      <a href="{confirmarEmailUrl}" style="display:inline-block;padding:12px 16px;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; font-size:14px; font-weight:700; color:#111827; text-decoration:none;">
+                                        Confirmar email e ativar conta
+                                      </a>
+                                    </td>
+                                  </tr>
+                                </table>
+                                <div style="height:12px;"></div>
+                                <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; font-size:12px; line-height:1.55; color:#6b7280;">
+                                  Se o botão não funcionar, copie e cole este link no browser:<br />
+                                  <a href="{confirmarEmailUrl}" style="color:#ea580c;text-decoration:underline;word-break:break-all;">{safeConfirmUrl}</a>
+                                </div>
+                                <div style="height:16px;"></div>
+                                """ )}
+                                <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; font-size:12px; line-height:1.55; color:#6b7280;">
+                                  Depois pode iniciar sessão em: <a href="{loginUrl}" style="color:#ea580c;text-decoration:underline;">{safeLoginUrl}</a>
+                                </div>
+                                <div style="height:14px;"></div>
+                                <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; font-size:12px; line-height:1.55; color:#6b7280;">
+                                  Recomendamos que altere a palavra-passe após o primeiro login.
+                                </div>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </body>
+                </html>
+                """;
             try
             {
                 await _emailSender.SendEmailAsync(email, assunto, corpo);

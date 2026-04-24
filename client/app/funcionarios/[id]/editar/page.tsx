@@ -21,6 +21,13 @@ import { fadeInUp, transitionSmooth } from "../../../lib/animations";
 function mapApiItemToFuncionario(item: Record<string, unknown>): Funcionario {
   const nome = (item.nomeCompleto ?? item.NomeCompleto ?? item.nome ?? "") as string;
   const docs = item.documentos ?? item.Documentos;
+  const rawCargo = String(item.cargo ?? item.Cargo ?? "Comercial");
+  const cargoNormalizado =
+    rawCargo.toLowerCase() === "técnico" || rawCargo.toLowerCase() === "tecnico"
+      ? ("Gestor" as const)
+      : rawCargo;
+  const rawEmailConfirmado =
+    item.contaEmailConfirmada ?? item.ContaEmailConfirmada ?? item.emailConfirmado ?? item.EmailConfirmado;
   return {
     id: String(item.id ?? item.Id ?? ""),
     nomeCompleto: nome,
@@ -30,11 +37,14 @@ function mapApiItemToFuncionario(item: Record<string, unknown>): Funcionario {
     morada: (item.morada ?? item.Morada) as string | undefined,
     nss: (item.numeroSegurancaSocial ?? item.nss ?? item.NSS) as string | undefined,
     iban: (item.iban ?? item.IBAN) as string | undefined,
-    cargo: (item.cargo ?? item.Cargo ?? "Comercial") as CargoFuncionario,
+    cargo: (CARGOS.includes(cargoNormalizado as CargoFuncionario)
+      ? (cargoNormalizado as CargoFuncionario)
+      : "Comercial"),
     notas: (item.notas ?? item.Notas) as string | undefined,
     dataRegisto: String(item.dataRegisto ?? item.DataRegisto ?? new Date().toISOString()),
     contaAssociada: Boolean(item.userId ?? item.UserId),
-    emailConfirmado: item.emailConfirmado as boolean | undefined,
+    emailConfirmado:
+      typeof rawEmailConfirmado === "boolean" ? rawEmailConfirmado : (item.emailConfirmado as boolean | undefined),
     userId: (item.userId ?? item.UserId) as string | undefined,
     documentos: docs as DocumentosFuncionario | undefined,
   };
@@ -76,7 +86,7 @@ export default function EditarFuncionarioPage() {
     contaEmail: "",
     contaPassword: "",
     contaConfirmar: "",
-    contaPerfil: "Gestor" as CargoFuncionario,
+    contaPerfil: "Gestor" as CargoFuncionario, // UI-only; backend força = cargo do funcionário
   });
   const [docs, setDocs] = useState<DocumentosFuncionario>({ extras: [] });
   const [ccFile, setCcFile] = useState<File | null>(null);
@@ -241,7 +251,8 @@ export default function EditarFuncionarioPage() {
     fd.append("ContaEmail", form.contaEmail);
     fd.append("ContaPassword", form.contaPassword);
     fd.append("ContaConfirmPassword", form.contaConfirmar);
-    fd.append("ContaRole", form.contaPerfil);
+    // Backend força a role da conta = cargo do funcionário (fonte única de verdade)
+    fd.append("ContaRole", form.cargo);
 
     fd.append("RemoverCartaoCidadao", removerCc.toString());
     fd.append("RemoverDocumentoADDR", removerAddr.toString());
@@ -556,7 +567,20 @@ export default function EditarFuncionarioPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400">Email único no sistema; o sistema cria o utilizador, atribui o perfil e envia as credenciais e o link de confirmação por email.</p>
                     <div><label htmlFor="contaEmail" className={labelClass}>Email (para login, único no sistema) *</label><input id="contaEmail" type="email" value={form.contaEmail} onChange={(e) => setForm((f) => ({ ...f, contaEmail: e.target.value }))} className={inputClass} required /></div>
                     <div className="grid gap-4 sm:grid-cols-2"><div><label htmlFor="contaPassword" className={labelClass}>Palavra-passe</label><input id="contaPassword" type="password" value={form.contaPassword} onChange={(e) => setForm((f) => ({ ...f, contaPassword: e.target.value }))} className={inputClass} placeholder="Mín. 6 caracteres" /></div><div><label htmlFor="contaConfirmar" className={labelClass}>Confirmar palavra-passe</label><input id="contaConfirmar" type="password" value={form.contaConfirmar} onChange={(e) => setForm((f) => ({ ...f, contaConfirmar: e.target.value }))} className={inputClass} /></div></div>
-                    <div><label htmlFor="contaPerfil" className={labelClass}>Perfil de acesso (role)</label><select id="contaPerfil" value={form.contaPerfil} onChange={(e) => setForm((f) => ({ ...f, contaPerfil: e.target.value as CargoFuncionario }))} className={inputClass}>{CARGOS.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
+                  <div>
+                    <label htmlFor="contaPerfil" className={labelClass}>
+                      Perfil de acesso (role)
+                    </label>
+                    <input
+                      id="contaPerfil"
+                      value={form.cargo}
+                      readOnly
+                      className={inputClass}
+                    />
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      O perfil é automaticamente igual ao cargo do funcionário.
+                    </p>
+                  </div>
                   </div>
                 )}
               </motion.section>
