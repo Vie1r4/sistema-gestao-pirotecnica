@@ -7,17 +7,9 @@ import Navbar, { CONTENT_OFFSET_TOP } from "./components/Navbar";
 import DashboardComercial from "./components/DashboardComercial";
 import DashboardGestor from "./components/DashboardGestor";
 import { useUser } from "./context/UserContext";
-import { fadeInUp, transitionSmooth, staggerContainer, staggerItem } from "./lib/animations";
+import { fadeInUp, transitionSmooth, staggerContainer } from "./lib/animations";
 import { getToken } from "./lib/auth";
 import { getHomeStats } from "./lib/home";
-
-/** Labels das estatísticas (ordem alinhada com a API: clientes, serviços, produtos, paióis) */
-const STATS_LABELS = [
-  "clientes",
-  "serviços realizados",
-  "produtos geridos",
-  "paióis ativos",
-] as const;
 
 /** Faíscas no hero — poucas e leves para não prejudicar a fluidez (só transform + opacity) */
 const SPARKS = [
@@ -63,10 +55,7 @@ export default function Home() {
   const showAreasSection = !!token && !apenasArmazem && !melhorCargoComercial;
   const showComercialDashboard = !!token && melhorCargoComercial;
 
-  const {
-    data: statsData,
-    isLoading: loadingStats,
-  } = useQuery({
+  const { data: statsData } = useQuery({
     queryKey: ["home", "stats"],
     queryFn: () => getHomeStats(token!),
     staleTime: 60 * 1000,
@@ -74,24 +63,15 @@ export default function Home() {
     enabled: !!token,
   });
 
-  const statsDisplay = statsData
-    ? [
-        { value: String(statsData.totalClientes), label: STATS_LABELS[0] },
-        { value: String(statsData.totalServicos), label: STATS_LABELS[1] },
-        { value: String(statsData.totalProdutos), label: STATS_LABELS[2] },
-        { value: String(statsData.totalPaioisAtivos), label: STATS_LABELS[3] },
-      ]
-    : STATS_LABELS.map((label) => ({ value: "—", label }));
-
   return (
     <div className="min-h-screen bg-[#fafaf9] text-[#1c1917] selection:bg-[#f97316]/20 selection:text-[#1c1917] dark:bg-[#050505] dark:text-white">
       <Navbar />
 
       <main
         className="relative"
-        style={{ paddingTop: CONTENT_OFFSET_TOP }}
+        style={{ paddingTop: token ? CONTENT_OFFSET_TOP - 40 : CONTENT_OFFSET_TOP }}
       >
-        {/* Hero — ar premium / executivo */}
+        {!token && (
         <section className="home-hero-bg home-grid relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 pb-24 pt-24 sm:px-8 sm:pb-32 sm:pt-28 md:pb-36 md:pt-32">
           {/* Camada de grain sutil */}
           <div className="home-grain" aria-hidden />
@@ -227,37 +207,9 @@ export default function Home() {
               )}
             </motion.div>
 
-            {/* Cards de estatísticas (apenas quando autenticado) */}
-            {token && (
-            <motion.div
-              variants={staggerContainer}
-              initial="initial"
-              animate="animate"
-              className="mt-36 grid max-w-4xl grid-cols-2 gap-4 sm:mt-44 sm:grid-cols-4 sm:gap-6"
-            >
-              {statsDisplay.map((stat, i) => (
-                <motion.div
-                  key={stat.label}
-                  variants={staggerItem}
-                  transition={{ ...transitionSmooth, delay: 0.22 + i * 0.06 }}
-                  className="card-hover rounded-2xl border border-[#e7e5e4] bg-white/80 p-6 text-center shadow-[0_1px_3px_rgba(0,0,0,0.05)] backdrop-blur-sm sm:p-8 dark:border-[#222] dark:bg-[#0d0d0d]/90 dark:shadow-[0_4px_24px_-8px_rgba(0,0,0,0.4)]"
-                >
-                  <span className="block text-3xl font-bold tracking-tight text-[#1c1917] sm:text-4xl dark:text-white">
-                    {loadingStats ? (
-                      <span className="inline-block h-9 w-12 animate-pulse rounded bg-[#e7e5e4] dark:bg-[#333]" aria-hidden />
-                    ) : (
-                      stat.value
-                    )}
-                  </span>
-                  <span className="mt-2 block text-sm font-medium text-[#57534e] dark:text-[#888]">
-                    {stat.label}
-                  </span>
-                </motion.div>
-              ))}
-            </motion.div>
-            )}
           </motion.div>
         </section>
+        )}
 
         {/* Dashboard Comercial — para quem tem melhor cargo = Comercial */}
         {showComercialDashboard && statsData && (
@@ -273,16 +225,17 @@ export default function Home() {
           />
         )}
 
-        {/* Footer — estático para scroll fluido */}
-        <footer
-          className="border-t border-[#e7e5e4] bg-[#fafaf9] px-6 py-10 dark:border-[#1a1a1a] dark:bg-[#050505] sm:px-8"
-        >
-          <div className="mx-auto max-w-5xl text-center">
-            <p className="text-xs tracking-wide text-[#a8a29e] dark:text-[#555]">
-              © {new Date().getFullYear()} PIROFAFE. Todos os direitos reservados.
-            </p>
-          </div>
-        </footer>
+        {!token && (
+          <footer
+            className="border-t border-[#e7e5e4] bg-[#fafaf9] px-6 py-10 dark:border-[#1a1a1a] dark:bg-[#050505] sm:px-8"
+          >
+            <div className="mx-auto max-w-5xl text-center">
+              <p className="text-xs tracking-wide text-[#a8a29e] dark:text-[#555]">
+                © {new Date().getFullYear()} PIROFAFE. Todos os direitos reservados.
+              </p>
+            </div>
+          </footer>
+        )}
       </main>
     </div>
   );

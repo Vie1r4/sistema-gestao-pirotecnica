@@ -21,12 +21,6 @@ import { pt } from "date-fns/locale";
 import { useRef } from "react";
 import { getGestorDashboard, type MovimentoRecenteDto } from "@/app/lib/homeGestor";
 import { transitionSmooth, staggerContainer, staggerItem } from "@/app/lib/animations";
-import { useLiveDateTime } from "@/app/hooks/useLiveDateTime";
-
-const ROLE_COLORS: Record<string, string> = {
-  Admin: "bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-300",
-  Gestor: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300",
-};
 
 /** Áreas e cores para o gráfico "Resumo por área" */
 const AREAS_PIE: { key: string; label: string; color: string }[] = [
@@ -69,7 +63,7 @@ type CardStat = {
 export default function DashboardGestor({
   token,
   userName,
-  roleLabel,
+  roleLabel: _roleLabel,
 }: {
   token: string;
   userName: string;
@@ -82,7 +76,6 @@ export default function DashboardGestor({
   const sec3InView = useInView(sec3Ref, { once: true, margin: "-80px" });
   const sec4InView = useInView(sec4Ref, { once: true, margin: "-80px" });
 
-  const liveDate = useLiveDateTime();
   const {
     data,
     isLoading,
@@ -208,13 +201,11 @@ export default function DashboardGestor({
   }, [data]);
 
   const temAlertas = data && (data.paioisEmManutencao?.length > 0);
-  const roleBadgeClass = ROLE_COLORS[roleLabel] ?? "bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200";
-
   if (isError) {
     return (
       <section
         id="dashboard-gestor"
-        className="border-t border-[#e7e5e4] bg-[#fafaf9] px-6 py-24 dark:border-[#1a1a1a] dark:bg-[#050505] sm:px-8 sm:py-32"
+        className="border-t border-[#e7e5e4] bg-[#fafaf9] px-6 pb-24 pt-8 dark:border-[#1a1a1a] dark:bg-[#050505] sm:px-8 sm:pb-32 sm:pt-10"
       >
         <div className="mx-auto max-w-6xl">
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center dark:border-amber-800 dark:bg-amber-900/20">
@@ -237,7 +228,7 @@ export default function DashboardGestor({
   return (
     <section
       id="dashboard-gestor"
-      className="border-t border-[#e7e5e4] bg-[#fafaf9] px-6 py-24 dark:border-[#1a1a1a] dark:bg-[#050505] sm:px-8 sm:py-32"
+      className="border-t border-[#e7e5e4] bg-[#fafaf9] px-6 pb-24 pt-8 dark:border-[#1a1a1a] dark:bg-[#050505] sm:px-8 sm:pb-32 sm:pt-10"
     >
       <div className="mx-auto max-w-6xl">
         {/* Topo — Boas-vindas, badge, data/hora */}
@@ -251,16 +242,6 @@ export default function DashboardGestor({
             <h1 className="font-heading text-2xl font-bold tracking-tight text-[#1c1917] sm:text-3xl dark:text-white">
               Bem-vindo, {userName || "Gestor"}
             </h1>
-            <div className="mt-2 flex flex-wrap items-center gap-3">
-              <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${roleBadgeClass}`}>
-                {roleLabel}
-              </span>
-              <span className="text-sm text-[#57534e] dark:text-[#888]">
-                {format(liveDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: pt })}
-                {" · "}
-                <span className="tabular-nums">{format(liveDate, "HH:mm:ss")}</span>
-              </span>
-            </div>
           </div>
         </motion.div>
 
