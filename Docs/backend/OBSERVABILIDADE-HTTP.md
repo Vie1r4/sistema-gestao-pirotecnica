@@ -1,5 +1,7 @@
 # Observabilidade HTTP: correlation id e latência
 
+**Última revisão:** maio de 2026.
+
 ## O que está implementado
 
 1. **`RequestDiagnosticsMiddleware`** (`Middleware/RequestDiagnosticsMiddleware.cs`)
@@ -32,7 +34,7 @@ var id = HttpContext.GetCorrelationId(); // extensão em Middleware/HttpContextC
 
 - Opcional: enviar **`X-Correlation-Id`** no pedido (ex.: `crypto.randomUUID()`); o servidor aceita ou substitui se inválido.
 - Após `fetch`, ler `response.headers.get("X-Correlation-Id")` para mostrar ao utilizador ou anexar a relatórios de erro.
-- Constante sugerida: `API_CORRELATION_ID_HEADER` em `client/app/lib/apiConfig.ts`.
+- Constante sugerida: `API_CORRELATION_ID_HEADER` em `apps/web/app/lib/apiConfig.ts`.
 
 ## Evoluções possíveis
 

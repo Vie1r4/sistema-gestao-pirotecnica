@@ -13,7 +13,7 @@ O que é:
   - O BACKEND é a “cozinha” (onde as regras e os dados vivem).
 
 Como funciona aqui:
-- FRONTEND (pasta "client/"):
+- FRONTEND (pasta "apps/web/"):
   - É feito em Next.js (um tipo de app web moderna).
   - Mostra páginas (clientes, encomendas, paióis, etc.) e faz pedidos ao backend.
 - BACKEND (na raiz do repositório):
@@ -48,8 +48,8 @@ Como funciona aqui (resumo do fluxo):
 -----------------------------------------------------
 O que é:
 - Autorização é “o que tens permissão para fazer”.
-- Role (papel) é o teu “cargo” no sistema. Exemplos:
-  - Admin, Armazém, Técnico/Gestor, Comercial
+- Role (papel) é o teu “cargo” no sistema. Exemplos canónicos:
+  - **Admin**, **Gestor** (antigo nome “Técnico”), **Comercial**, **Armazém**
 - Política é uma regra que diz:
   - “Para entrar nesta área / fazer esta ação, precisas de X roles”.
 
@@ -98,7 +98,7 @@ O que é:
 - CI (Integração Contínua) é um “robô” que corre automaticamente verificações quando alguém faz push/PR.
 
 Como funciona aqui (resumo):
-- Sempre que há mudanças no frontend (client/**), o CI corre:
+- Sempre que há mudanças no frontend (apps/web/**), o CI corre:
   - typecheck (verificar tipos do TypeScript)
   - lint (regras de qualidade)
   - testes (unit/component)

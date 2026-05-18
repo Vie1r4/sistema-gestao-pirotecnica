@@ -2,7 +2,7 @@
 
 Visão geral, stack técnica, domínio, segurança, API e convenções do sistema de gestão pirotécnica.
 
-**Última revisão:** março de 2026 (alinhada à estrutura atual do repositório: client `lib/*Api`, backups automáticos).
+**Última revisão:** maio de 2026 (roles Admin/Gestor/Comercial/Armazém, políticas JWT, `docs/backend/BACKUPS-AUTOMATICOS.md`).
 
 ---
 
@@ -17,7 +17,7 @@ O **PIROFAFE** é uma aplicação **full-stack** para gestão operacional e admi
 - **Clientes e funcionários** — com documentos anexos e integração a contas de utilizador (Identity).
 - **Gestão documental** — upload e download de ficheiros (paióis, serviços, clientes, funcionários).
 
-A **raiz do repositório** contém o **backend** (ASP.NET Core). O **frontend** está na pasta **`client/`** (Next.js) e consome a API via JWT.
+A **raiz do repositório** contém o **backend** (ASP.NET Core). O **frontend** está na pasta **`apps/web/`** (Next.js) e consome a API via JWT.
 
 ---
 
@@ -34,17 +34,17 @@ A **raiz do repositório** contém o **backend** (ASP.NET Core). O **frontend** 
 No arranque (`Program.cs`):
 
 - Aplicação de **migrações** (`Database.MigrateAsync()`).
-- **Seed de roles** (Admin, Armazém, Técnico, Comercial) em `Data/SeedRoles.cs`.
+- **Seed de roles** (Admin, Gestor, Comercial, Armazém) em `Data/SeedRoles.cs` (migração automática do nome antigo de role **Técnico** → **Gestor**).
 - Resposta **401 em JSON** para a API (sem redirect para login).
 - CORS configurado para origens do frontend (ex.: `http://localhost:3000`).
 
 ### Frontend
 
-- **Next.js** (pasta `client/`) — App Router, React 19, TanStack Query v5, Tailwind CSS 4, Leaflet, Recharts, TanStack Table, Zustand (toasts).
-- Comunicação com a API em `https://localhost:7225` (configurável via `NEXT_PUBLIC_API_URL`); `client/app/lib/apiConfig.ts` expõe `getApiBaseUrl()` e `apiPath()` para montar URLs.
-- **Chamadas HTTP** concentradas em `client/app/lib/*Api.ts` e módulos relacionados (`encomendasApi`, `paiolApi`, `produtosApi`, `servicosApi`, `funcionariosApi`, `entradaPaiolApi`, **`saidaPaiolApi`**, **`authApi`** — login, primeiro utilizador, `existem-utilizadores`, `/me`, etc.). `auth.ts` trata apenas tokens locais, refresh e logout.
+- **Next.js** (pasta `apps/web/`) — App Router, React 19, TanStack Query v5, Tailwind CSS 4, Leaflet, Recharts, TanStack Table, Zustand (toasts).
+- Comunicação com a API em `https://localhost:7225` (configurável via `NEXT_PUBLIC_API_URL`); `apps/web/app/lib/apiConfig.ts` expõe `getApiBaseUrl()` e `apiPath()` para montar URLs.
+- **Chamadas HTTP** concentradas em `apps/web/app/lib/*Api.ts` e módulos relacionados (`encomendasApi`, `paiolApi`, `produtosApi`, `servicosApi`, `funcionariosApi`, `entradaPaiolApi`, **`saidaPaiolApi`**, **`authApi`** — login, primeiro utilizador, `existem-utilizadores`, `/me`, etc.). `auth.ts` trata apenas tokens locais, refresh e logout.
 - Autenticação via access token + refresh token; **`UserContext`** obtém o utilizador com `GET /api/auth/me` (via `authApi`) e agenda renovação do JWT antes de expirar.
-- Dados de negócio vêm da API (não de localStorage), exceto estado de UI (tema, etc.) e tokens de sessão — ver `Docs/frontend/AUDITORIA-LOCALSTORAGE.md`.
+- Dados de negócio vêm da API (não de localStorage), exceto estado de UI (tema, etc.) e tokens de sessão — ver `docs/frontend/AUDITORIA-LOCALSTORAGE.md`.
 - **CI:** workflow em `.github/workflows/client-ci.yml` (typecheck, lint, testes Vitest em paralelo, build, Playwright E2E em `main`/`next`).
 
 ### Serviços (backend)
@@ -55,12 +55,13 @@ Os serviços estão organizados em **domínio** e **infraestrutura** (detalhes e
 - **`Services/Domain/`** — regras de negócio:
   - **EncomendaService** — preparação de encomendas (FIFO, validações, saídas de stock).
   - **StockDisponivelService** — stock disponível por produto (entradas − saídas − reservas).
+  - **ServicoService** — serviços no terreno (validações ADR/licença, equipa, formulários Create/Edit, distâncias de segurança, documentos).
 - **`Services/Infrastructure/`** — I/O e cross-cutting:
   - **LogSistemaService** — auditoria em BD.
   - **DocumentoStorageService** — ficheiros em wwwroot.
   - **EmailSender** — envio de email (SMTP ou ficheiro).
   - **IdentityErrorDescriberPt** — mensagens do Identity em português.
-  - **DatabaseBackupHostedService** / **IDatabaseBackupService** — agendamento diário de backup SQL Server (ficheiros `.bak` na raiz do projeto; retenção e hora configuráveis em `Backups` no `appsettings`). Detalhes: **`Docs/backend/BACKUPS-AUTOMATICOS.md`**.
+  - **DatabaseBackupHostedService** / **IDatabaseBackupService** — agendamento diário de backup SQL Server (ficheiros `.bak` na raiz do projeto; retenção e hora configuráveis em `Backups` no `appsettings`). Detalhes: **`docs/backend/BACKUPS-AUTOMATICOS.md`**.
 
 Os controllers dependem apenas das interfaces; o DI regista as implementações pelos namespaces `Finalproj.Services.Domain.*` e `Finalproj.Services.Infrastructure.*`.
 
@@ -94,8 +95,10 @@ Entidades no `FinalprojContext` (`Data/FinalprojContext.cs`):
 
 ### Roles
 
-Definidas em `Data/SeedRoles.cs`: **Admin**, **Armazém**, **Técnico**, **Comercial**.  
-Se existirem utilizadores e nenhum tiver Admin, o primeiro utilizador passa a Admin.
+Definidas em `Data/SeedRoles.cs` / `ConstantesRoles`: **Admin**, **Gestor** (substitui o antigo **Técnico**), **Comercial**, **Armazém**.  
+Se existirem utilizadores e nenhum tiver Admin, o primeiro utilizador na lista passa a Admin.
+
+A autorização por áreas usa **políticas** (`PoliticasAutorizacao`) e o `GET /api/auth/me` expõe **`permissions`** alinhadas com essas políticas — ver **`docs/backend/ROLES-E-PERMISSOES.md`**.
 
 ### JWT e refresh token
 
@@ -104,7 +107,7 @@ Endpoints em `Controllers/AuthController.cs`:
 - `GET /api/auth/existem-utilizadores` — público; indica se há contas (para “registar primeiro utilizador”).
 - `POST /api/auth/registar-primeiro-utilizador` — público apenas quando não existem utilizadores; atribui Admin.
 - `POST /api/auth/login` — devolve `token` (JWT), `refreshToken`, `expiresAt`, `userName`, `roles`.
-- `GET /api/auth/me` — utilizador autenticado (JWT).
+- `GET /api/auth/me` — utilizador autenticado (JWT): `id`, `email`, `roles`, **`permissions`**.
 - `POST /api/auth/refresh` — renova access token (rotação do refresh token).
 - `POST /api/auth/logout` — revoga refresh token.
 
@@ -114,14 +117,14 @@ Refresh tokens são guardados em hash (SHA-256). JWT inclui claims de identifica
 ### Autorização nos endpoints
 
 - Controllers em `/api/*` usam `[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]`.
-- Ações restritas usam `[Authorize(Roles = "Admin")]` (ex.: CRUD de entidades, gestão de utilizadores).
-- Acesso a paióis filtrado por **PaiolAcesso** (roles do utilizador).
+- Ações restritas usam **`[Authorize(Policy = "...")]`** com políticas em `PoliticasAutorizacao` (ex.: `PodeGerirClientes`, `PodeGerirArmazem`); o painel de utilizadores usa **`PodeAcederAdmin`** (só **Admin**).
+- Acesso a paióis filtrado por **PaiolAcesso** (roles do utilizador), para além das políticas.
 
 ---
 
 ## 5. API — módulos e fluxos
 
-Resumo dos recursos. Documentação completa: **Swagger** (`/swagger`, só em Development) e [**`Docs/api/API.md`**](../api/API.md) (tabelas de endpoints, autenticação, paginação, exemplos cURL).
+Resumo dos recursos. Documentação completa: **Swagger** (`/swagger`, só em Development) e [**`docs/api/API.md`**](../api/API.md) (tabelas de endpoints, autenticação, paginação, exemplos cURL).
 
 ### Auth — `/api/auth`
 
@@ -194,7 +197,7 @@ CRUD; associação a utilizador Identity; documentos (cartão cidadão, licença
 
 ### Frontend
 
-- `cd client` → `npm install` → `npm run dev`.
+- `cd apps/web` → `npm install` → `npm run dev`.
 - Variável `NEXT_PUBLIC_API_URL` em `.env.local` se a API não estiver em `https://localhost:7225`.
 
 ---
@@ -204,16 +207,16 @@ CRUD; associação a utilizador Identity; documentos (cartão cidadão, licença
 - **Decimais:** lat/lng com precisão alta no EF; `DecimalInvariantModelBinder` para form/query (evitar problemas de cultura).
 - **Erros da API:** para `/api/*`, middleware devolve 500 em JSON; JWT em falta/inválido devolve 401 em JSON (sem redirect).
 - **Documentos:** guardados em `wwwroot/Documentos/...`; servidos com `Content-Disposition: inline` e content-type adequado.
-- **Frontend:** dados de negócio via API; localStorage apenas para token/sessão e estado de UI (tema, etc.). Endpoints repetidos → funções em **`client/app/lib/*Api.ts`** (regra em `client/.cursor/rules` e `client/README.md`). Ver [**`Docs/frontend/`**](../frontend/) para auditoria, APIs utilizadas e padrões.
+- **Frontend:** dados de negócio via API; localStorage apenas para token/sessão e estado de UI (tema, etc.). Endpoints repetidos → funções em **`apps/web/app/lib/*Api.ts`** (regra em `apps/web/.cursor/rules` e `apps/web/README.md`). Ver [**`docs/frontend/`**](../frontend/) para auditoria, APIs utilizadas e padrões.
 
 ---
 
 ## 10. Melhorias futuras (sugestões)
 
 - **Contratos de API:** DTOs de resposta explícitos em vez de expor entidades EF (evitar acoplamento e overfetch).
-- **Observabilidade:** logs estruturados com correlation id; métricas de latência e erros por endpoint.
+- **Observabilidade:** correlation id (`X-Correlation-Id`) e logs por pedido já descritos em **`docs/backend/OBSERVABILIDADE-HTTP.md`**; métricas agregadas por endpoint podem ser um passo seguinte.
 - **Segurança de ficheiros:** validação MIME/assinatura nos uploads; confirmação de permissões nos downloads (acesso ao paiol/serviço/cliente).
-- **Testes:** existem **testes unitários** em `Finalproj.Tests/` (xUnit + EF InMemory) para `EncomendaService` (preparação, FIFO, validações) e `StockDisponivelService` (entradas/saídas/reservas). Ver **`Docs/backend/TESTES-DOMINIO.md`**. Falta alargar a integração (SQL real) e outros módulos (equipa, licenças).
+- **Testes:** existem **testes unitários** em `Finalproj.Tests/` (xUnit + EF InMemory) para `EncomendaService` (preparação, FIFO, validações) e `StockDisponivelService` (entradas/saídas/reservas). Ver **`docs/backend/TESTES-DOMINIO.md`**. Falta alargar a integração (SQL real) e outros módulos (equipa, licenças).
 - **Frontend:** manter padrões que evitam loops em `useEffect`; acessibilidade (labels, contraste, teclado) nas novas páginas.
 - **Serviços:** continuar a extrair lógica dos controllers para serviços de domínio/aplicação onde reduza duplicação e facilite testes.
 
@@ -224,8 +227,8 @@ CRUD; associação a utilizador Identity; documentos (cartão cidadão, licença
 | Documento | Conteúdo |
 |-----------|----------|
 | [**README.md**](../../README.md) (raiz) | Estrutura, pré-requisitos, configuração, execução, primeiro utilizador. |
-| [**Docs/README.md**](../README.md) | Índice de toda a documentação em `Docs/`. |
-| [**Docs/api/API.md**](../api/API.md) | Documentação da API: base URL, autenticação, tabelas de recursos, paginação, códigos de resposta, cURL. |
+| [**docs/README.md**](../README.md) | Índice de toda a documentação em `docs/`. |
+| [**docs/api/API.md**](../api/API.md) | Documentação da API: base URL, autenticação, tabelas de recursos, paginação, códigos de resposta, cURL. |
 | [**Services/README.md**](../../Services/README.md) | Organização dos serviços (Domain vs Infrastructure). |
-| [**Docs/visao-geral/ARQUITETURA-E-VISAO-GERAL.md**](ARQUITETURA-E-VISAO-GERAL.md) | Arquitetura técnica aprofundada (Program.cs, domínio EF, segurança, API, frontend). |
-| [**Docs/frontend/**](../frontend/) | Auditoria localStorage vs API, verificação de endpoints, tarefas em aberto. |
+| [**docs/visao-geral/ARQUITETURA-E-VISAO-GERAL.md**](ARQUITETURA-E-VISAO-GERAL.md) | Arquitetura técnica aprofundada (Program.cs, domínio EF, segurança, API, frontend). |
+| [**docs/frontend/**](../frontend/) | Auditoria localStorage vs API, verificação de endpoints, tarefas em aberto. |

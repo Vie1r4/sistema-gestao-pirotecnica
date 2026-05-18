@@ -1,6 +1,6 @@
 # Arquitetura e visão geral — PIROFAFE
 
-Documento técnico de referência (backend + frontend). **Última revisão:** março de 2026 — alinhada a Next.js 16, centralização `client/app/lib/*Api.ts`, `authApi` / `saidaPaiolApi`, backups SQL agendados e `GET /api/auth/me` com `permissions`.
+Documento técnico de referência (backend + frontend). **Última revisão:** maio de 2026 — alinhada a políticas `PoliticasAutorizacao`, permissões em `/api/auth/me`, role **Gestor** (ex-Técnico) e backups SQL documentados.
 
 ---
 
@@ -31,7 +31,7 @@ O resumo executivo e o índice de documentação estão em [**`PROJETO.md`**](PR
 - **Serviço**: só pode associar-se a encomendas **Concluídas**; `EncomendaId` é **único** na tabela de serviços (1 serviço por encomenda).
 - **Produto / Paiol**: compatibilidade de classificação de risco e grupos ADR; validações adicionais em controladores de entrada (motor de regras no fluxo de armazém).
 
-O frontend é **API-first**: dados de negócio vêm da API; tokens de sessão e eventual estado mínimo de UI seguem as regras em [`Docs/frontend/AUDITORIA-LOCALSTORAGE.md`](../frontend/AUDITORIA-LOCALSTORAGE.md).
+O frontend é **API-first**: dados de negócio vêm da API; tokens de sessão e eventual estado mínimo de UI seguem as regras em [`docs/frontend/AUDITORIA-LOCALSTORAGE.md`](../frontend/AUDITORIA-LOCALSTORAGE.md).
 
 ---
 
@@ -57,7 +57,7 @@ O frontend é **API-first**: dados de negócio vêm da API; tokens de sessão e 
 - **FluentValidation**: validators scoped para DTOs de cliente, saída/entrada paiol, encomenda, paiol, funcionário.
 - **`DocumentosOptions`** + **`FormOptions.MultipartBodyLengthLimit`** alinhados ao tamanho máximo de ficheiro.
 - **Serviços**: `IEmailSender` (singleton), `ILogSistemaService`, `IStockDisponivelService`, `IEncomendaService`, `IServicoService`, `IDocumentoStorageService` (scoped conforme caso).
-- **Backups SQL:** `Configure<DatabaseBackupOptions>` (secção `Backups` no `appsettings`). `DatabaseBackupHostedService` implementa `IDatabaseBackupService` e `IHostedService` — backup diário (hora local), ficheiros `.bak` na raiz do projeto, retenção de N dias. Ver **`Docs/backend/BACKUPS-AUTOMATICOS.md`**.
+- **Backups SQL:** `Configure<DatabaseBackupOptions>` (secção `Backups` no `appsettings`). `DatabaseBackupHostedService` implementa `IDatabaseBackupService` e `IHostedService` — backup diário (hora local), ficheiros `.bak` na raiz do projeto, retenção de N dias. Ver **`docs/backend/BACKUPS-AUTOMATICOS.md`**.
 - **`AddDistributedMemoryCache` + `AddSession`**: rascunho de encomenda no servidor; cookie de sessão com `SameSite=None`, `Secure=Always` para CORS com credenciais.
 - **`AddAuthentication`**: default scheme = **`IdentityConstants.ApplicationScheme`** (cookies Identity); **JWT** registado como scheme adicional — os controladores da API usam **`[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]`** para não depender de cookies.
 - **`AddAuthorization`**: políticas nomeadas via `PoliticasAutorizacao.ConfigurarPoliticas`.
@@ -92,17 +92,17 @@ O frontend é **API-first**: dados de negócio vêm da API; tokens de sessão e 
 
 | Camada | Conteúdo |
 |--------|----------|
-| **Páginas** | `client/app/**/page.tsx` — UI, rotas, TanStack Query onde aplica. |
-| **API (HTTP)** | `client/app/lib/*Api.ts` — um módulo por domínio ou fluxo: `encomendasApi`, `paiolApi` (incl. POST criar paiol, GET movimentos), `produtosApi`, `servicosApi`, `funcionariosApi`, `entradaPaiolApi` (GET formulário + POST registar entrada), **`saidaPaiolApi`** (GET/POST registar saída), **`authApi`** (`existem-utilizadores`, login, primeiro utilizador, **`fetchAuthMe`**). Outros: `admin.ts`, `clientes.ts`, `home.ts`, `homeGestor.ts`, `geocoding.ts`. |
+| **Páginas** | `apps/web/app/**/page.tsx` — UI, rotas, TanStack Query onde aplica. |
+| **API (HTTP)** | `apps/web/app/lib/*Api.ts` — um módulo por domínio ou fluxo: `encomendasApi`, `paiolApi` (incl. POST criar paiol, GET movimentos), `produtosApi`, `servicosApi`, `funcionariosApi`, `entradaPaiolApi` (GET formulário + POST registar entrada), **`saidaPaiolApi`** (GET/POST registar saída), **`authApi`** (`existem-utilizadores`, login, primeiro utilizador, **`fetchAuthMe`**). Outros: `admin.ts`, `clientes.ts`, `home.ts`, `homeGestor.ts`, `geocoding.ts`. |
 | **Sessão local** | `auth.ts` — `getToken`, refresh, `logout` (sem duplicar URLs de login aqui; isso fica em `authApi`). |
 | **Config** | `apiConfig.ts` — `getApiBaseUrl()`, `apiPath()` (HTTPS `localhost:7225` por defeito, override `NEXT_PUBLIC_API_URL`). |
 | **Helpers** | `api.ts` (`safeParseJson`), `apiErrors.ts` (`parseApiErrorBody`). |
 
 **Layout raiz:** `QueryProvider`, `ThemeSync`, `GlobalToast`, `ProtectedRoute`, `PageTransition`. **`UserContext`** chama `fetchAuthMe` (wrapper sobre `GET /api/auth/me`); o backend devolve **roles** e **`permissions`** (strings tipo `encomendas.gerir`) para a UI e **Navbar** alinharem com o servidor. **`refreshAccessToken`** é agendado ~5 min antes da expiração do JWT.
 
-**CI:** `.github/workflows/client-ci.yml` em alterações sob `client/**` (typecheck, lint, Vitest em paralelo, build, Playwright E2E com Chromium).
+**CI:** `.github/workflows/client-ci.yml` em alterações sob `apps/web/**` (typecheck, lint, Vitest em paralelo, build, Playwright E2E com Chromium).
 
-**Testes:** Vitest + Testing Library em `client/tests/`; Playwright para E2E — ver `client/README.md`.
+**Testes:** Vitest + Testing Library em `apps/web/tests/`; Playwright para E2E — ver `apps/web/README.md`.
 
 ---
 
@@ -158,7 +158,7 @@ Herdado de **`IdentityDbContext<IdentityUser>`** — tabelas Identity + domínio
 - Desafio JWT customizado devolve **401 JSON** (sem redirect HTML).
 - CORS com credenciais alinhado ao uso de **sessão** para rascunho de encomenda.
 
-Documentação alinhada: [`Docs/backend/ROLES-E-PERMISSOES.md`](../backend/ROLES-E-PERMISSOES.md), [`Docs/api/API.md`](../api/API.md).
+Documentação alinhada: [`docs/backend/ROLES-E-PERMISSOES.md`](../backend/ROLES-E-PERMISSOES.md), [`docs/api/API.md`](../api/API.md).
 
 ---
 
@@ -213,8 +213,8 @@ Depois disso, um **Servico** pode ser criado apontando para essa encomenda (úni
 7. **API-only e erros JSON**: middleware para `/api` garante respostas JSON em erro; JWT não redireciona para HTML.
 8. **Frontend**: TanStack Query com `staleTime` curto e retry condicionado; refresh proativo de JWT no `UserContext`; `safeParseJson` evita parse de HTML como JSON.
 9. **Seed**: roles e contas de demonstração por email (`SeedUsers:Password`); migração de role antiga "Técnico" para "Gestor".
-10. **Centralização de endpoints no client:** o mesmo método + caminho HTTP não deve repetir `fetch`/`apiPath` em várias páginas; extrair para `client/app/lib/*Api.ts` (ver regra em `client/.cursor/rules` e `Docs/frontend/VERIFICACAO-APIS-UTILIZADAS.md`).
-11. **Testes de domínio (backend):** projeto **`Finalproj.Tests`** (xUnit, EF InMemory) cobre `EncomendaService` e `StockDisponivelService` — ver **`Docs/backend/TESTES-DOMINIO.md`**.
+10. **Centralização de endpoints no client:** o mesmo método + caminho HTTP não deve repetir `fetch`/`apiPath` em várias páginas; extrair para `apps/web/app/lib/*Api.ts` (ver regra em `apps/web/.cursor/rules` e `docs/frontend/VERIFICACAO-APIS-UTILIZADAS.md`).
+11. **Testes de domínio (backend):** projeto **`Finalproj.Tests`** (xUnit, EF InMemory) cobre `EncomendaService` e `StockDisponivelService` — ver **`docs/backend/TESTES-DOMINIO.md`**.
 
 ---
 

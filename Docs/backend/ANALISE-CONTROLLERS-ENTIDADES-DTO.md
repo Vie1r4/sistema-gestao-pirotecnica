@@ -2,13 +2,13 @@
 
 ## Resumo
 
-- **Vários controllers devolvem entidades EF diretamente** (ou dentro de objetos anónimos), o que expõe toda a estrutura das entidades e **pode incluir dados sensíveis** (PII, UserIds do Identity, caminhos de ficheiros).
-- **AdminController e AuthController** já usam DTOs/ViewModels e **não expõem Identity** (sem PasswordHash, SecurityStamp, etc.).
+- **A maioria dos fluxos expõe DTOs de resposta** (encomendas, paióis/movimentos, clientes, funcionários, serviços, produtos, entrada/saída de paiol). Ainda existem **pontos com `Cliente` / `Produto` em bruto** nalguns GET de rascunho de encomenda (`Create` / `AdicionarItens`) — ver tabela abaixo e [`docs/api/CONTRATOS-API-DTOs.md`](../api/CONTRATOS-API-DTOs.md).
+- **AdminController e AuthController** usam view models / objetos mínimos e **não expõem IdentityUser** (sem PasswordHash, SecurityStamp, etc.).
 
 ### Atualização (refactor DTOs — encomendas, paiol/movimentos, entrada/saída)
 
 - **EncomendasController**: respostas de listagem e detalhe usam **EncomendaListResponseDto** / **EncomendaDetailResponseDto**; **não** são serializados `FuncionarioAceiteUserId` / `FuncionarioPreparouUserId` no objeto `encomenda`. Em **GET Details**, `funcionarioAceiteNome` e `funcionarioPreparouNome` vêm no **JSON raiz**.
-- **PaiolController**: **GET movimentos** devolve linhas como **EntradaPaiolMovimentoDto** / **SaidaPaiolMovimentoDto** (com `registadoPor` / `retiradoPor`); stock e vários endpoints de `paiol` usam **ProdutoResponseDto** / **PaiolResponseDto** (ver `Docs/api/CONTRATOS-API-DTOs.md`).
+- **PaiolController**: **GET movimentos** devolve linhas como **EntradaPaiolMovimentoDto** / **SaidaPaiolMovimentoDto** (com `registadoPor` / `retiradoPor`); stock e vários endpoints de `paiol` usam **ProdutoResponseDto** / **PaiolResponseDto** (ver `docs/api/CONTRATOS-API-DTOs.md`).
 - **EntradaPaiolController** / **SaidaPaiolController**: POST **registar** devolve **EntradaPaiolRegistadaDto** / **SaidaPaiolRegistadaDto** (sem UserId na resposta).
 - **ClientesController** / **FuncionariosController**: respostas já eram em grande parte DTOs; **UserId** (Identity) do cliente/funcionário **omitido** nas respostas não sensíveis; funcionários — lista com **contaAssociada** / **contaEmailConfirmada** por item (removido **userIdsConfirmados**); GET detalhe com **associadoAoUtilizadorAtual**.
 - **ServicosApiController**: **ServicoResponseDto** na lista e nos corpos principais; **itensEncomenda** como **EncomendaItemResponseDto**; **paiolParaRota** como **PaiolResponseDto**; distâncias como DTO com **Cumpre**; PUT distância devolve DTO (não a entidade).
@@ -74,11 +74,11 @@ As tabelas abaixo mantêm o histórico de risco; linhas já mitigadas estão ass
 ### ProdutosController
 | Ação | Devolve | Risco |
 |------|---------|--------|
-| `Details` GET | `return Ok(produto)` | **Produto** (entidade pura) |
-| `Create` POST | `new { produto }` | **Produto** |
-| `Edit` GET | `new { produto, ... }` | **Produto** |
-| `Edit` PUT | `new { produto }` | **Produto** |
-| `Delete` GET | `return Ok(produto)` | **Produto** (entidade pura) |
+| `Details` GET | **ProdutoResponseDto** | ✅ |
+| `Create` POST | `new { produto = ProdutoResponseDto }` | ✅ |
+| `Edit` GET | `new { produto = ProdutoResponseDto, ... }` | ✅ |
+| `Edit` PUT | `new { produto = ProdutoResponseDto }` | ✅ |
+| `Delete` GET | **ProdutoResponseDto** | ✅ |
 
 ### EntradaPaiolController
 | Ação | Devolve | Risco |
@@ -109,12 +109,12 @@ As tabelas abaixo mantêm o histórico de risco; linhas já mitigadas estão ass
 ### Identity (ASP.NET Core Identity)
 
 - **AdminController**: usa **UtilizadorComRolesViewModel** (Id, UserName, Email, Roles, FuncionarioAssociadoNome). **Não devolve IdentityUser** → sem PasswordHash, SecurityStamp, etc. ✅
-- **AuthController**: devolve apenas token, refreshToken, email, nome, roles; `/me` devolve id, email, userName, nome, roles. **Não devolve a entidade IdentityUser**. ✅
+- **AuthController**: devolve apenas token, email, nome, roles; **`GET /api/auth/me`** devolve `id`, `email`, `userName`, `nome`, `roles`, **`permissions`**. **Não devolve a entidade IdentityUser**. ✅
 
 ### Informação interna
 
 - **Caminhos de ficheiros** em respostas (Funcionario: CartaoCidadaoCaminho, DocumentoADDRCaminho, LicencaOperadorCaminho, OutrosCaminho; ServicoLicenca.FicheiroPath; documentos extras em várias entidades).
-- **UserIds do Identity** ainda presentes em entidades e em alguns endpoints não migrados (Funcionario, Cliente, etc.). Encomendas (DTOs) e movimentos/registo entrada-saída (DTOs) **reduziram** esta exposição na API.
+- **UserIds do Identity** — reduzidos na API via DTOs; persistem nas entidades para auditoria interna.
 - **Estrutura completa das entidades** (navegações, coleções) — acoplamento ao modelo EF e possível evolução indesejada da API.
 
 ---
@@ -122,7 +122,7 @@ As tabelas abaixo mantêm o histórico de risco; linhas já mitigadas estão ass
 ## 3. Controllers que já usam DTOs/ViewModels
 
 - **AdminController**: `UtilizadorComRolesViewModel`, `EditarUtilizadorRolesViewModel`, etc.
-- **AuthController**: objetos anónimos com apenas os campos necessários (token, email, roles, etc.).
+- **AuthController**: objetos anónimos com apenas os campos necessários (token, email, roles, **`permissions`** em `/me`, etc.).
 - **HomeController**: `PerfilEditViewModel`, `AlterarPasswordViewModel`, etc.
 
 ---
@@ -132,7 +132,7 @@ As tabelas abaixo mantêm o histórico de risco; linhas já mitigadas estão ass
 1. **Introduzir DTOs de resposta** por recurso (ex.: `ClienteDto`, `FuncionarioDto`, `EncomendaDto`, `ServicoDto`, `PaiolDto`) e devolver apenas os campos necessários para o frontend (evitando UserId quando não for necessário, e nunca caminhos completos de ficheiros se não forem necessários para download).
 2. **Não devolver UserIds do Identity** na API (ou restringir a Admin e a respostas que precisem mesmo disso), para reduzir superfície de correlação com contas.
 3. **Mascarar ou omitir dados muito sensíveis** (NSS, IBAN) em listagens e, se possível, em detalhes para roles não-Admin, ou devolver apenas “últimos X dígitos”.
-4. **Substituir entidades por DTOs** em todos os `return Ok(entity)` e `new { entity }` listados acima, mapeando apenas as propriedades necessárias.
+4. **Substituir entidades por DTOs** nos GET de rascunho de encomenda (`Create` / `AdicionarItens`) onde ainda existam `Cliente` / `Produto` em bruto, alinhando a [`CONTRATOS-API-DTOs.md`](../api/CONTRATOS-API-DTOs.md).
 5. **Manter a política atual** de não expor IdentityUser (PasswordHash, SecurityStamp, etc.) e continuar a usar ViewModels/DTOs em Admin e Auth.
 
 Este documento pode ser usado como checklist para refatorar respostas da API para DTOs e reduzir exposição de dados sensíveis.

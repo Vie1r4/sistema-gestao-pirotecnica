@@ -1,6 +1,18 @@
 # Documentação PIROFAFE
 
-Índice da documentação do repositório. Tudo o que está listado aqui vive sob a pasta **`Docs/`** (exceto os `README.md` na raiz, em `client/` e em `Services/`).
+Índice da documentação do repositório. Tudo o que está listado aqui vive sob a pasta **`docs/`** (exceto os `README.md` na raiz, em `apps/web/` e em `Services/`).
+
+**Revisão do índice:** maio de 2026 — criado `backend/BACKUPS-AUTOMATICOS.md`; `ROLES-E-PERMISSOES.md` alinhado ao código; links e resumos revistos.
+
+### Como esta pasta está organizada
+
+- **`informacoes-basicas/`** — entrada rápida em linguagem simples (equipa não técnica ou primeiro contacto).
+- **`visao-geral/`** — produto, stack, arquitetura e fluxos (documento de trabalho principal).
+- **`api/`** — contratos HTTP, autenticação, exemplos; o detalhe vivo continua no **Swagger** (Development).
+- **`backend/`** — domínio, segurança, DTOs, testes, **operação** (backups, observabilidade HTTP).
+- **`frontend/`** — padrões React/Next, auditorias, checklist de PR, inventário de chamadas à API.
+
+Sugestão para evoluir: se a doc crescer muito, podes criar **`docs/operacoes/`** e mover para lá `BACKUPS-AUTOMATICOS.md` e `OBSERVABILIDADE-HTTP.md` (hoje ficam em `backend/` para não partir links até decidires a migração).
 
 ---
 
@@ -9,8 +21,9 @@
 | Documento | Descrição |
 |-----------|-----------|
 | [**README.md**](../README.md) (raiz) | Pré-requisitos, user-secrets JWT, `dotnet run`, frontend, CORS, primeiro utilizador. |
-| [**visao-geral/PROJETO.md**](visao-geral/PROJETO.md) | Stack, domínio, segurança (JWT, roles), módulos da API, convenções, melhorias futuras. |
-| [**visao-geral/ARQUITETURA-E-VISAO-GERAL.md**](visao-geral/ARQUITETURA-E-VISAO-GERAL.md) | Arquitetura técnica (backend + frontend): `Program.cs`, domínio EF, segurança JWT/políticas, controllers, camada `client/app/lib/*Api`, CI e testes. |
+| [**CONTRIBUTING.md**](../CONTRIBUTING.md) | Convenções, testes, checklist de PR. |
+| [**visao-geral/PROJETO.md**](visao-geral/PROJETO.md) | Stack, domínio, segurança (JWT, políticas, permissões), módulos da API, convenções, melhorias futuras. |
+| [**visao-geral/ARQUITETURA-E-VISAO-GERAL.md**](visao-geral/ARQUITETURA-E-VISAO-GERAL.md) | Arquitetura técnica (backend + frontend): `Program.cs`, domínio EF, segurança JWT/políticas, controllers, camada `apps/web/app/lib/*Api`, CI e testes. |
 
 ### Iniciantes — linguagem simples
 
@@ -18,6 +31,7 @@
 |-----------|-----------|
 | [**informacoes-basicas/**](informacoes-basicas/) | Índice da pasta; ponte para `PROJETO.md` / `ARQUITETURA-E-VISAO-GERAL.md`. |
 | [**informacoes-basicas/guia-iniciantes.md**](informacoes-basicas/guia-iniciantes.md) | Texto único: o que é o projeto, como as partes falam, login e tokens, pastas (`*Api.ts`, `auth`), glossário e links para a doc técnica. |
+| [**informacoes-basicas/FUNCIONALIDADES-EXPLICADAS.txt**](informacoes-basicas/FUNCIONALIDADES-EXPLICADAS.txt) | Conceitos gerais em linguagem muito simples (ficheiro `.txt`). |
 
 ---
 
@@ -32,7 +46,7 @@
 
 ---
 
-## Frontend (Next.js — pasta `client/`)
+## Frontend (Next.js — pasta `apps/web/`)
 
 | Documento | Descrição |
 |-----------|-----------|
@@ -45,23 +59,23 @@
 | [**frontend/O-QUE-FALTA-FAZER.md**](frontend/O-QUE-FALTA-FAZER.md) | Estado do refactor (Query/Mutation, pendências opcionais). |
 | [**frontend/PAINEL-INICIAL.md**](frontend/PAINEL-INICIAL.md) | Painel inicial / home (notas de implementação). |
 
-Regras para o Cursor: `client/.cursor/rules/` (ex.: API em primeiro lugar). **Convenção:** segunda utilização do mesmo endpoint → função em `client/app/lib/*Api.ts` — ver [client/README.md — Chamadas API (lib)](../client/README.md#chamadas-api-lib).
+Regras para o Cursor: `apps/web/.cursor/rules/` (ex.: API em primeiro lugar). **Convenção:** segunda utilização do mesmo endpoint → função em `apps/web/app/lib/*Api.ts` — ver [apps/web/README.md — Chamadas API (lib)](../apps/web/README.md#chamadas-api-lib).
 
-**CI (frontend):** em PRs e em `push` a `main`/`next`, [`.github/workflows/client-ci.yml`](../.github/workflows/client-ci.yml) corre `npm ci`, `npm run typecheck`, `npm run lint` e `npm run test` (Vitest, em paralelo entre si), `npm run build`, instalação do Playwright (Chromium) e `npm run test:e2e` em `client/`. Detalhes em [`client/README.md`](../client/README.md#ci).
+**CI (frontend):** em PRs e em `push` a `main`/`next`, [`.github/workflows/client-ci.yml`](../.github/workflows/client-ci.yml) corre `npm ci`, `npm run typecheck`, `npm run lint` e `npm run test` (Vitest, em paralelo entre si), `npm run build`, instalação do Playwright (Chromium) e `npm run test:e2e` em `apps/web/`. Detalhes em [`apps/web/README.md`](../apps/web/README.md#ci).
 
 ---
 
-## Backend (arquitetura e domínio)
+## Backend (arquitetura, domínio e operação)
 
 | Documento | Descrição |
 |-----------|-----------|
-| [**backend/ANALISE-CONTROLLERS-ENTIDADES-DTO.md**](backend/ANALISE-CONTROLLERS-ENTIDADES-DTO.md) | Relação controllers, entidades e DTOs. |
-| [**backend/ROLES-E-PERMISSOES.md**](backend/ROLES-E-PERMISSOES.md) | Roles e políticas de autorização. |
-| [**backend/AUDITORIA-CYBERSEG.md**](backend/AUDITORIA-CYBERSEG.md) | Auditoria pesada de cibersegurança (pontos críticos e mitigação). |
-| [**backend/SERVICOS-EXTRACAO-SERVICO.md**](backend/SERVICOS-EXTRACAO-SERVICO.md) | Notas sobre o módulo de serviços. |
-| [**backend/BACKUPS-AUTOMATICOS.md**](backend/BACKUPS-AUTOMATICOS.md) | Agendamento diário de backups SQL Server via ASP.NET Core. |
+| [**backend/ANALISE-CONTROLLERS-ENTIDADES-DTO.md**](backend/ANALISE-CONTROLLERS-ENTIDADES-DTO.md) | Onde a API usa DTOs vs entidades; dados sensíveis; checklist. |
+| [**backend/ROLES-E-PERMISSOES.md**](backend/ROLES-E-PERMISSOES.md) | Roles, políticas de autorização e campo `permissions` em `/api/auth/me`. |
+| [**backend/AUDITORIA-CYBERSEG.md**](backend/AUDITORIA-CYBERSEG.md) | Auditoria de cibersegurança (riscos e mitigação). |
+| [**backend/SERVICOS-EXTRACAO-SERVICO.md**](backend/SERVICOS-EXTRACAO-SERVICO.md) | Notas sobre o módulo de serviços e `ServicoService`. |
+| [**backend/BACKUPS-AUTOMATICOS.md**](backend/BACKUPS-AUTOMATICOS.md) | Agendamento diário de backups SQL Server e backup manual (`POST /api/admin/backups/run`). |
 | [**backend/TESTES-DOMINIO.md**](backend/TESTES-DOMINIO.md) | Testes unitários xUnit (`Finalproj.Tests`): encomendas (FIFO, preparação), stock disponível. |
-| [**backend/OBSERVABILIDADE-HTTP.md**](backend/OBSERVABILIDADE-HTTP.md) | Correlation id (`X-Correlation-Id`), logs estruturados e latência por pedido HTTP. |
+| [**backend/OBSERVABILIDADE-HTTP.md**](backend/OBSERVABILIDADE-HTTP.md) | Correlation id (`X-Correlation-Id`), logs e latência por pedido HTTP. |
 | [**Services/README.md**](../Services/README.md) | Organização `Services/Domain` vs `Infrastructure`. |
 
 ---
@@ -73,14 +87,14 @@ Regras para o Cursor: `client/.cursor/rules/` (ex.: API em primeiro lugar). **Co
 
 ---
 
-## Estrutura de pastas `Docs/`
+## Estrutura de pastas `docs/`
 
 ```
-Docs/
-├── README.md              ← este índice
-├── informacoes-basicas/   ← guia em linguagem simples (iniciantes)
-├── visao-geral/           ← visão do produto, stack e arquitetura (PROJETO, ARQUITETURA-E-VISAO-GERAL)
-├── api/                   ← referência e contratos HTTP
-├── frontend/              ← auditorias, padrões e pendências do Next.js
-└── backend/               ← análise de controllers, roles, serviços
+docs/
+├── README.md                 ← este índice
+├── informacoes-basicas/    ← guia simples + texto longo opcional (.txt)
+├── visao-geral/              ← produto, stack, arquitetura (PROJETO, ARQUITETURA-E-VISAO-GERAL)
+├── api/                      ← referência HTTP e contratos DTO
+├── frontend/                 ← Next.js: padrões, auditorias, checklist, APIs usadas
+└── backend/                  ← controllers/DTOs, roles, testes, backups, observabilidade
 ```

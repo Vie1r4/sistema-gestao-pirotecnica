@@ -7,10 +7,10 @@ Data: 2026-04-23
 
 ### 1) Refresh token exposto ao JavaScript (Crítico)
 - **Impacto**: qualquer XSS consegue roubar `refreshToken` e obter sessões persistentes (account takeover).
-- **Evidência (antes)**: `client/app/lib/auth.ts` guardava `token` + `refreshToken` em `localStorage` e chamava `POST /api/auth/refresh` com body `{ refreshToken }`.
+- **Evidência (antes)**: `apps/web/app/lib/auth.ts` guardava `token` + `refreshToken` em `localStorage` e chamava `POST /api/auth/refresh` com body `{ refreshToken }`.
 - **Mitigação aplicada**:
   - refresh token passou para **cookie HttpOnly** emitido pelo backend (`Controllers/AuthController.cs`).
-  - o frontend deixou de persistir o refresh token e faz refresh via `credentials: "include"` (`client/app/lib/auth.ts`).
+  - o frontend deixou de persistir o refresh token e faz refresh via `credentials: "include"` (`apps/web/app/lib/auth.ts`).
 - **Risco residual**: o access token ainda está em `localStorage` (curta duração). Para reduzir mais o impacto de XSS, ideal é access token em memória/cookie HttpOnly.
 
 ### 2) IDOR/BOLA em Serviços (Crítico/Alto)
@@ -37,7 +37,7 @@ Data: 2026-04-23
 ### 5) Hardening HTTP ausente (Alto)
 - **Impacto**: sem headers básicos, aumenta risco/impacto de clickjacking/MIME sniffing e dificulta mitigação de XSS.
 - **Mitigação aplicada**:
-  - backend adiciona headers (`Program.cs`) e o frontend adiciona headers equivalentes (`client/next.config.ts`).
+  - backend adiciona headers (`Program.cs`) e o frontend adiciona headers equivalentes (`apps/web/next.config.ts`).
 
 ### 6) Endpoint destrutivo e resposta com path sensível (Alto)
 - **Impacto**: `POST /api/admin/clear-all-data` apaga tudo; endpoint de backup devolvia caminho absoluto do servidor.

@@ -1,4 +1,4 @@
-using Finalproj.Services;
+using Finalproj.Application.Services;
 
 namespace Finalproj.Tests.TestHelpers;
 

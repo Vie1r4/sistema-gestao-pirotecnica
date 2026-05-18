@@ -1,6 +1,7 @@
-using Finalproj.Data;
-using Finalproj.Models;
-using Finalproj.Services.Domain;
+using Finalproj.Infrastructure.Persistence.Data;
+using Finalproj.Infrastructure.Repositories;
+using Finalproj.Application.Features.Encomendas.DTOs;
+using Finalproj.Application.Features.Encomendas.Services;
 using Finalproj.Tests.TestHelpers;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -9,11 +10,14 @@ namespace Finalproj.Tests.Domain;
 
 public class EncomendaServiceTests
 {
+    private static EncomendaService CreateSut(FinalprojContext ctx) =>
+        new(new EncomendaRepository(ctx), new EntradaPaiolRepository(ctx), new SaidaPaiolRepository(ctx), new UnitOfWork(ctx), new NoOpLogSistemaService());
+
     [Fact]
     public async Task RegistarPreparacaoAsync_EncomendaInexistente_Falha()
     {
         await using var ctx = TestDbContextFactory.Create();
-        var sut = new EncomendaService(ctx, new NoOpLogSistemaService());
+        var sut = CreateSut(ctx);
 
         var (ok, erro) = await sut.RegistarPreparacaoAsync(
             9999,
@@ -33,7 +37,7 @@ public class EncomendaServiceTests
         var (encId, itemId, paiolId, _, _) = await SeedEncomendaComStockAsync(
             ctx,
             estado: ConstantesEncomenda.PENDENTE);
-        var sut = new EncomendaService(ctx, new NoOpLogSistemaService());
+        var sut = CreateSut(ctx);
 
         var (ok, erro) = await sut.RegistarPreparacaoAsync(
             encId,
@@ -54,7 +58,7 @@ public class EncomendaServiceTests
     {
         await using var ctx = TestDbContextFactory.Create();
         var (encId, _, paiolId, _, _) = await SeedEncomendaComStockAsync(ctx);
-        var sut = new EncomendaService(ctx, new NoOpLogSistemaService());
+        var sut = CreateSut(ctx);
 
         var (ok, erro) = await sut.RegistarPreparacaoAsync(
             encId,
@@ -75,7 +79,7 @@ public class EncomendaServiceTests
     {
         await using var ctx = TestDbContextFactory.Create();
         var (encId, itemId, paiolId, _, _) = await SeedEncomendaComStockAsync(ctx);
-        var sut = new EncomendaService(ctx, new NoOpLogSistemaService());
+        var sut = CreateSut(ctx);
 
         var (ok, erro) = await sut.RegistarPreparacaoAsync(
             encId,
@@ -96,7 +100,7 @@ public class EncomendaServiceTests
     {
         await using var ctx = TestDbContextFactory.Create();
         var (encId, itemId, paiolId, nomeProduto, _) = await SeedEncomendaComStockAsync(ctx);
-        var sut = new EncomendaService(ctx, new NoOpLogSistemaService());
+        var sut = CreateSut(ctx);
 
         var (ok, erro) = await sut.RegistarPreparacaoAsync(
             encId,
@@ -122,7 +126,7 @@ public class EncomendaServiceTests
             ctx,
             quantidadeEntrada: 3m,
             quantidadePedida: 10m);
-        var sut = new EncomendaService(ctx, new NoOpLogSistemaService());
+        var sut = CreateSut(ctx);
 
         var (ok, erro) = await sut.RegistarPreparacaoAsync(
             encId,
@@ -145,7 +149,7 @@ public class EncomendaServiceTests
     {
         await using var ctx = TestDbContextFactory.Create();
         var (encId, itemId, paiolId, _, _) = await SeedEncomendaComStockAsync(ctx);
-        var sut = new EncomendaService(ctx, new NoOpLogSistemaService());
+        var sut = CreateSut(ctx);
 
         var (ok, erro) = await sut.RegistarPreparacaoAsync(
             encId,
@@ -178,7 +182,7 @@ public class EncomendaServiceTests
             ctx,
             quantidadePedida: 5m,
             duasEntradasFifo: true);
-        var sut = new EncomendaService(ctx, new NoOpLogSistemaService());
+        var sut = CreateSut(ctx);
 
         var (ok, erro) = await sut.RegistarPreparacaoAsync(
             encId,

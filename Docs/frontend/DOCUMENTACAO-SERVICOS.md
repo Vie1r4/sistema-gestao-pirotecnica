@@ -23,7 +23,7 @@ Rota frontend: `"/documentacao"`.
   - **Gerar declaração (teste)**
   - **Gerar licença (teste)**
   - **Gerar autorização (teste)**
-- Implementação atual no frontend: `client/app/lib/documentacaoPdf.ts` com `jsPDF`.
+- Implementação atual no frontend: `apps/web/app/lib/documentacaoPdf.ts` com `jsPDF`.
 - Conteúdo: cabeçalho de teste e dados básicos do serviço selecionado.
 - Objetivo: validar o fluxo enquanto o template final oficial ainda não está definido.
 

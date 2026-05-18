@@ -51,8 +51,8 @@ Migrados de `useEffect` + `fetch` manual para `useQuery` / `useMutation` onde fa
 
 ### Uso aceitável de localStorage
 
-- **token** e **refresh token** (auth).
 - **pirofafe-theme** (Zustand persist); opcionalmente limpeza de chaves antigas em clearData.
+- **Access token** em memória (`useAuthStore`); refresh em cookie HttpOnly no backend.
 
 ---
 
@@ -73,7 +73,7 @@ Muitas páginas já usam TanStack Query mas mantêm `fetch` dentro de `queryFn`/
 
 ### 3. Documentação
 
-- **AUDITORIA-LOCALSTORAGE.md**, **O-QUE-FALTA-FAZER.md** e **VERIFICACAO-APIS-UTILIZADAS.md** alinhados: sem dados de negócio em localStorage; **api/auth/me** como fonte do utilizador (UserContext).
+- **AUDITORIA-LOCALSTORAGE.md**, **O-QUE-FALTA-FAZER.md** e **VERIFICACAO-APIS-UTILIZADAS.md** alinhados: sem dados de negócio em localStorage; **api/auth/me** como fonte do utilizador (UserContext). Índice geral: **`docs/README.md`** (revisão maio de 2026).
 
 ---
 

@@ -2,7 +2,7 @@
 
 Este texto explica **o que é** o projeto, **como está organizado** e **porquê** se faz assim. Não é preciso dominar todas as tecnologias para perceber a ideia geral.
 
-**Atualização:** março de 2026 — alinhado à documentação em `Docs/visao-geral/` (stack atual, pasta `client/app/lib`, refresh de sessão).
+**Atualização:** maio de 2026 — roles/políticas alinhadas a `docs/backend/ROLES-E-PERMISSOES.md`; pasta `apps/web/app/lib`, refresh de sessão.
 
 ---
 
@@ -31,7 +31,7 @@ Juntos formam o que se chama uma aplicação **full-stack**: há “frente” (o
 **Porquê assim?**  
 Assim a lógica e os dados ficam **num sítio controlado**. Qualquer cliente (web, futura app mobile, outro sistema) pode pedir dados **da mesma forma**, sem duplicar regras.
 
-### Frontend (pasta `client/`)
+### Frontend (pasta `apps/web/`)
 
 - É feito em **Next.js** (versão recente, com **App Router**), **TypeScript** e **React**.
 - Corre normalmente na porta **3000** em desenvolvimento.
@@ -41,7 +41,7 @@ Assim a lógica e os dados ficam **num sítio controlado**. Qualquer cliente (we
 O browser dos utilizadores é o melhor sítio para interfaces ricas. O servidor não precisa de desenhar HTML “clássico” para cada página: o frontend **pede dados à API** e mostra-os.
 
 **Onde está o código que chama a API?**  
-Em geral, nas **páginas** (`client/app/.../page.tsx`) e em ficheiros **`client/app/lib/`**. Há vários ficheiros `*Api.ts` (por exemplo `encomendasApi.ts`, `paiolApi.ts`, `authApi.ts`) onde se concentram os **endereços** e os **pedidos HTTP** para não repetir o mesmo `fetch` em dez sítios. Ficheiros como `apiConfig.ts` sabem qual é o **URL base** da API (por defeito o backend em `https://localhost:7225`, configurável com `NEXT_PUBLIC_API_URL`).
+Em geral, nas **páginas** (`apps/web/app/.../page.tsx`) e em ficheiros **`apps/web/app/lib/`**. Há vários ficheiros `*Api.ts` (por exemplo `encomendasApi.ts`, `paiolApi.ts`, `authApi.ts`) onde se concentram os **endereços** e os **pedidos HTTP** para não repetir o mesmo `fetch` em dez sítios. Ficheiros como `apiConfig.ts` sabem qual é o **URL base** da API (por defeito o backend em `https://localhost:7225`, configurável com `NEXT_PUBLIC_API_URL`).
 
 ---
 
@@ -57,7 +57,7 @@ Em geral, nas **páginas** (`client/app/.../page.tsx`) e em ficheiros **`client/
 
 ## 4. Autenticação — porque é que há login e “token”?
 
-Nem todos os dados são públicos. Só utilizadores **registados** podem ver ou alterar coisas consoante o seu **papel** (admin, armazém, comercial, etc.).
+Nem todos os dados são públicos. Só utilizadores **registados** podem ver ou alterar coisas consoante o seu **papel** (Admin, Gestor, Comercial, Armazém, etc.).
 
 Fluxo simples:
 
@@ -77,7 +77,7 @@ O JWT expira ao fim de algum tempo (por segurança). O **refresh token** permite
 
 A **chave secreta do JWT** (`Jwt:Secret`) **não** deve ir para o repositório: em desenvolvimento usa-se **user-secrets**; em produção **variáveis de ambiente** ou cofre de segredos.
 
-**localStorage:** não serve para guardar listas de clientes, encomendas ou stock — isso vem sempre da **API** (fonte de verdade). Só há exceções pequenas (tokens de sessão, tema, etc.); ver `Docs/frontend/AUDITORIA-LOCALSTORAGE.md`.
+**localStorage:** não serve para guardar listas de clientes, encomendas ou stock — isso vem sempre da **API** (fonte de verdade). Só há exceções pequenas (tokens de sessão, tema, etc.); ver `docs/frontend/AUDITORIA-LOCALSTORAGE.md`.
 
 ---
 
@@ -87,7 +87,7 @@ Os dados persistentes (clientes, encomendas, stock, etc.) estão numa base **SQL
 
 Em desenvolvimento costuma usar-se **LocalDB** (SQL Server simplificado no Windows). Em produção usa-se uma instância SQL real; a **connection string** vem da configuração do ambiente, não de um ficheiro público com passwords.
 
-O servidor pode também **fazer cópias de segurança** (ficheiros `.bak`) da base num horário configurável — útil em máquinas de desenvolvimento ou servidores pequenos. Isto está descrito em **`Docs/backend/BACKUPS-AUTOMATICOS.md`** (opcional para iniciantes).
+O servidor pode também **fazer cópias de segurança** (ficheiros `.bak`) da base num horário configurável — útil em máquinas de desenvolvimento ou servidores pequenos. Isto está descrito em **`docs/backend/BACKUPS-AUTOMATICOS.md`** (opcional para iniciantes).
 
 ---
 
@@ -103,7 +103,7 @@ Na **raiz** do repositório (backend):
 | `Services/` | Lógica mais pesada (regras de negócio, ficheiros, email, cópias de segurança agendadas) separada dos controllers. |
 | `Program.cs` | Arranque da aplicação: serviços, JWT, CORS, pipeline HTTP, tarefas em segundo plano (ex.: backup). |
 
-Em **`client/`** (frontend):
+Em **`apps/web/`** (frontend):
 
 | Pasta / ficheiro | Ideia simples |
 |------------------|----------------|
@@ -121,7 +121,7 @@ Em **`client/`** (frontend):
 - **TanStack Query (React Query):** ajuda a **carregar** e **atualizar** dados da API no frontend, com cache e estados de “a carregar” / erro, sem reinventar tudo em `useEffect`.
 - **Tailwind CSS:** estilos com classes; não é obrigatório perceber logo toda a sintaxe para seguir o projeto.
 - **Zustand / toasts:** pequenos estados globais (ex.: mensagens “sucesso” ou “erro”) sem gravar dados de negócio.
-- **Testes no client:** **Vitest** (testes automáticos) e **Playwright** (browser); no GitHub o workflow do client também corre Playwright após o build — ver `client/README.md`.
+- **Testes no client:** **Vitest** (testes automáticos) e **Playwright** (browser); no GitHub o workflow do client também corre Playwright após o build — ver `apps/web/README.md`.
 - **Swagger:** em **desenvolvimento**, página que lista endpoints e permite testar a API. Em **produção** costuma estar **desligada** para não expor a superfície da API ao público.
 
 ---
@@ -130,10 +130,10 @@ Em **`client/`** (frontend):
 
 | Documento | Para quê |
 |-----------|----------|
-| [`Docs/README.md`](../README.md) | Índice de **toda** a pasta `Docs/`. |
-| [`Docs/visao-geral/PROJETO.md`](../visao-geral/PROJETO.md) | Produto, módulos da API, domínio, segurança, arranque. |
-| [`Docs/visao-geral/ARQUITETURA-E-VISAO-GERAL.md`](../visao-geral/ARQUITETURA-E-VISAO-GERAL.md) | Arquitetura mais **fina** (Program.cs, EF, camada `lib/`, convenções). |
-| [`Docs/api/API.md`](../api/API.md) | Endpoints, autenticação, exemplos. |
+| [`docs/README.md`](../README.md) | Índice de **toda** a pasta `docs/`. |
+| [`docs/visao-geral/PROJETO.md`](../visao-geral/PROJETO.md) | Produto, módulos da API, domínio, segurança, arranque. |
+| [`docs/visao-geral/ARQUITETURA-E-VISAO-GERAL.md`](../visao-geral/ARQUITETURA-E-VISAO-GERAL.md) | Arquitetura mais **fina** (Program.cs, EF, camada `lib/`, convenções). |
+| [`docs/api/API.md`](../api/API.md) | Endpoints, autenticação, exemplos. |
 | [`README.md`](../../README.md) na raiz | Instalar, correr backend e frontend, JWT, primeiro utilizador. |
 
 Este ficheiro (`guia-iniciantes.md`) não substitui esses documentos: serve de **ponte** para quem precisa primeiro de uma explicação em linguagem básica.

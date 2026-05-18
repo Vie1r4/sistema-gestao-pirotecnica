@@ -1,28 +1,27 @@
-# Testes unitários do backend (Finalproj.Tests).
+# Testes unitários e de integração do backend.
+
 name: .NET tests
 
 on:
   pull_request:
     paths:
-      - "Controllers/**"
-      - "Data/**"
-      - "Models/**"
-      - "Services/**"
+      - "src/Finalproj.Api/**"
+      - "src/Finalproj.Domain/**"
+      - "src/Finalproj.Application/**"
+      - "src/Finalproj.Infrastructure/**"
       - "Finalproj.Tests/**"
-      - "Program.cs"
-      - "Finalproj.csproj"
+      - "Finalproj.IntegrationTests/**"
       - "Finalproj.sln"
       - ".github/workflows/dotnet-tests.yml"
   push:
     branches: [main, next]
     paths:
-      - "Controllers/**"
-      - "Data/**"
-      - "Models/**"
-      - "Services/**"
+      - "src/Finalproj.Api/**"
+      - "src/Finalproj.Domain/**"
+      - "src/Finalproj.Application/**"
+      - "src/Finalproj.Infrastructure/**"
       - "Finalproj.Tests/**"
-      - "Program.cs"
-      - "Finalproj.csproj"
+      - "Finalproj.IntegrationTests/**"
       - "Finalproj.sln"
       - ".github/workflows/dotnet-tests.yml"
 
@@ -36,5 +35,10 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
-      - name: Test
-        run: dotnet test Finalproj.Tests/Finalproj.Tests.csproj -c Release
+      - name: Test (unit + integration)
+        run: |
+          dotnet test Finalproj.sln -c Release --collect:"XPlat Code Coverage"
+
+      - name: Verificar pacotes vulneráveis
+        run: dotnet list package --vulnerable --include-transitive
+        continue-on-error: true

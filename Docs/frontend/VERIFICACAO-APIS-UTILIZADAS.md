@@ -1,5 +1,7 @@
 # Verificação: APIs do backend vs utilização no frontend
 
+**Última revisão:** maio de 2026.
+
 Resumo da análise: quais endpoints existem no backend e se estão a ser usados no client.
 
 ---
@@ -22,12 +24,12 @@ Resumo da análise: quais endpoints existem no backend e se estão a ser usados 
 
 ---
 
-## 2. Endpoints existentes mas pouco ou não utilizados
+## 2. Endpoints existentes mas pouco ou não utilizados pelo client
 
 | Endpoint | Situação |
 |----------|----------|
-| **GET api/auth/me** | **Atualizado:** UserContext chama GET api/auth/me quando existe token; Navbar e perfil usam `useUser()`. O login não escreve `pirofafe-user` no localStorage; a fonte do utilizador é a API. |
 | **GET api/saida-paiol** (raiz) | No backend devolve mensagem sobre onde obter histórico. O frontend não chama este GET; só usa GET registar e POST registar. Uso opcional (mensagem informativa). |
+| **POST api/admin/backups/run** | Existe para Admin disparar backup SQL imediato; **não** há botão no frontend (pode usar-se via Swagger/cURL). Ver `docs/backend/BACKUPS-AUTOMATICOS.md`. |
 
 ---
 

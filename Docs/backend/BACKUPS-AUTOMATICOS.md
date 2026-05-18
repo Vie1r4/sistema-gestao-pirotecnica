@@ -1,141 +1,64 @@
-# Backups automáticos da base de dados
+# Backups automáticos da base de dados (SQL Server)
 
-O projeto tem backup de SQL Server integrado no backend via `BackgroundService`:
+O backend inclui um **`BackgroundService`** que executa **BACKUP DATABASE** para SQL Server e grava ficheiros **`.bak`** na **raiz do content root** do projeto (normalmente a pasta onde está o `.csproj` / repositório em desenvolvimento).
 
-- serviço: `DatabaseBackupHostedService`
-- opções: `DatabaseBackupOptions`
-- endpoint manual: `POST /api/admin/backups/run` (Admin)
+**Última revisão:** maio de 2026 (alinhada a `DatabaseBackupHostedService`, `appsettings.json` e `AdminController`).
 
 ---
 
-## Como funciona
+## Comportamento
 
-### 1) Backup automático diário
+| Aspeto | Detalhe |
+|--------|---------|
+| **Agendamento** | Uma vez por dia, à **hora local do servidor** (`DateTime.Now`), configurável. |
+| **Comando SQL** | `BACKUP DATABASE [nome]` para ficheiro em disco com `INIT`, `FORMAT`, `COMPRESSION`, `CHECKSUM`. |
+| **Nome do ficheiro** | `{PrefixoFicheiro}_{NomeBd}_{yyyyMMdd_HHmmss}.bak` na raiz do content root. |
+| **Retenção** | Após cada backup (e no fim de um backup manual), ficheiros `.bak` com o mesmo prefixo **mais antigos** que `RetencaoDias` são apagados. |
+| **Concorrência** | `SemaphoreSlim` — backups automáticos e manuais não correm em paralelo. |
+| **Timeout** | Comando SQL: até **1 hora** (`CommandTimeout`). |
 
-- O serviço calcula a próxima execução e corre todos os dias às **19:00** (hora local do servidor).
-- Usa `BACKUP DATABASE ... WITH COMPRESSION, CHECKSUM`.
-- Gera um ficheiro `.bak` na **raiz do projeto**.
-
-Formato do nome:
-
-- `db-backup_<NomeDaBase>_yyyyMMdd_HHmmss.bak`
-
-Exemplo:
-
-- `db-backup_FinalprojContext_20260326_190000.bak`
-
-### 2) Backup manual (Admin)
-
-Endpoint:
-
-- `POST /api/admin/backups/run`
-
-Comportamento:
-
-- executa backup imediato
-- devolve `caminho`, `nomeFicheiro` e `tamanhoBytes`
-- respeita autenticação JWT e policy de Admin
-
-### 3) Retenção automática
-
-- Depois de cada backup, o serviço remove backups antigos de acordo com `RetencaoDias`.
-- Por defeito: mantém **30 dias**.
+Implementação: `Services/Infrastructure/DatabaseBackupHostedService.cs` (implementa `IDatabaseBackupService` e `BackgroundService`).
 
 ---
 
-## Configuração (`appsettings.json`)
+## Configuração (`appsettings` / variáveis de ambiente)
 
-```json
-"Backups": {
-  "HoraDiaria": 19,
-  "MinutoDiario": 0,
-  "PrefixoFicheiro": "db-backup",
-  "RetencaoDias": 30
-}
-```
+Secção **`Backups`** (classe `DatabaseBackupOptions`, `SectionName = "Backups"`):
 
-Significado:
+| Propriedade | Significado | Exemplo |
+|-------------|-------------|---------|
+| **`HoraDiaria`** | Hora (0–23) do backup diário | `19` |
+| **`MinutoDiario`** | Minuto (0–59) | `0` |
+| **`PrefixoFicheiro`** | Prefixo dos ficheiros na raiz | `db-backup` |
+| **`RetencaoDias`** | Dias a manter; `0` ou negativo **desativa** a limpeza automática | `30` |
 
-- `HoraDiaria` / `MinutoDiario`: hora local do servidor
-- `PrefixoFicheiro`: prefixo dos `.bak`
-- `RetencaoDias`: dias a manter backups na raiz
+Em produção, usa-se o padrão de configuração do .NET, por exemplo variáveis **`Backups__HoraDiaria`**, **`Backups__RetencaoDias`**, etc.
+
+A **connection string** vem de **`ConnectionStrings:FinalprojContext`** — o nome da base (`Initial Catalog`) é extraído do builder para o comando `BACKUP DATABASE`.
 
 ---
 
-## Pré-requisitos operacionais
+## Backup manual (Admin)
 
-- A connection string (`ConnectionStrings:FinalprojContext`) tem de apontar para SQL Server válido.
-- A conta que corre o backend precisa de permissões para:
-  - ler a BD;
-  - criar ficheiros `.bak` no caminho de destino (raiz do projeto).
-- Se mudares o nome da BD, o nome dos ficheiros também muda.
+Utilizadores com política de **Admin** podem disparar um backup imediato:
 
-Recomendação forte:
+- **`POST /api/admin/backups/run`**  
+  Resposta de sucesso inclui mensagem e o **caminho** do ficheiro `.bak` gerado (o mesmo serviço `ExecuteBackupNowAsync` usado pelo agendamento).
 
-- manter cópia dos `.bak` fora da máquina (NAS/cloud/disco externo) para evitar perda total.
+Útil para cópia antes de manutenção ou para testar permissões de escrita no disco.
 
 ---
 
-## O que fazer se a base de dados ficar corrompida
+## Notas de segurança e operações
 
-> Objetivo: restaurar rapidamente para um estado consistente usando o último `.bak` saudável.
-
-### Passo 0 — Contenção
-
-1. Parar a API (evitar mais escrita na BD).
-2. Preservar os logs da aplicação e o ficheiro corrompido para análise.
-3. Escolher o backup mais recente válido (`.bak`).
-
-### Passo 1 — Validar o ficheiro de backup
-
-Executar em SQL Server:
-
-```sql
-RESTORE VERIFYONLY
-FROM DISK = N'C:\caminho\para\db-backup_FinalprojContext_20260326_190000.bak';
-```
-
-Se falhar, usar backup anterior.
-
-### Passo 2 — Restaurar a BD
-
-> Atenção: este passo substitui a BD atual. Garante que tens cópia da BD corrompida antes.
-
-```sql
-USE master;
-ALTER DATABASE [FinalprojContext] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-
-RESTORE DATABASE [FinalprojContext]
-FROM DISK = N'C:\caminho\para\db-backup_FinalprojContext_20260326_190000.bak'
-WITH REPLACE, RECOVERY, STATS = 10;
-
-ALTER DATABASE [FinalprojContext] SET MULTI_USER;
-```
-
-### Passo 3 — Validar aplicação
-
-1. Arrancar backend.
-2. Confirmar que `Database.Migrate()` não falha.
-3. Testar endpoints críticos:
-   - `POST /api/auth/login`
-   - `GET /api/admin/stats` (com token Admin)
-   - endpoint de domínio principal (ex.: serviços/encomendas)
-
-### Passo 4 — Pós-incidente
-
-1. Registar hora da falha e backup usado.
-2. Identificar causa provável (disco, desligamento abrupto, update falhado, etc.).
-3. Executar backup manual imediato após validação (`POST /api/admin/backups/run`).
+1. **Localização dos `.bak`:** por defeito ficam na **raiz do content root** — em produção convém **alterar** para um volume dedicado (isto exigiria evolução de código: pasta configurável em vez de só `ContentRootPath`).
+2. **Permissões SQL:** a conta da connection string precisa de permissão para executar `BACKUP DATABASE`.
+3. **Espaço em disco:** monitorizar o diretório; a retenção ajuda mas não substitui política de cópias para armazenamento externo.
+4. **`clear-all-data` / limpeza de dados** são fluxos separados (desenvolvimento / admin); não confundir com backup.
 
 ---
 
-## Plano de recuperação recomendado (RTO/RPO)
+## Documentação relacionada
 
-- **RPO esperado**: até 24h (com backup diário às 19:00).
-- **RTO alvo**: 15-60 min (dependendo do tamanho da BD e acesso ao backup).
-
-Para reduzir perda de dados:
-
-- aumentar frequência (ex.: 2-4 backups/dia);
-- armazenar cópia remota automática;
-- testar restore 1x por mês em ambiente de teste.
+- [README.md](../../README.md) — menção rápida na secção de configuração.
+- [Services/README.md](../../Services/README.md) — papel do `DatabaseBackupHostedService`.

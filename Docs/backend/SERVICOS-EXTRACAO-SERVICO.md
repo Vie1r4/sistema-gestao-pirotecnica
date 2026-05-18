@@ -34,9 +34,8 @@
 
 - **EncomendaService** – preparação com FIFO, validações de estado e acesso a paióis.
 - **StockDisponivelService** – cálculo de stock disponível.
+- **ServicoService** – regras de serviços no terreno (equipa, licenças, distâncias, formulários).
 - **DocumentoStorageService**, **LogSistemaService**, **EmailSender** – infraestrutura.
-
-Nenhum deles trata da entidade Serviço nem das regras de equipa/licenças/resumo material.
 
 ---
 

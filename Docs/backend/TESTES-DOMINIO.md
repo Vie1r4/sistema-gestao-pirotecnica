@@ -4,7 +4,8 @@
 
 | Projeto | Caminho |
 |---------|---------|
-| **Finalproj.Tests** | `Finalproj.Tests/` (na raiz do repositório, ao lado de `Finalproj.csproj`) |
+| **Finalproj.Tests** | `Finalproj.Tests/` na raiz (testes unitários de domínio); referencia projetos em `src/`. |
+| **Finalproj.IntegrationTests** | `Finalproj.IntegrationTests/` — testes HTTP com `WebApplicationFactory` (auth, matriz 401/403, IDOR). |
 
 Estrutura:
 
@@ -33,7 +34,7 @@ Ou, com a solução aberta:
 dotnet test Finalproj.sln
 ```
 
-**CI:** o workflow [`.github/workflows/dotnet-tests.yml`](../../.github/workflows/dotnet-tests.yml) corre estes testes em PR/push (branches `main` / `next`) quando mudam ficheiros do backend ou de `Finalproj.Tests/`.
+**CI:** o workflow [`.github/workflows/dotnet-tests.yml`](../../.github/workflows/dotnet-tests.yml) corre estes testes em PR/push (branches `main` / `next`) quando mudam `src/**`, `Finalproj.Tests/` ou a solution.
 
 ## Abordagem
 

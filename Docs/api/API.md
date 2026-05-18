@@ -1,6 +1,8 @@
 # Documentação da API PIROFAFE
 
-API REST do sistema de gestão pirotécnica. Backend em **ASP.NET Core 8**; documentação interativa via **Swagger** (UI disponível **apenas em ambiente Development** — em produção o Swagger está desligado por segurança).
+**Última revisão:** maio de 2026 (`/api/auth/me` com `permissions`, `GET /confirm-email`, backup manual Admin).
+
+API REST do sistema de gestão pirotécnica; backend em **ASP.NET Core 8**; documentação interativa via **Swagger** (UI disponível **apenas em ambiente Development** — em produção o Swagger está desligado por segurança).
 
 ---
 
@@ -49,7 +51,7 @@ Authorization: Bearer <token>
 
 5. **Perfil do utilizador autenticado**  
    `GET /api/auth/me`  
-   Requer Bearer token. Resposta: dados do utilizador (nome, email, roles).
+   Requer Bearer token. Resposta: `id`, `email`, `userName`, `nome`, `roles`, **`permissions`** (lista de strings alinhada com `PoliticasAutorizacao.ObterPermissoes`).
 
 6. **Logout** (invalidar refresh token)  
    `POST /api/auth/logout`  
@@ -102,12 +104,13 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | GET | `/existem-utilizadores` | Verifica se já existem utilizadores (público) |
 | POST | `/registar-primeiro-utilizador` | Regista o primeiro utilizador (Admin) |
 | POST | `/login` | Login; devolve JWT (refresh token em cookie HttpOnly) |
-| GET | `/me` | Dados do utilizador autenticado |
+| GET | `/me` | Dados do utilizador autenticado (`roles`, **`permissions`**) |
 | POST | `/refresh` | Renovar access token |
 | POST | `/logout` | Invalidar refresh token |
 | POST | `/forgot-password` | Envia link para redefinir palavra-passe (resposta 200 sempre) |
 | POST | `/reset-password` | Redefine palavra-passe com token enviado por email |
 | POST | `/resend-confirm-email` | Reenvia link de confirmação de email (resposta 200 sempre) |
+| GET | `/confirm-email` | Confirma email (query `userId`, `code`); devolve JWT e define refresh em cookie |
 
 ### Clientes — `/api/clientes`
 
@@ -234,7 +237,7 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | GET | `/utilizadores/{id}` | Detalhe utilizador |
 | PUT | `/utilizadores/{id}` | Atualizar (roles, etc.) |
 | DELETE | `/utilizadores/{id}` | Eliminar |
-| POST | `/backups/run` | Executar backup manual da BD |
+| POST | `/backups/run` | Executar backup manual da BD (Admin) |
 | POST | `/clear-all-data` | Limpar dados (cuidado; apenas em Development) |
 
 ### Home / Preferências — `/api/home`

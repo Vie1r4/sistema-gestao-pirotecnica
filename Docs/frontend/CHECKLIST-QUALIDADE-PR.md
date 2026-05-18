@@ -1,6 +1,6 @@
 # Checklist de Qualidade para PR (Frontend)
 
-Objetivo: manter entregas previsíveis, funcionais e organizadas em todas as mudanças do `client/`.
+Objetivo: manter entregas previsíveis, funcionais e organizadas em todas as mudanças do `apps/web/`.
 
 ## Fluxo recomendado por PR
 
@@ -35,4 +35,4 @@ No GitHub Actions, o workflow `client-ci.yml` já corre `typecheck`, `lint` e `t
 ## Referência
 
 - Template de PR: `.github/pull_request_template.md`
-- Organização de testes: `client/tests/README.md`
+- Organização de testes: `apps/web/tests/README.md`
