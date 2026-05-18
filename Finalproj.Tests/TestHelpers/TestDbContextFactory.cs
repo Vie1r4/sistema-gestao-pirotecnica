@@ -1,4 +1,4 @@
-using Finalproj.Data;
+using Finalproj.Infrastructure.Persistence.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace Finalproj.Tests.TestHelpers;

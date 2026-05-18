@@ -1,6 +1,6 @@
-using Finalproj.Data;
-using Finalproj.Models;
-using Finalproj.Services.Domain;
+using Finalproj.Infrastructure.Persistence.Data;
+using Finalproj.Infrastructure.Repositories;
+using Finalproj.Application.Features.Paiols.Services;
 using Finalproj.Tests.TestHelpers;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -9,7 +9,8 @@ namespace Finalproj.Tests.Domain;
 
 public class StockDisponivelServiceTests
 {
-    private static StockDisponivelService CreateService(FinalprojContext ctx) => new(ctx);
+    private static StockDisponivelService CreateService(FinalprojContext ctx) =>
+        new(new EntradaPaiolRepository(ctx), new SaidaPaiolRepository(ctx), new ReservaRepository(ctx));
 
     [Fact]
     public async Task ObterStockDisponivelPorProdutoAsync_SemDados_DevolveDicionarioVazioOuZeros()

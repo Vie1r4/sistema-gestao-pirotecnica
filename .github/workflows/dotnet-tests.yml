@@ -1,28 +1,27 @@
-# Testes unitários do backend (Finalproj.Tests).
+# Testes unitários e de integração do backend.
+
 name: .NET tests
 
 on:
   pull_request:
     paths:
-      - "Controllers/**"
-      - "Data/**"
-      - "Models/**"
-      - "Services/**"
+      - "src/Finalproj.Api/**"
+      - "src/Finalproj.Domain/**"
+      - "src/Finalproj.Application/**"
+      - "src/Finalproj.Infrastructure/**"
       - "Finalproj.Tests/**"
-      - "Program.cs"
-      - "Finalproj.csproj"
+      - "Finalproj.IntegrationTests/**"
       - "Finalproj.sln"
       - ".github/workflows/dotnet-tests.yml"
   push:
     branches: [main, next]
     paths:
-      - "Controllers/**"
-      - "Data/**"
-      - "Models/**"
-      - "Services/**"
+      - "src/Finalproj.Api/**"
+      - "src/Finalproj.Domain/**"
+      - "src/Finalproj.Application/**"
+      - "src/Finalproj.Infrastructure/**"
       - "Finalproj.Tests/**"
-      - "Program.cs"
-      - "Finalproj.csproj"
+      - "Finalproj.IntegrationTests/**"
       - "Finalproj.sln"
       - ".github/workflows/dotnet-tests.yml"
 
@@ -36,5 +35,50 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
-      - name: Test
-        run: dotnet test Finalproj.Tests/Finalproj.Tests.csproj -c Release
+      - name: Test (unit + integration)
+        run: |
+          dotnet test Finalproj.sln -c Release --collect:"XPlat Code Coverage" --results-directory ./TestResults
+
+      - name: Instalar ReportGenerator
+        run: dotnet tool install -g dotnet-reportgenerator-globaltool
+
+      - name: Relatório HTML de cobertura
+        if: always()
+        run: |
+          reportgenerator \
+            -reports:"TestResults/**/coverage.cobertura.xml" \
+            -targetdir:"coverage-report" \
+            -reporttypes:Html
+
+      - name: Upload cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage-report
+
+      - name: Resumo cobertura (informativo — sem threshold bloqueante)
+        if: always()
+        run: |
+          python3 << 'PY'
+          import glob
+          import xml.etree.ElementTree as ET
+          paths = glob.glob("TestResults/**/coverage.cobertura.xml", recursive=True)
+          if not paths:
+              print("Sem ficheiros coverage.cobertura.xml")
+              raise SystemExit(0)
+          root = ET.parse(paths[0]).getroot()
+          lines = root.attrib.get("line-rate", "?")
+          branches = root.attrib.get("branch-rate", "?")
+          print(f"Cobertura agregada (1.º relatório): lines={lines} branches={branches}")
+          print("Meta futura: ≥60% Domain/Application antes de threshold no CI.")
+          PY
+
+      - name: Verificar pacotes vulneráveis (bloqueia HIGH)
+        run: |
+          output=$(dotnet list package --vulnerable --include-transitive 2>&1 || true)
+          echo "$output"
+          if echo "$output" | grep -Eiq '\bhigh\b|\bcritical\b'; then
+            echo "::error::Pacotes com vulnerabilidade HIGH ou CRITICAL encontrados."
+            exit 1
+          fi
