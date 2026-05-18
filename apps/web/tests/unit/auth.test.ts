@@ -26,4 +26,17 @@ describe("auth (memória)", () => {
     logout();
     expect(useAuthStore.getState().token).toBeNull();
   });
+
+  it("getToken prioriza token E2E injectado (Playwright)", () => {
+    window.__PIROFAFE_E2E_TOKEN__ = "token-e2e-playwright";
+    expect(getToken()).toBe("token-e2e-playwright");
+    delete window.__PIROFAFE_E2E_TOKEN__;
+  });
+
+  it("setToken limpa flag E2E após login real", () => {
+    window.__PIROFAFE_E2E_TOKEN__ = "token-e2e-playwright";
+    setToken("jwt-real");
+    expect(window.__PIROFAFE_E2E_TOKEN__).toBeUndefined();
+    expect(getToken()).toBe("jwt-real");
+  });
 });

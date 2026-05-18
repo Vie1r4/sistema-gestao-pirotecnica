@@ -1,23 +1,9 @@
 import { expect, test } from "@playwright/test";
+import { setupAuthenticatedAdmin } from "./helpers/setup";
 
 test.describe("Documentação flow", () => {
   test("abre página protegida e gera declaração de teste", async ({ page }) => {
-    await page.addInitScript(() => {
-      window.localStorage.setItem("token", "token-e2e");
-    });
-
-    await page.route("**/api/auth/me", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          id: "1",
-          nome: "Admin E2E",
-          roles: ["Admin"],
-          permissions: ["servicos.gerir"],
-        }),
-      });
-    });
+    await setupAuthenticatedAdmin(page);
 
     await page.route("**/api/servicos**", async (route) => {
       await route.fulfill({

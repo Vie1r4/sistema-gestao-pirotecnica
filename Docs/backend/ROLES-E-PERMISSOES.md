@@ -41,7 +41,7 @@ Configuradas em **`Authorization/PoliticasAutorizacao.cs`** e registadas em **`P
 
 Os controladores devem usar **`[Authorize(Policy = "...")]`** (ou combinações coerentes) em vez de espalhar apenas `Roles = "Admin"` — a política concentra a regra num sítio.
 
-**Listagens sensíveis (GET):** `GET /api/funcionarios`, `GET /api/clientes` e `GET /api/encomendas` exigem as políticas `PodeGerirFuncionarios`, `PodeGerirClientes` e `PodeGerirEncomendas` respetivamente (Comercial e Armazém recebem **403** onde aplicável). Downloads de documentos de funcionários exigem `PodeGerirFuncionarios`.
+**Listagens sensíveis (GET):** `GET /api/funcionarios`, `GET /api/clientes` e `GET /api/encomendas` exigem as políticas `PodeGerirFuncionarios`, `PodeGerirClientes` e `PodeGerirEncomendas` respetivamente (Comercial e Armazém recebem **403** onde aplicável). **Mutações:** `POST /api/clientes` também exige `PodeGerirClientes` (corrigido em 2026-05). Downloads de documentos de funcionários exigem `PodeGerirFuncionarios`.
 
 **Paióis:** além das políticas, o acesso a paióis concretos pode estar restrito por **configuração por paiol** (cargos com acesso ao paiol). Admin costuma ver tudo; os restantes só o que o domínio permitir.
 

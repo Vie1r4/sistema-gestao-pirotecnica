@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import type { ColumnDef } from "@tanstack/react-table";
 import Navbar, { CONTENT_OFFSET_TOP } from "../components/Navbar";
+import PageHeader from "../components/ui/PageHeader";
 import { DataTable } from "../components/ui/DataTable";
 import type { Funcionario, CargoFuncionario } from "../lib/funcionarios";
 import { getToken } from "../lib/auth";
@@ -145,17 +146,10 @@ function FuncionariosContent() {
         style={{ paddingTop: CONTENT_OFFSET_TOP }}
       >
         <div className="mx-auto max-w-6xl">
-          <motion.div
-            initial={fadeInUp.initial}
-            animate={fadeInUp.animate}
-            transition={transitionSmooth}
-            className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div>
-              <h1 className="font-heading text-2xl tracking-tight text-[#1c1917] dark:text-white sm:text-3xl">
-                Funcionários
-              </h1>
-              <p className="mt-1 flex items-center gap-2 text-[#57534e] dark:text-gray-400">
+          <PageHeader
+            title="Funcionários"
+            subtitle={
+              <>
                 Listar, pesquisar e gerir fichas de funcionários.
                 {isRefetching && !loading && (
                   <span className="inline-flex items-center gap-1.5 text-xs text-[#78716c] dark:text-gray-500">
@@ -163,12 +157,14 @@ function FuncionariosContent() {
                     A atualizar
                   </span>
                 )}
-              </p>
-            </div>
-            <Link href="/funcionarios/novo" className={btnPrimary}>
-              Adicionar funcionário
-            </Link>
-          </motion.div>
+              </>
+            }
+            actions={
+              <Link href="/funcionarios/novo" className={btnPrimary}>
+                Adicionar funcionário
+              </Link>
+            }
+          />
 
           {eliminado && (
             <motion.p

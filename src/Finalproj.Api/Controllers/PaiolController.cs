@@ -102,15 +102,21 @@ namespace Finalproj.Controllers
             var idsAcesso = await ObterPaiolIdsComAcessoAsync(cancellationToken);
             var podeVerTodos = User.IsInRole(ConstantesRoles.Admin) || User.IsInRole(ConstantesRoles.Gestor);
             if (!podeVerTodos && !idsAcesso.Contains(id.Value))
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden);
 
             var data = await _paiois.GetConteudoAsync(id.Value, cancellationToken);
             return data == null ? NotFound() : Ok(data);
         }
 
-        // GET: Details
+        /// <summary>Detalhe do paiol (ocupação, carga, cargos com acesso). Armazém só vê paióis com PaiolAcesso.</summary>
+        /// <response code="200">Dados do paiol</response>
+        /// <response code="403">Sem acesso a este paiol</response>
+        /// <response code="404">Paiol não encontrado</response>
         [HttpGet("{id:int}")]
         [Authorize(Policy = PoliticasAutorizacao.PodeVerArmazemStock)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Details(int? id, CancellationToken cancellationToken = default)
         {
             if (id == null)
@@ -119,7 +125,7 @@ namespace Finalproj.Controllers
             var idsAcesso = await ObterPaiolIdsComAcessoAsync(cancellationToken);
             var podeVerTodos = User.IsInRole(ConstantesRoles.Admin) || User.IsInRole(ConstantesRoles.Gestor);
             if (!podeVerTodos && !idsAcesso.Contains(id.Value))
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden);
 
             var data = await _paiois.GetDetailsDataAsync(id.Value, cancellationToken);
             return data == null ? NotFound() : Ok(data);
@@ -314,7 +320,7 @@ namespace Finalproj.Controllers
         {
             var idsAcesso = await ObterPaiolIdsComAcessoAsync(cancellationToken);
             if (!idsAcesso.Contains(id))
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden);
             var caminho = await _paiois.GetDocumentoExtraPathForPaiolAsync(id, extraId, cancellationToken);
             if (caminho == null)
                 return NotFound();

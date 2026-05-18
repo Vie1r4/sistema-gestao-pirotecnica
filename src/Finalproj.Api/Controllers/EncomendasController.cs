@@ -202,9 +202,11 @@ public class EncomendasController : ControllerBase
         return Ok(new { draft });
     }
 
+    /// <summary>
+    /// Submete o rascunho da encomenda: cria a encomenda, reservas de stock e passa o estado para Pendente.
+    /// </summary>
     [HttpPost("submeter")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirEncomendas)]
-    // Cria encomenda e reservas a partir do rascunho; estado Pendente
     public async Task<IActionResult> SubmeterEncomenda([FromBody] SubmeterEncomendaDto input, CancellationToken cancellationToken = default)
     {
         var clienteId = input.ClienteId;
@@ -255,6 +257,9 @@ public class EncomendasController : ControllerBase
         return Ok(new { encomenda = encomendaDto, encomendaEditada = true });
     }
 
+    /// <summary>
+    /// Aceita uma encomenda em estado Pendente (reservas mantidas; registo de auditoria).
+    /// </summary>
     [HttpPost("{id:int}/aceitar")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirEncomendas)]
     public async Task<IActionResult> Aceitar(int id, CancellationToken cancellationToken = default)
@@ -270,6 +275,9 @@ public class EncomendasController : ControllerBase
         return Ok(new { encomenda = encomendaDto, encomendaAceite = true });
     }
 
+    /// <summary>
+    /// Dados da encomenda para o formulário de rejeição (estados Pendente ou Aceite).
+    /// </summary>
     [HttpGet("{id:int}/rejeitar")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirEncomendas)]
     public async Task<IActionResult> RejeitarGet(int? id, CancellationToken cancellationToken = default)
@@ -282,6 +290,9 @@ public class EncomendasController : ControllerBase
         return Ok(EncomendaResponseDtoMapping.MapToDetail(encomenda));
     }
 
+    /// <summary>
+    /// Rejeita a encomenda, libertando reservas e registando o motivo opcional.
+    /// </summary>
     [HttpPost("{id:int}/rejeitar")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirEncomendas)]
     public async Task<IActionResult> Rejeitar(int id, [FromBody] RejeitarEncomendaDto? input, CancellationToken cancellationToken = default)
@@ -298,6 +309,9 @@ public class EncomendasController : ControllerBase
         return Ok(new { encomenda = encomendaDtoRej, encomendaRejeitada = true });
     }
 
+    /// <summary>
+    /// Dados para preparação FIFO da encomenda (paióis acessíveis conforme roles do utilizador).
+    /// </summary>
     [HttpGet("{id:int}/preparar")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirEncomendas)]
     public async Task<IActionResult> Preparar(int? id, CancellationToken cancellationToken = default)
@@ -333,6 +347,9 @@ public class EncomendasController : ControllerBase
         return Ok(new { encomendaPreparacao = true });
     }
 
+    /// <summary>
+    /// Conclui a encomenda após preparação (estado final; auditoria no log de sistema).
+    /// </summary>
     [HttpPost("{id:int}/concluir")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirEncomendas)]
     public async Task<IActionResult> Concluir(int id, CancellationToken cancellationToken = default)

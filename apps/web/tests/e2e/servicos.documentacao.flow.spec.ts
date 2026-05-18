@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { injectE2eAuth, mockAuthRefreshOk } from "./helpers/auth";
 
 const servicoDetalheBase = {
   id: "1",
@@ -45,9 +46,8 @@ function apiDetalheResponse(documentosExtras: Array<{ id: string; nome: string }
 
 test.describe("Serviços/Documentação E2E", () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      window.localStorage.setItem("token", "token-e2e");
-    });
+    await injectE2eAuth(page);
+    await mockAuthRefreshOk(page);
   });
 
   test("documentação redireciona quando role não é Admin/Gestor", async ({ page }) => {

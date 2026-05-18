@@ -170,8 +170,15 @@ namespace Finalproj.Controllers
             return Ok(new { token, expiresInSeconds = expirationMinutes * 60, email = email, nome = nomeExibir, roles });
         }
 
+        /// <summary>
+        /// Devolve o perfil do utilizador autenticado (roles e permissões derivadas das políticas de autorização).
+        /// </summary>
+        /// <response code="200">Perfil com roles e permissões</response>
+        /// <response code="401">Token em falta ou inválido</response>
         [HttpGet("me")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Me(CancellationToken cancellationToken = default)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -200,9 +207,13 @@ namespace Finalproj.Controllers
         /// <summary>
         /// Renova o access token usando um refresh token válido. Rotação: o refresh token usado fica revogado e é devolvido um novo.
         /// </summary>
+        /// <response code="200">Novo JWT</response>
+        /// <response code="401">Refresh inválido, expirado ou já utilizado</response>
         [HttpPost("refresh")]
         [AllowAnonymous]
         [EnableRateLimiting("auth")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Refresh([FromBody] RefreshRequest request, CancellationToken cancellationToken = default)
         {
             var rawRefreshToken = GetRefreshTokenFromCookie() ?? request.RefreshToken?.Trim();
@@ -236,9 +247,11 @@ namespace Finalproj.Controllers
         /// <summary>
         /// Revoga o refresh token (logout no servidor). Opcional; o cliente deve limpar os tokens locais.
         /// </summary>
+        /// <response code="200">Sessão revogada no servidor</response>
         [HttpPost("logout")]
         [AllowAnonymous]
         [EnableRateLimiting("auth")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> Logout([FromBody] RefreshRequest request, CancellationToken cancellationToken = default)
         {
             var rawRefreshToken = GetRefreshTokenFromCookie() ?? request.RefreshToken?.Trim();

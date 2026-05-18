@@ -66,6 +66,7 @@ namespace Finalproj.Controllers
         }
 
         [HttpPost]
+        [Authorize(Policy = Finalproj.Authorization.PoliticasAutorizacao.PodeGerirClientes)]
         // Grava cliente e documentos extras na pasta do cliente
         public async Task<IActionResult> Create([FromForm] CreateClienteInputDto input, CancellationToken cancellationToken = default)
         {

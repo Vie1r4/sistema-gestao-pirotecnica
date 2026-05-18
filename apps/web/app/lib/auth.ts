@@ -7,14 +7,35 @@
 import { apiPath } from "./apiConfig";
 import { useAuthStore } from "@/app/stores/useAuthStore";
 
+/** Token injectado por Playwright E2E (não usar em produção). */
+declare global {
+  interface Window {
+    __PIROFAFE_E2E_TOKEN__?: string;
+  }
+}
+
+function getE2eToken(): string | null {
+  if (typeof window === "undefined") return null;
+  const t = window.__PIROFAFE_E2E_TOKEN__;
+  return t && t.length > 0 ? t : null;
+}
+
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
-  return useAuthStore.getState().token;
+  return getE2eToken() ?? useAuthStore.getState().token;
 }
 
 /** Guarda access token (após login ou após refresh). */
 export function setToken(token: string): void {
   if (typeof window === "undefined") return;
+  delete window.__PIROFAFE_E2E_TOKEN__;
+  useAuthStore.getState().setToken(token);
+}
+
+/** Usado pelos testes E2E para simular sessão sem localStorage. */
+export function setE2eToken(token: string): void {
+  if (typeof window === "undefined") return;
+  window.__PIROFAFE_E2E_TOKEN__ = token;
   useAuthStore.getState().setToken(token);
 }
 

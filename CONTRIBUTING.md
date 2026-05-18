@@ -89,6 +89,21 @@ npm test
 npm run test:e2e
 ```
 
+### Testes E2E (Playwright)
+
+Na primeira máquina ou após atualizar o Playwright:
+
+```bash
+cd apps/web
+npx playwright install chromium
+npm run test:e2e
+```
+
+- O comando `test:e2e` arranca o dev server automaticamente (ver `playwright.config.ts`).
+- **`E2E_BASE_URL`**: URL do frontend (default `http://127.0.0.1:3000`). Útil se já tiveres `npm run dev` noutra porta.
+- **`E2E_API_URL`** (opcional): para testes manuais contra API real; no **CI** os specs usam **mocks de rede** (`page.route`) — não é necessário SQL Server no GitHub Actions.
+- **Autenticação nos testes:** usar [`apps/web/tests/e2e/helpers/auth.ts`](apps/web/tests/e2e/helpers/auth.ts) (`injectE2eAuth`, `mockAuthMeAdmin`). **Não** guardar JWT em `localStorage`.
+
 ## Checklist de pull request
 
 | Item | Obrigatório? |

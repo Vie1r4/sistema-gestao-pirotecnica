@@ -122,6 +122,74 @@ public class AuthControllerTests : IntegrationTestBase
     }
 
     [Fact]
+    public async Task Refresh_TokenJaUsado_Returns401()
+    {
+        var client = Factory.CreateClient(new() { HandleCookies = true });
+        await using var scope = Factory.Services.CreateAsyncScope();
+        await TestDataSeeder.EnsureUserAsync(scope.ServiceProvider, "refresh-rotate@pirofafe.pt", "Admin");
+
+        var login = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email = "refresh-rotate@pirofafe.pt",
+            password = TestDataSeeder.DefaultPassword
+        });
+        login.EnsureSuccessStatusCode();
+
+        var oldCookie = ExtractRefreshCookie(login);
+        Assert.False(string.IsNullOrEmpty(oldCookie));
+
+        var firstRefresh = await client.PostAsJsonAsync("/api/auth/refresh", new { });
+        Assert.Equal(HttpStatusCode.OK, firstRefresh.StatusCode);
+
+        var replayClient = Factory.CreateClient();
+        var replayRequest = new HttpRequestMessage(HttpMethod.Post, "/api/auth/refresh")
+        {
+            Content = JsonContent.Create(new { refreshToken = oldCookie })
+        };
+        var replay = await replayClient.SendAsync(replayRequest);
+        Assert.Equal(HttpStatusCode.Unauthorized, replay.StatusCode);
+    }
+
+    [Fact]
+    public async Task Refresh_TokenExpirado_Returns401()
+    {
+        var client = Factory.CreateClient(new() { HandleCookies = true });
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var sp = scope.ServiceProvider;
+        var (user, _) = await TestDataSeeder.EnsureUserAsync(sp, "refresh-exp@pirofafe.pt", "Admin");
+
+        await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email = "refresh-exp@pirofafe.pt",
+            password = TestDataSeeder.DefaultPassword
+        });
+
+        var context = sp.GetRequiredService<Finalproj.Infrastructure.Persistence.Data.FinalprojContext>();
+        var token = context.RefreshTokens.First(t => t.UserId == user.Id);
+        token.ExpiresAtUtc = DateTime.UtcNow.AddMinutes(-10);
+        await context.SaveChangesAsync();
+
+        var refresh = await client.PostAsJsonAsync("/api/auth/refresh", new { });
+        Assert.Equal(HttpStatusCode.Unauthorized, refresh.StatusCode);
+    }
+
+    private static string? ExtractRefreshCookie(HttpResponseMessage response)
+    {
+        if (!response.Headers.TryGetValues("Set-Cookie", out var values))
+            return null;
+        foreach (var header in values)
+        {
+            const string prefix = "pirofafe_rt=";
+            var idx = header.IndexOf(prefix, StringComparison.Ordinal);
+            if (idx < 0) continue;
+            var start = idx + prefix.Length;
+            var end = header.IndexOf(';', start);
+            return end < 0 ? header[start..] : header[start..end];
+        }
+        return null;
+    }
+
+    [Fact]
     public async Task Logout_RevogaRefresh()
     {
         var client = Factory.CreateClient(new() { HandleCookies = true });

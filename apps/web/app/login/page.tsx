@@ -53,15 +53,8 @@ export default function LoginPage() {
           (data.Token as string) ??
           (data.accessToken as string) ??
           (data.AccessToken as string);
-        const refreshToken =
-          (data.refreshToken as string) ?? (data.RefreshToken as string);
         if (token) {
-          if (refreshToken) {
-            // refresh token passou para cookie HttpOnly no backend
-            setToken(token);
-          } else {
-            localStorage.setItem("token", token);
-          }
+          setToken(token);
           window.location.href = "/";
           return;
         }

@@ -52,7 +52,45 @@ public static class TestDataSeeder
             context.Clientes.Add(new Cliente { Nome = "Cliente Teste", Email = "cliente@teste.pt", NIF = "123456789" });
             await context.SaveChangesAsync();
         }
+
+        if (!context.Funcionarios.Any())
+        {
+            context.Funcionarios.Add(new Funcionario
+            {
+                NomeCompleto = "Funcionário Seed",
+                Email = "func-seed@teste.pt",
+                Cargo = ConstantesRoles.Comercial,
+                NIF = "987654321"
+            });
+            await context.SaveChangesAsync();
+        }
+
+        if (context.Paiol.Count() < 2)
+        {
+            context.Paiol.Add(new Paiol
+            {
+                Nome = "Paiol Sem Acesso",
+                Localizacao = "Porto",
+                LimiteMLE = 500m,
+                PerfilRisco = "1.1G",
+                Estado = ConstantesPaiol.EstadoAtivo
+            });
+            await context.SaveChangesAsync();
+        }
     }
+
+    public static int GetSeedFuncionarioId(IServiceProvider sp) =>
+        sp.GetRequiredService<FinalprojContext>().Funcionarios.Select(f => f.Id).First();
+
+    public static int GetSeedPaiolSemAcessoId(IServiceProvider sp)
+    {
+        var context = sp.GetRequiredService<FinalprojContext>();
+        var comAcesso = context.PaiolAcessos.Select(a => a.PaiolId).Distinct().ToHashSet();
+        return context.Paiol.Where(p => !comAcesso.Contains(p.Id)).Select(p => p.Id).First();
+    }
+
+    public static int GetSeedClienteId(IServiceProvider sp) =>
+        sp.GetRequiredService<FinalprojContext>().Clientes.Select(c => c.Id).First();
 
     public static async Task<(IdentityUser User, string Password)> EnsureUserAsync(
         IServiceProvider sp,

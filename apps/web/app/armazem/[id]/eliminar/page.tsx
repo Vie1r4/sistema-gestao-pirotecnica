@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import ConfirmDialog from "@/app/components/ui/ConfirmDialog";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -35,6 +36,7 @@ export default function EliminarPaiolPage() {
   const numId = parseInt(id, 10);
   const validId = !Number.isNaN(numId);
   const deletingRef = useRef(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const { data: paiol, isLoading: loadingApi, error: queryError } = useQuery({
     queryKey: ["armazem", "paiol", id, "delete"],
@@ -164,12 +166,25 @@ export default function EliminarPaiolPage() {
             <div className="mt-8 flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={handleConfirmar}
+                onClick={() => setConfirmOpen(true)}
                 disabled={loading}
                 className={btnDanger}
               >
                 {loading ? "A eliminar…" : "Confirmar eliminação"}
               </button>
+              <ConfirmDialog
+                open={confirmOpen}
+                title="Eliminar paiol?"
+                description="Esta ação é irreversível. O paiol e a documentação associada serão removidos."
+                confirmLabel="Eliminar"
+                destructive
+                loading={loading}
+                onConfirm={() => {
+                  setConfirmOpen(false);
+                  handleConfirmar();
+                }}
+                onCancel={() => setConfirmOpen(false)}
+              />
               <Link href={`/armazem/${id}`} className={btnSecondary}>
                 Cancelar
               </Link>

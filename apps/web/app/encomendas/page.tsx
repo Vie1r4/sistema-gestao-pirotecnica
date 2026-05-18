@@ -6,7 +6,9 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
-import { ESTADOS_ENCOMENDA, corEstado, type EstadoEncomenda } from "@/app/lib/encomendas";
+import PageHeader from "@/app/components/ui/PageHeader";
+import StatusBadge from "@/app/components/ui/StatusBadge";
+import { ESTADOS_ENCOMENDA, type EstadoEncomenda } from "@/app/lib/encomendas";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { fetchList } from "@/app/lib/encomendasApi";
@@ -114,32 +116,27 @@ function EncomendasContent() {
         style={{ paddingTop: CONTENT_OFFSET_TOP }}
       >
         <div className="mx-auto max-w-6xl">
-          <motion.div
-            initial={fadeInUp.initial}
-            animate={fadeInUp.animate}
-            transition={transitionSmooth}
-            className="flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
-          >
-            <div>
-              <h1 className="font-heading text-2xl tracking-tight text-[#1c1917] dark:text-white sm:text-3xl">
-                Encomendas
-              </h1>
-              <p className="mt-1 flex items-center gap-2 text-[#57534e] dark:text-gray-400">
-                Lista de encomendas por estado e paginação.
-                {isRefetching && !apiLoading && (
-                  <span className="inline-flex items-center gap-1.5 text-xs text-[#78716c] dark:text-gray-500">
-                    <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[#f97316]" />
-                    A atualizar
-                  </span>
-                )}
-              </p>
-            </div>
-            {canGerirEncomendas && (
-              <Link href="/encomendas/novo" className={btnPrimary}>
-                Nova encomenda
-              </Link>
-            )}
-          </motion.div>
+            <PageHeader
+              title="Encomendas"
+              subtitle={
+                <>
+                  Lista de encomendas por estado e paginação.
+                  {isRefetching && !apiLoading && (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-[#78716c] dark:text-gray-500">
+                      <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[#f97316]" />
+                      A atualizar
+                    </span>
+                  )}
+                </>
+              }
+              actions={
+                canGerirEncomendas ? (
+                  <Link href="/encomendas/novo" className={btnPrimary}>
+                    Nova encomenda
+                  </Link>
+                ) : undefined
+              }
+            />
 
           {queryError && (
             <motion.p
@@ -225,9 +222,7 @@ function EncomendasContent() {
                         >
                           <p className="font-medium text-[#1c1917] dark:text-white">#{enc.id}</p>
                           <p className="mt-0.5 text-sm text-[#57534e] dark:text-gray-400">{clienteNome}</p>
-                          <span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${corEstado(enc.estado)}`}>
-                            {enc.estado}
-                          </span>
+                          <StatusBadge label={String(enc.estado)} className="mt-2" />
                           <p className="mt-1 text-xs text-[#f97316]">Ver detalhes →</p>
                         </Link>
                       );
@@ -254,9 +249,7 @@ function EncomendasContent() {
                               <td className="py-2 pr-4 font-medium text-[#1c1917] dark:text-white">{enc.id}</td>
                               <td className="py-2 pr-4 text-[#57534e] dark:text-gray-400">{enc.clienteNome ?? enc.clienteId}</td>
                               <td className="py-2 pr-4">
-                                <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${corEstado(enc.estado)}`}>
-                                  {enc.estado}
-                                </span>
+                                <StatusBadge label={String(enc.estado)} />
                               </td>
                               <td className="whitespace-nowrap py-2 pr-4 text-[#57534e] dark:text-gray-400">
                                 {new Date(enc.dataCriacao).toLocaleDateString("pt-PT")}

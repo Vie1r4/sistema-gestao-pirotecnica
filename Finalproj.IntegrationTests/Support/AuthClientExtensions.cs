@@ -50,9 +50,16 @@ public static class AuthClientExtensions
     public static async Task<HttpResponseMessage> SendAuthorizedAsync(
         this HttpClient client,
         HttpMethod method,
-        string url)
+        string url,
+        HttpContent? content = null)
     {
-        var request = new HttpRequestMessage(method, url);
+        var request = new HttpRequestMessage(method, url) { Content = content };
         return await client.SendAsync(request);
     }
+
+    /// <summary>POST/PUT com corpo vazio — suficiente para validar 401/403 antes da validação de modelo.</summary>
+    public static HttpContent EmptyJsonContent() =>
+        new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
+
+    public static HttpContent EmptyMultipartContent() => new MultipartFormDataContent();
 }

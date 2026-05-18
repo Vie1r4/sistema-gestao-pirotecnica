@@ -201,7 +201,9 @@ public class ServicosApiController : ControllerBase
         return NoContent();
     }
 
-    // GET: api/servicos/5/documentos/123
+    /// <summary>
+    /// Transferência do ficheiro de um documento extra do serviço (validação de path no storage).
+    /// </summary>
     [HttpGet("{id:int}/documentos/{extraId:int}")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
     public async Task<IActionResult> DownloadDocumento(int id, int extraId, CancellationToken cancellationToken = default)
@@ -258,7 +260,9 @@ public class ServicosApiController : ControllerBase
         return Ok(new { licenca = ServicoLicencaDto.FromEntity(lic) });
     }
 
-    // GET: api/servicos/5/licenca/123/ficheiro
+    /// <summary>
+    /// Transferência do ficheiro associado a uma licença do serviço.
+    /// </summary>
     [HttpGet("{id:int}/licenca/{licencaId:int}/ficheiro")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
     public async Task<IActionResult> DownloadLicenca(int id, int licencaId, CancellationToken cancellationToken = default)

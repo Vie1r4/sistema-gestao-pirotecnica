@@ -2,6 +2,8 @@
 
 Revisão atualizada após remoção de todo o localStorage de dados de negócio e introdução de Zustand para o tema.
 
+**Plano PIROFAFE (2026-05):** matriz POST/DELETE e IDOR (7 cenários) nos testes de integração; E2E auth (erro, logout, reload); Vitest `funcionariosApi`; ReportGenerator no CI; CSP Report-Only refinada; `PageHeader` / `StatusBadge` / `ConfirmDialog`; boundaries em produtos/perfil/armazém; `POST /api/clientes` com `PodeGerirClientes`; XML Swagger em auth refresh/me/logout e paiol details.
+
 ---
 
 ## ✅ Já feito

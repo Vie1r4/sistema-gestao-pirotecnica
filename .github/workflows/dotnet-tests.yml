@@ -37,8 +37,31 @@ jobs:
 
       - name: Test (unit + integration)
         run: |
-          dotnet test Finalproj.sln -c Release --collect:"XPlat Code Coverage"
+          dotnet test Finalproj.sln -c Release --collect:"XPlat Code Coverage" --results-directory ./TestResults
 
-      - name: Verificar pacotes vulneráveis
-        run: dotnet list package --vulnerable --include-transitive
-        continue-on-error: true
+      - name: Instalar ReportGenerator
+        run: dotnet tool install -g dotnet-reportgenerator-globaltool
+
+      - name: Relatório HTML de cobertura
+        if: always()
+        run: |
+          reportgenerator \
+            -reports:"TestResults/**/coverage.cobertura.xml" \
+            -targetdir:"coverage-report" \
+            -reporttypes:Html
+
+      - name: Upload cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage-report
+
+      - name: Verificar pacotes vulneráveis (bloqueia HIGH)
+        run: |
+          output=$(dotnet list package --vulnerable --include-transitive 2>&1 || true)
+          echo "$output"
+          if echo "$output" | grep -Eiq '\bhigh\b|\bcritical\b'; then
+            echo "::error::Pacotes com vulnerabilidade HIGH ou CRITICAL encontrados."
+            exit 1
+          fi

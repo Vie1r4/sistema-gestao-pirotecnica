@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import PageHeader from "@/app/components/ui/PageHeader";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { fetchServicosFromApi } from "@/app/lib/servicos";
@@ -107,17 +108,10 @@ function ServicosContent() {
 
       <main className="relative px-6 pt-14 pb-10 sm:px-8" style={{ paddingTop: CONTENT_OFFSET_TOP }}>
         <div className="mx-auto max-w-6xl">
-          <motion.div
-            initial={fadeInUp.initial}
-            animate={fadeInUp.animate}
-            transition={transitionSmooth}
-            className="flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
-          >
-            <div>
-              <h1 className="font-heading text-2xl tracking-tight text-[#1c1917] dark:text-white sm:text-3xl">
-                Serviços
-              </h1>
-              <p className="mt-1 flex items-center gap-2 text-sm text-[#57534e] dark:text-gray-400">
+          <PageHeader
+            title="Serviços"
+            subtitle={
+              <>
                 Operações no terreno. Cada serviço está ligado a uma encomenda concluída.
                 {isRefetching && !loadingApi && (
                   <span className="inline-flex items-center gap-1.5 text-xs text-[#78716c] dark:text-gray-500">
@@ -125,14 +119,16 @@ function ServicosContent() {
                     A atualizar
                   </span>
                 )}
-              </p>
-            </div>
-            {canGerirServicos && (
-              <Link href="/servicos/novo" className={btnPrimary}>
-                Novo serviço
-              </Link>
-            )}
-          </motion.div>
+              </>
+            }
+            actions={
+              canGerirServicos ? (
+                <Link href="/servicos/novo" className={btnPrimary}>
+                  Novo serviço
+                </Link>
+              ) : undefined
+            }
+          />
 
           {queryError && (
             <motion.p

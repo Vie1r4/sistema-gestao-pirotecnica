@@ -77,6 +77,25 @@ Authorization: Bearer <token>
    Body: `{ "email": "..." }`  
    Resposta: 200 sempre (não revela se o email existe). Se existir e ainda não estiver confirmado, envia novo link de confirmação.
 
+### Palavra-passe, lockout e tokens no cliente
+
+- **Política Identity:** mínimo **8** caracteres, com **maiúscula**, **minúscula**, **dígito** e **carácter especial**; lockout após tentativas falhadas (configuração em `Program.cs`).
+- **Access token (JWT):** o frontend guarda-o **apenas em memória** (Zustand), não em `localStorage`.
+- **Refresh token:** emitido em **cookie HttpOnly** (`pirofafe_rt`); renovação com `POST /api/auth/refresh` e `credentials: include`. **Não** persistir o refresh token em JavaScript.
+- Após login ou refresh, usar o `token` da resposta JSON no header `Authorization: Bearer …` até expirar; então chamar `/refresh`.
+
+### Autorização em listagens sensíveis
+
+Os seguintes **GET** exigem JWT válido **e** política de autorização (não são públicos):
+
+| Recurso | Política |
+|---------|----------|
+| `GET /api/funcionarios` (e sub-rotas) | `PodeGerirFuncionarios` |
+| `GET /api/clientes` (e sub-rotas) | `PodeGerirClientes` |
+| `GET /api/encomendas` (e sub-rotas) | `PodeGerirEncomendas` |
+
+Sem token → **401**; com token mas sem permissão → **403**.
+
 ---
 
 ## Swagger (recomendado em desenvolvimento)
@@ -119,7 +138,7 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | GET | `/` | Lista de clientes (paginada) |
 | GET | `/{id}` | Detalhe + encomendas ativas + histórico (parâmetro `historicoPagina`) |
 | GET | `/create` | Dados para formulário de criação |
-| POST | `/` | Criar cliente |
+| POST | `/` | Criar cliente (`PodeGerirClientes` — Admin, Gestor) |
 | GET | `/{id}/edit` | Dados para edição |
 | PUT | `/{id}` | Atualizar cliente |
 | GET | `/{id}/delete` | Dados para confirmação de eliminação |
