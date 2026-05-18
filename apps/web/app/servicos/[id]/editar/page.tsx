@@ -206,7 +206,7 @@ export default function EditarServicoPage() {
     return (
       <div className="min-h-screen bg-[#f8f7f5] dark:bg-[#0a0a0a]">
         <Navbar />
-        <main className="px-6 pt-14 pb-10" style={{ paddingTop: CONTENT_OFFSET_TOP }}>
+        <main className="px-6 pt-14 pb-10 pt-content-offset" >
           <div className="mx-auto max-w-md rounded-xl border border-[#e7e5e4] bg-white p-6 dark:border-[#1f1f1f] dark:bg-[#111]">
             {queryError && (
               <p className="mb-4 rounded-xl bg-red-100 px-4 py-3 text-sm text-red-800 dark:bg-red-900/30 dark:text-red-400">
@@ -226,7 +226,7 @@ export default function EditarServicoPage() {
   return (
     <div className="min-h-screen bg-[#f8f7f5] text-[#1c1917] dark:bg-[#0a0a0a] dark:text-white">
       <Navbar />
-      <main className="px-6 pt-14 pb-10 sm:px-8" style={{ paddingTop: CONTENT_OFFSET_TOP }}>
+      <main className="px-6 pt-14 pb-10 sm:px-8 pt-content-offset" >
         <div className="mx-auto max-w-2xl">
           <motion.div initial={fadeInUp.initial} animate={fadeInUp.animate} transition={transitionSmooth}>
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Editar serviço #{servico.id}</h1>

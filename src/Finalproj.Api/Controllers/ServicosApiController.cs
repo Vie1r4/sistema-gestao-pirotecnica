@@ -204,8 +204,14 @@ public class ServicosApiController : ControllerBase
     /// <summary>
     /// Transferência do ficheiro de um documento extra do serviço (validação de path no storage).
     /// </summary>
+    /// <response code="200">Ficheiro do documento extra</response>
+    /// <response code="403">Sem política PodeGerirServicos</response>
+    /// <response code="404">Serviço ou documento não encontrado</response>
     [HttpGet("{id:int}/documentos/{extraId:int}")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DownloadDocumento(int id, int extraId, CancellationToken cancellationToken = default)
     {
         var caminho = await _servicosApi.GetDocumentoExtraPathAsync(id, extraId, cancellationToken);
@@ -260,10 +266,14 @@ public class ServicosApiController : ControllerBase
         return Ok(new { licenca = ServicoLicencaDto.FromEntity(lic) });
     }
 
-    /// <summary>
-    /// Transferência do ficheiro associado a uma licença do serviço.
-    /// </summary>
+    /// <summary>Download do ficheiro de uma licença do serviço.</summary>
+    /// <response code="200">Ficheiro da licença</response>
+    /// <response code="403">Sem permissão</response>
+    /// <response code="404">Licença ou ficheiro não encontrado</response>
     [HttpGet("{id:int}/licenca/{licencaId:int}/ficheiro")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
     public async Task<IActionResult> DownloadLicenca(int id, int licencaId, CancellationToken cancellationToken = default)
     {
@@ -272,9 +282,13 @@ public class ServicosApiController : ControllerBase
         return ServirFicheiro(caminho);
     }
 
-    // PUT: api/servicos/5/distancia-seguranca/123
+    /// <summary>Actualiza distância de segurança medida para um ponto do serviço.</summary>
+    /// <response code="200">Distância actualizada</response>
+    /// <response code="404">Serviço ou distância não encontrados</response>
     [HttpPut("{id:int}/distancia-seguranca/{distanciaId:int}")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GuardarDistanciaSeguranca(int id, int distanciaId, [FromBody] GuardarDistanciaSegurancaDto dto, CancellationToken cancellationToken = default)
     {
         var d = await _servicosApi.GuardarDistanciaAsync(id, distanciaId, dto.DistanciaMedida_m, cancellationToken);

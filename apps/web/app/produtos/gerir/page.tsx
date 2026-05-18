@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import EmptyState from "@/app/components/ui/EmptyState";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { useRouter } from "next/navigation";
@@ -108,8 +109,8 @@ function GerirContent() {
       <Navbar />
 
       <main
-        className="relative px-6 pt-14 pb-10 sm:px-8"
-        style={{ paddingTop: CONTENT_OFFSET_TOP }}
+        className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset"
+        
       >
         <div className="mx-auto max-w-6xl">
           <motion.div
@@ -239,22 +240,17 @@ function GerirContent() {
             </p>
             <div className="mt-6 overflow-x-auto">
               {lista.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-[#e7e5e4] bg-[#fafaf9] py-12 text-center dark:border-[#333] dark:bg-[#0a0a0a]">
-                  {!getToken() ? (
-                    <p className="text-[#57534e] dark:text-gray-400">
-                      Inicie sessão para gerir produtos.
-                    </p>
-                  ) : (
-                    <>
-                      <p className="text-[#57534e] dark:text-gray-400">
-                        Nenhum produto. Crie o primeiro.
-                      </p>
-                      <Link href="/produtos/novo" className={btnPrimary + " mt-4 inline-block"}>
+                <EmptyState
+                  title={!getToken() ? "Inicie sessão para gerir produtos." : "Nenhum produto."}
+                  description={getToken() ? "Crie o primeiro produto no catálogo." : undefined}
+                  action={
+                    getToken() ? (
+                      <Link href="/produtos/novo" className={btnPrimary}>
                         Criar produto
                       </Link>
-                    </>
-                  )}
-                </div>
+                    ) : undefined
+                  }
+                />
               ) : (
                 <>
                   {/* Vista em cards em ecrãs pequenos */}

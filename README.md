@@ -4,14 +4,17 @@ Aplicação full-stack: **backend** ASP.NET Core 8 (API REST + Identity) e **fro
 
 ## Documentação
 
-**Índice central:** [**docs/README.md**](docs/README.md) — visão geral, API, frontend, backend e configuração.
+**Índice central:** [**Docs/README.md**](Docs/README.md)
 
 | Área | Ligação rápida |
 |------|----------------|
-| **Iniciantes (linguagem simples)** | [docs/informacoes-basicas/guia-iniciantes.md](docs/informacoes-basicas/guia-iniciantes.md) · [FUNCIONALIDADES-EXPLICADAS.txt](docs/informacoes-basicas/FUNCIONALIDADES-EXPLICADAS.txt) |
-| API (referência) | [docs/api/API.md](docs/api/API.md) |
-| Projeto (stack, domínio) | [docs/visao-geral/PROJETO.md](docs/visao-geral/PROJETO.md) |
-| Frontend (auditorias, pendências) | [docs/frontend/](docs/frontend/) |
+| **Iniciantes** | [Docs/guia-iniciantes.md](Docs/guia-iniciantes.md) |
+| **Arquitetura** | [Docs/ARQUITETURA.md](Docs/ARQUITETURA.md) |
+| **API** | [Docs/API.md](Docs/API.md) |
+| **Testes** | [Docs/TESTES.md](Docs/TESTES.md) |
+| **Segurança** | [Docs/SEGURANCA.md](Docs/SEGURANCA.md) |
+| **Roles** | [Docs/ROLES-E-PERMISSOES.md](Docs/ROLES-E-PERMISSOES.md) |
+| **Operações** | [Docs/OPERACOES.md](Docs/OPERACOES.md) |
 
 ## Arquitetura (resumo)
 
@@ -53,7 +56,19 @@ dotnet test Finalproj.Tests/Finalproj.Tests.csproj
 dotnet test Finalproj.IntegrationTests/Finalproj.IntegrationTests.csproj
 ```
 
-Frontend: `cd apps/web && npm test` · Ver [docs/backend/TESTES-DOMINIO.md](docs/backend/TESTES-DOMINIO.md).
+Frontend:
+
+```bash
+cd apps/web
+npm test              # Vitest (unitário)
+npm run test:e2e      # Playwright E2E (arranca Next.js dev automaticamente)
+```
+
+- Integração backend: auth, matriz 401/403, IDOR — ver `Finalproj.IntegrationTests/`.
+- E2E: login, rotas protegidas, CRUD funcionários (mocks), encomenda submeter — ver `apps/web/tests/e2e/`.
+- **Cobertura:** o workflow [.NET tests](.github/workflows/dotnet-tests.yml) publica artefacto `coverage-report` (HTML); threshold ≥60% Domain/Application é meta futura, ainda informativo no CI.
+
+Ver [Docs/TESTES.md](Docs/TESTES.md).
 
 ## Pré-requisitos
 
@@ -96,7 +111,7 @@ Por defeito o backend aceita origens `http://localhost:3000` e `https://localhos
 ### Logs e correlation id
 
 - Cada pedido HTTP recebe um **`X-Correlation-Id`** (header de resposta; opcional no pedido). Os logs de consola incluem **scopes** com `CorrelationId` e o tempo do pedido em milissegundos.
-- Detalhes: [docs/backend/OBSERVABILIDADE-HTTP.md](docs/backend/OBSERVABILIDADE-HTTP.md).
+- Detalhes: [Docs/OPERACOES.md](Docs/OPERACOES.md).
 
 ### Backups automáticos da base de dados
 
@@ -104,7 +119,7 @@ O backend inclui um serviço automático de backups SQL Server (`BackgroundServi
 
 - Destino: ficheiros `.bak` configurados relativamente ao projeto API (ver `appsettings`).
 - Configuração: secção `Backups` no `appsettings.json`.
-- Documentação detalhada: [docs/backend/BACKUPS-AUTOMATICOS.md](docs/backend/BACKUPS-AUTOMATICOS.md).
+- Documentação detalhada: [Docs/OPERACOES.md](Docs/OPERACOES.md).
 
 ## Executar
 

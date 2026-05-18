@@ -2,7 +2,7 @@
 
 import PageError from "@/app/components/PageError";
 
-export default function produtosError({
+export default function ProdutosError({
   error,
   reset,
 }: {
@@ -12,7 +12,7 @@ export default function produtosError({
   return (
     <PageError
       backHref="/produtos"
-      backLabel="Voltar à lista de funcionários"
+      backLabel="Voltar ao catálogo de produtos"
       error={error}
       reset={reset}
     />

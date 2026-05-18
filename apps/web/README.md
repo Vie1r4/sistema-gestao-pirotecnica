@@ -4,8 +4,9 @@ Frontend **Next.js 16** (React 19) do sistema PIROFAFE. Consome a API do backend
 
 ## Documentação
 
-- **Índice geral do projeto:** [docs/README.md](../../docs/README.md)
-- **Documentação específica do frontend:** [docs/frontend/](../../docs/frontend/) (auditoria localStorage, APIs utilizadas, pendências, padrões)
+- **Índice geral:** [Docs/README.md](../../Docs/README.md)
+- **Segurança (tokens, CSP):** [Docs/SEGURANCA.md](../../Docs/SEGURANCA.md)
+- **Testes:** [Docs/TESTES.md](../../Docs/TESTES.md)
 
 ## Pré-requisitos
 
@@ -63,7 +64,7 @@ No `eslint.config.mjs`, as regras `react-hooks/set-state-in-effect` e `react-hoo
   - `npm run test:e2e`
   - `npm run test:e2e:headed`
 - E2E Playwright: ver `tests/e2e/README.md`
-- Checklist de PR: [docs/frontend/CHECKLIST-QUALIDADE-PR.md](../../docs/frontend/CHECKLIST-QUALIDADE-PR.md)
+- Checklist de PR: [CONTRIBUTING.md](../../CONTRIBUTING.md)
 
 ## Área de documentação de serviços
 

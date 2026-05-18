@@ -237,7 +237,7 @@ function AdicionarItensContent() {
     return (
       <div className="min-h-screen bg-[#f8f7f5] dark:bg-[#0a0a0a]">
         <Navbar />
-        <main style={{ paddingTop: CONTENT_OFFSET_TOP }} className="p-8">
+        <main  className="p-8 pt-content-offset">
           <p className="text-gray-600 dark:text-gray-400">Cliente não especificado.</p>
           <Link href="/encomendas/novo" className="mt-4 inline-block text-[#f97316] hover:underline">
             ← Escolher cliente
@@ -251,7 +251,7 @@ function AdicionarItensContent() {
     return (
       <div className="min-h-screen bg-[#f8f7f5] dark:bg-[#0a0a0a]">
         <Navbar />
-        <main style={{ paddingTop: CONTENT_OFFSET_TOP }} className="p-8">
+        <main  className="p-8 pt-content-offset">
           <p className="text-gray-600 dark:text-gray-400">Identificador de cliente inválido. Volte a escolher o cliente.</p>
           <Link href="/encomendas/novo" className="mt-4 inline-block text-[#f97316] hover:underline">
             ← Escolher cliente
@@ -276,7 +276,7 @@ function AdicionarItensContent() {
     return (
       <div className="min-h-screen bg-[#f8f7f5] dark:bg-[#0a0a0a]">
         <Navbar />
-        <main style={{ paddingTop: CONTENT_OFFSET_TOP }} className="p-8">
+        <main  className="p-8 pt-content-offset">
           <p className="text-gray-600 dark:text-gray-400">Cliente não encontrado.</p>
           <Link href="/encomendas/novo" className="mt-4 inline-block text-[#f97316] hover:underline">
             ← Escolher cliente
@@ -289,7 +289,7 @@ function AdicionarItensContent() {
     return (
       <div className="min-h-screen bg-[#f8f7f5] dark:bg-[#0a0a0a]">
         <Navbar />
-        <main style={{ paddingTop: CONTENT_OFFSET_TOP }} className="p-8">
+        <main  className="p-8 pt-content-offset">
           {textoErroCarregar ? (
             <p className="mb-4 rounded-xl bg-amber-100 px-4 py-3 text-sm text-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
               {textoErroCarregar}
@@ -378,8 +378,8 @@ function AdicionarItensContent() {
       <Navbar />
 
       <main
-        className="relative px-6 pt-14 pb-10 sm:px-8"
-        style={{ paddingTop: CONTENT_OFFSET_TOP }}
+        className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset"
+        
       >
         <div className="mx-auto max-w-6xl">
           <motion.div

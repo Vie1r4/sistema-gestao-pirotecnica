@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { connection } from "next/server";
 import "./globals.css";
 import { QueryProvider } from "./providers";
 import ThemeSync from "./components/ThemeSync";
@@ -20,13 +21,15 @@ export const metadata: Metadata = {
   description: "Sistema de gestão para empresa pirotécnica",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  await connection();
+
   return (
-    <html lang="pt" className={plusJakarta.variable} suppressHydrationWarning>
+    <html lang="pt" className={plusJakarta.variable} suppressHydrationWarning data-scroll-behavior="smooth">
       <body className="font-sans antialiased">
         <QueryProvider>
           <AuthBootstrap>

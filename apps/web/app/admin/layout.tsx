@@ -49,8 +49,8 @@ export default function AdminLayout({
     <div className="min-h-screen bg-[#f8f7f5] text-[#1c1917] selection:bg-[#f97316]/20 dark:bg-[#0a0a0a] dark:text-white">
       <Navbar />
       <main
-        className="relative px-4 pb-12 pt-4 sm:px-6 sm:pb-16"
-        style={{ paddingTop: CONTENT_OFFSET_TOP }}
+        className="relative px-4 pb-12 pt-4 sm:px-6 sm:pb-16 pt-content-offset"
+        
       >
         <div className="mx-auto flex max-w-6xl flex-col gap-8 lg:flex-row">
           <aside className="lg:w-56 lg:shrink-0">

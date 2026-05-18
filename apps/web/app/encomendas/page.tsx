@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import EmptyState from "@/app/components/ui/EmptyState";
 import PageHeader from "@/app/components/ui/PageHeader";
 import StatusBadge from "@/app/components/ui/StatusBadge";
 import { ESTADOS_ENCOMENDA, type EstadoEncomenda } from "@/app/lib/encomendas";
@@ -112,8 +113,8 @@ function EncomendasContent() {
       <Navbar />
 
       <main
-        className="relative px-6 pt-14 pb-10 sm:px-8"
-        style={{ paddingTop: CONTENT_OFFSET_TOP }}
+        className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset"
+        
       >
         <div className="mx-auto max-w-6xl">
             <PageHeader
@@ -191,24 +192,16 @@ function EncomendasContent() {
                   <span>A carregar encomendas…</span>
                 </div>
               ) : lista.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-[#e7e5e4] bg-[#fafaf9] py-12 text-center dark:border-[#333] dark:bg-[#0a0a0a]">
-                  {!token ? (
-                    <p className="text-[#57534e] dark:text-gray-400">
-                      Inicie sessão para ver as encomendas.
-                    </p>
-                  ) : (
-                    <>
-                      <p className="text-[#57534e] dark:text-gray-400">
-                        Nenhuma encomenda encontrada.
-                      </p>
-                      {canGerirEncomendas && (
-                        <Link href="/encomendas/novo" className={btnPrimary + " mt-4 inline-block"}>
-                          Nova encomenda
-                        </Link>
-                      )}
-                    </>
-                  )}
-                </div>
+                <EmptyState
+                  title={!token ? "Inicie sessão para ver as encomendas." : "Nenhuma encomenda encontrada."}
+                  action={
+                    token && canGerirEncomendas ? (
+                      <Link href="/encomendas/novo" className={btnPrimary}>
+                        Nova encomenda
+                      </Link>
+                    ) : undefined
+                  }
+                />
               ) : (
                 <>
                   <div className="space-y-3 lg:hidden">

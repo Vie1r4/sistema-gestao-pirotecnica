@@ -1,6 +1,6 @@
 # Documentação da API PIROFAFE
 
-**Última revisão:** maio de 2026 (`/api/auth/me` com `permissions`, `GET /confirm-email`, backup manual Admin).
+**Última revisão:** maio de 2026 (`/api/auth/me` com `permissions`, confirm-email, backups Admin). Índice: [Docs/README.md](README.md).
 
 API REST do sistema de gestão pirotécnica; backend em **ASP.NET Core 8**; documentação interativa via **Swagger** (UI disponível **apenas em ambiente Development** — em produção o Swagger está desligado por segurança).
 
@@ -277,7 +277,7 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 
 - Cada resposta inclui o header **`X-Correlation-Id`** (o cliente pode enviar o mesmo header no pedido; o servidor valida e reutiliza ou gera um novo).
 - Em erros **500** em rotas `/api/*`, o JSON pode incluir **`correlationId`** para cruzar com os logs do servidor.
-- Em CORS, o header é **exposto** ao JavaScript (`Access-Control-Expose-Headers`). Ver [OBSERVABILIDADE-HTTP.md](../backend/OBSERVABILIDADE-HTTP.md).
+- Em CORS, o header é **exposto** ao JavaScript (`Access-Control-Expose-Headers`). Ver [OPERACOES.md](OPERACOES.md).
 
 ## Paginação
 

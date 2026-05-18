@@ -64,7 +64,7 @@ export default function ProdutoDetalhePage() {
     return (
       <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a]">
         <Navbar />
-        <main style={{ paddingTop: CONTENT_OFFSET_TOP }} className="p-8">
+        <main  className="p-8 pt-content-offset">
           <p className="text-gray-600 dark:text-gray-400">Produto não encontrado.</p>
           <Link href="/produtos" className="mt-5 inline-block text-[#f97316] hover:underline">
             ← Voltar ao catálogo
@@ -79,8 +79,8 @@ export default function ProdutoDetalhePage() {
       <Navbar />
 
       <main
-        className="relative px-6 pt-14 pb-10 sm:px-8"
-        style={{ paddingTop: CONTENT_OFFSET_TOP }}
+        className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset"
+        
       >
         <div className="mx-auto max-w-3xl">
           <motion.div

@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import EmptyState from "@/app/components/ui/EmptyState";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import {
@@ -92,8 +93,8 @@ function ProdutosContent() {
       <Navbar />
 
       <main
-        className="relative px-6 pt-14 pb-10 sm:px-8"
-        style={{ paddingTop: CONTENT_OFFSET_TOP }}
+        className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset"
+        
       >
         <div className="mx-auto max-w-6xl">
           <motion.div
@@ -268,24 +269,25 @@ function ProdutosContent() {
             </p>
             <div className="mt-6">
               {lista.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-[#e7e5e4] bg-[#fafaf9] py-12 text-center dark:border-[#333] dark:bg-[#0a0a0a]">
-                  {!getToken() ? (
-                    <p className="text-[#57534e] dark:text-gray-400">
-                      Inicie sessão para ver o catálogo.
-                    </p>
-                  ) : (
-                    <>
-                      <p className="text-[#57534e] dark:text-gray-400">
-                        Nenhum resultado para os filtros aplicados. Ajuste os filtros ou use Gerir produtos para criar produtos.
-                      </p>
-                      {canGerirProdutos && (
-                        <Link href="/produtos/gerir" className={btnPrimary + " mt-4 inline-block"}>
-                          Gerir produtos
-                        </Link>
-                      )}
-                    </>
-                  )}
-                </div>
+                <EmptyState
+                  title={
+                    !getToken()
+                      ? "Inicie sessão para ver o catálogo."
+                      : "Nenhum resultado para os filtros aplicados."
+                  }
+                  description={
+                    getToken()
+                      ? "Ajuste os filtros ou use Gerir produtos para criar produtos."
+                      : undefined
+                  }
+                  action={
+                    getToken() && canGerirProdutos ? (
+                      <Link href="/produtos/gerir" className={btnPrimary}>
+                        Gerir produtos
+                      </Link>
+                    ) : undefined
+                  }
+                />
               ) : (
                 <>
                   {/* Vista em cards em ecrãs pequenos */}

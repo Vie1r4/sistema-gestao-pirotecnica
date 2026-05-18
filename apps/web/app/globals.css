@@ -4,6 +4,8 @@
 @custom-variant light (&:where(.light, .light *));
 
 :root {
+  --header-height: 56px;
+  --content-offset-top: 80px;
   --background: #f8f7f5;
   --foreground: #1c1917;
   --card-bg: #ffffff;
@@ -50,6 +52,95 @@ body {
   font-family: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/** Offset abaixo da navbar fixa (CSP: evitar style={{ paddingTop }} inline). */
+.pt-content-offset {
+  padding-top: var(--content-offset-top);
+}
+
+.top-content-offset {
+  top: var(--content-offset-top);
+}
+
+.min-h-below-navbar {
+  min-height: calc(100vh - var(--content-offset-top));
+}
+
+/* Marcadores Leaflet (sem style inline no HTML do ícone). */
+.leaflet-marker-dot {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.leaflet-marker-paiol {
+  background-color: #0ea5e9;
+}
+
+.leaflet-marker-servico {
+  background-color: #f97316;
+}
+
+.leaflet-marker-default {
+  background-color: #22c55e;
+}
+
+.mapa-leaflet-wrap {
+  width: 100%;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.mapa-leaflet-wrap--fullscreen {
+  height: 100vh;
+  min-height: 100%;
+}
+
+.mapa-leaflet-canvas {
+  width: 100%;
+  min-height: 200px;
+}
+
+.mapa-leaflet-canvas--h-280 {
+  height: 280px;
+}
+
+.mapa-leaflet-canvas--h-300 {
+  height: 300px;
+}
+
+.mapa-leaflet-canvas--h-500 {
+  height: 500px;
+}
+
+.mapa-leaflet-canvas--fullscreen {
+  height: 100%;
+  min-height: 100%;
+}
+
+/* Legenda dashboard (cores fixas AREAS_PIE). */
+.legend-dot-clientes {
+  background-color: #3b82f6;
+}
+
+.legend-dot-servicos {
+  background-color: #8b5cf6;
+}
+
+.legend-dot-produtos {
+  background-color: #f97316;
+}
+
+.legend-dot-paiols {
+  background-color: #22c55e;
+}
+
+.legend-dot-funcionarios {
+  background-color: #06b6d4;
 }
 
 /* Barra de scroll mais discreta (Chrome, Safari, Edge) */
@@ -247,5 +338,57 @@ a[role="button"],
   .home-spark {
     animation: none;
     opacity: 0.5;
+  }
+}
+
+.home-spark--i0 { left: 15%; top: 20%; width: 3px; height: 3px; min-width: 3px; min-height: 3px; animation-delay: 0s; animation-duration: 8s; }
+.home-spark--i1 { left: 85%; top: 25%; width: 3px; height: 3px; min-width: 3px; min-height: 3px; animation-delay: 0.8s; animation-duration: 9s; }
+.home-spark--i2 { left: 50%; top: 15%; width: 4px; height: 4px; min-width: 4px; min-height: 4px; animation-delay: 0.4s; animation-duration: 8s; }
+.home-spark--i3 { left: 25%; top: 70%; width: 3px; height: 3px; min-width: 3px; min-height: 3px; animation-delay: 1.2s; animation-duration: 9s; }
+.home-spark--i4 { left: 75%; top: 68%; width: 3px; height: 3px; min-width: 3px; min-height: 3px; animation-delay: 0.3s; animation-duration: 8s; }
+.home-spark--i5 { left: 8%; top: 48%; width: 3px; height: 3px; min-width: 3px; min-height: 3px; animation-delay: 1s; animation-duration: 9s; }
+.home-spark--i6 { left: 92%; top: 52%; width: 3px; height: 3px; min-width: 3px; min-height: 3px; animation-delay: 0.5s; animation-duration: 8s; }
+.home-spark--i7 { left: 40%; top: 38%; width: 3px; height: 3px; min-width: 3px; min-height: 3px; animation-delay: 1.5s; animation-duration: 9s; }
+.home-spark--i8 { left: 60%; top: 42%; width: 3px; height: 3px; min-width: 3px; min-height: 3px; animation-delay: 0.2s; animation-duration: 8s; }
+.home-spark--i9 { left: 20%; top: 82%; width: 3px; height: 3px; min-width: 3px; min-height: 3px; animation-delay: 0.7s; animation-duration: 9s; }
+.home-spark--i10 { left: 80%; top: 12%; width: 3px; height: 3px; min-width: 3px; min-height: 3px; animation-delay: 1.3s; animation-duration: 8s; }
+.home-spark--i11 { left: 48%; top: 55%; width: 4px; height: 4px; min-width: 4px; min-height: 4px; animation-delay: 0.6s; animation-duration: 9s; }
+
+.home-orb-primary {
+  position: absolute;
+  height: 600px;
+  width: 800px;
+  max-width: 95vw;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(249, 115, 22, 0.07) 0%, transparent 58%);
+  animation: home-orb-pulse 12s ease-in-out infinite;
+}
+
+.home-orb-secondary {
+  position: absolute;
+  height: 380px;
+  width: 480px;
+  margin-left: -15%;
+  margin-top: 8%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.05) 0%, transparent 62%);
+  animation: home-orb-pulse-alt 14s ease-in-out infinite;
+}
+
+@keyframes home-orb-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.06); opacity: 0.8; }
+}
+
+@keyframes home-orb-pulse-alt {
+  0%, 100% { transform: scale(1.04); opacity: 0.6; }
+  50% { transform: scale(1); opacity: 0.9; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-orb-primary,
+  .home-orb-secondary {
+    animation: none;
+    opacity: 0.65;
   }
 }

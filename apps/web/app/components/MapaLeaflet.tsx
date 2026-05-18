@@ -33,14 +33,26 @@ type MapaLeafletProps = {
 const CENTRO_PT: [number, number] = [39.5, -8];
 const ZOOM_DEFAULT = 7;
 
+function markerDotClass(type?: "paiol" | "servico") {
+  if (type === "paiol") return "leaflet-marker-dot leaflet-marker-paiol";
+  if (type === "servico") return "leaflet-marker-dot leaflet-marker-servico";
+  return "leaflet-marker-dot leaflet-marker-default";
+}
+
 function createIcon(type?: "paiol" | "servico") {
-  const cor = type === "paiol" ? "#0ea5e9" : type === "servico" ? "#f97316" : "#22c55e";
   return L.divIcon({
     className: "custom-marker",
-    html: `<span style="background-color:${cor};width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);display:block;"></span>`,
+    html: `<span class="${markerDotClass(type)}"></span>`,
     iconSize: [24, 24],
     iconAnchor: [12, 12],
   });
+}
+
+function heightCanvasClass(height: string, isFullscreen: boolean): string {
+  if (isFullscreen) return "mapa-leaflet-canvas mapa-leaflet-canvas--fullscreen";
+  if (height === "500px") return "mapa-leaflet-canvas mapa-leaflet-canvas--h-500";
+  if (height === "280px") return "mapa-leaflet-canvas mapa-leaflet-canvas--h-280";
+  return "mapa-leaflet-canvas mapa-leaflet-canvas--h-300";
 }
 
 export default function MapaLeaflet({
@@ -161,25 +173,16 @@ export default function MapaLeaflet({
     }
   }, [lat, lng, raioMetros]);
 
+  const wrapClass = isFullscreen
+    ? `mapa-leaflet-wrap mapa-leaflet-wrap--fullscreen relative ${className}`
+    : `mapa-leaflet-wrap relative ${className}`;
+
   return (
-    <div
-      ref={wrapperRef}
-      className={`relative ${className}`}
-      style={{
-        width: "100%",
-        borderRadius: "0.75rem",
-        overflow: "hidden",
-        ...(isFullscreen ? { height: "100vh", minHeight: "100%" } : {}),
-      }}
-    >
+    <div ref={wrapperRef} className={wrapClass}>
       <div
         id={mapId}
         ref={containerRef}
-        style={{
-          height: isFullscreen ? "100%" : height,
-          minHeight: isFullscreen ? "100%" : "200px",
-          width: "100%",
-        }}
+        className={heightCanvasClass(height, isFullscreen)}
         aria-label="Mapa"
       />
       <button

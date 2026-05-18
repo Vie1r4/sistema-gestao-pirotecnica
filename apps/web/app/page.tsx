@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import Navbar, { CONTENT_OFFSET_TOP } from "./components/Navbar";
+import Navbar from "./components/Navbar";
 import DashboardComercial from "./components/DashboardComercial";
 import DashboardGestor from "./components/DashboardGestor";
 import { useUser } from "./context/UserContext";
@@ -88,8 +88,8 @@ export default function Home() {
       <Navbar />
 
       <main
-        className="relative"
-        style={{ paddingTop: CONTENT_OFFSET_TOP }}
+        className="relative pt-content-offset"
+        
       >
         {/* Hero — ar premium / executivo */}
         <section className="home-hero-bg home-grid relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 pb-24 pt-24 sm:px-8 sm:pb-32 sm:pt-28 md:pb-36 md:pt-32">
@@ -101,55 +101,15 @@ export default function Home() {
             {SPARKS.map((s, i) => (
               <span
                 key={i}
-                className={`home-spark ${s.gold ? "home-spark--gold" : ""}`}
-                style={{
-                  left: s.left,
-                  top: s.top,
-                  width: s.size,
-                  height: s.size,
-                  minWidth: s.size,
-                  minHeight: s.size,
-                  animationDelay: `${s.delay}s`,
-                  animationDuration: `${8 + (i % 2)}s`,
-                }}
+                className={`home-spark home-spark--i${i} ${s.gold ? "home-spark--gold" : ""}`}
               />
             ))}
           </div>
 
           {/* Orbs de fundo com animação suave */}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
-            <motion.div
-              className="absolute h-[600px] w-[800px] max-w-[95vw] rounded-full"
-              style={{
-                background: "radial-gradient(circle, rgba(249,115,22,0.07) 0%, transparent 58%)",
-              }}
-              animate={{
-                scale: [1, 1.06, 1],
-                opacity: [0.5, 0.8, 0.5],
-              }}
-              transition={{
-                duration: 12,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-            />
-            <motion.div
-              className="absolute h-[380px] w-[480px] rounded-full"
-              style={{
-                background: "radial-gradient(circle, rgba(251,191,36,0.05) 0%, transparent 62%)",
-                marginLeft: "-15%",
-                marginTop: "8%",
-              }}
-              animate={{
-                scale: [1.04, 1, 1.04],
-                opacity: [0.6, 0.9, 0.6],
-              }}
-              transition={{
-                duration: 14,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-            />
+            <div className="home-orb-primary" aria-hidden />
+            <div className="home-orb-secondary" aria-hidden />
           </div>
 
           <motion.div

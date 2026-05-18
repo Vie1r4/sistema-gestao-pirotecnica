@@ -99,7 +99,6 @@ export function DataTable<TData>({
                     <th
                       key={header.id}
                       className="pb-3 font-semibold text-[#444] dark:text-gray-300"
-                      style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
                     >
                       <div
                         role={canSort ? "button" : undefined}

@@ -2,7 +2,7 @@
 
 import PageError from "@/app/components/PageError";
 
-export default function perfilError({
+export default function PerfilError({
   error,
   reset,
 }: {
@@ -12,7 +12,7 @@ export default function perfilError({
   return (
     <PageError
       backHref="/perfil"
-      backLabel="Voltar à lista de funcionários"
+      backLabel="Voltar ao perfil"
       error={error}
       reset={reset}
     />

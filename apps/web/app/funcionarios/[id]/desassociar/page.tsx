@@ -114,7 +114,7 @@ export default function DesassociarContaPage() {
     return (
       <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a]">
         <Navbar />
-        <main style={{ paddingTop: CONTENT_OFFSET_TOP }} className="p-8">
+        <main  className="p-8 pt-content-offset">
           <p className="text-gray-600 dark:text-gray-400">{loadError || "Funcionário não encontrado."}</p>
           <Link href="/funcionarios" data-button className="mt-5 inline-block text-[#f97316] transition-[color] duration-200 hover:underline">← Voltar</Link>
         </main>
@@ -126,7 +126,7 @@ export default function DesassociarContaPage() {
     return (
       <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a]">
         <Navbar />
-        <main style={{ paddingTop: CONTENT_OFFSET_TOP }} className="p-8">
+        <main  className="p-8 pt-content-offset">
           <p className="text-gray-600 dark:text-gray-400">Este funcionário não tem conta associada.</p>
           <Link href={`/funcionarios/${id}`} data-button className="mt-5 inline-block text-[#f97316] transition-[color] duration-200 hover:underline">← Voltar aos detalhes</Link>
         </main>
@@ -138,7 +138,7 @@ export default function DesassociarContaPage() {
     return (
       <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a]">
         <Navbar />
-        <main style={{ paddingTop: CONTENT_OFFSET_TOP }} className="p-8">
+        <main  className="p-8 pt-content-offset">
           <p className="text-gray-600 dark:text-gray-400">Apenas utilizadores com permissão para gerir funcionários podem desassociar contas.</p>
           <Link href={`/funcionarios/${id}`} data-button className="mt-5 inline-block text-[#f97316] transition-[color] duration-200 hover:underline">← Voltar aos detalhes</Link>
         </main>
@@ -151,8 +151,8 @@ export default function DesassociarContaPage() {
       <Navbar />
 
       <main
-        className="relative px-6 pt-14 pb-10 sm:px-8"
-        style={{ paddingTop: CONTENT_OFFSET_TOP }}
+        className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset"
+        
       >
         <div className="mx-auto max-w-2xl">
           <motion.div initial={fadeInUp.initial} animate={fadeInUp.animate} transition={transitionSmooth}>

@@ -99,7 +99,6 @@ export default function Navbar() {
             ? "border-[#e7e5e4] bg-white/85 shadow-[0_1px_0_0_rgba(0,0,0,0.04)] backdrop-blur-md dark:border-[#1a1a1a] dark:bg-[#0a0a0a]/85 dark:shadow-[0_1px_0_0_rgba(255,255,255,0.04)]"
             : "border-[#e7e5e4] bg-white shadow-[0_1px_0_0_rgba(0,0,0,0.04)] dark:border-[#1a1a1a] dark:bg-[#0a0a0a] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.04)]"
         }`}
-        style={{ height: HEADER_HEIGHT }}
       >
         <Link
           href="/"
@@ -139,8 +138,7 @@ export default function Navbar() {
             transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
             onMouseEnter={handleSidebarEnter}
             onMouseLeave={handleSidebarLeave}
-            className="fixed bottom-0 left-0 z-40 flex w-[200px] flex-col border-r border-[#e7e5e4] bg-white shadow-[2px_0_12px_-4px_rgba(0,0,0,0.06),1px_0_0_0_rgba(0,0,0,0.03)] backdrop-blur-xl dark:border-[#1a1a1a] dark:bg-[#0a0a0a]/95 dark:shadow-[2px_0_24px_-8px_rgba(0,0,0,0.5)]"
-            style={{ top: CONTENT_OFFSET_TOP, minHeight: `calc(100vh - ${CONTENT_OFFSET_TOP}px)` }}
+            className="fixed bottom-0 left-0 z-40 flex w-[200px] flex-col border-r border-[#e7e5e4] bg-white top-content-offset min-h-below-navbar shadow-[2px_0_12px_-4px_rgba(0,0,0,0.06),1px_0_0_0_rgba(0,0,0,0.03)] backdrop-blur-xl dark:border-[#1a1a1a] dark:bg-[#0a0a0a]/95 dark:shadow-[2px_0_24px_-8px_rgba(0,0,0,0.5)]"
           >
             <div className="flex flex-1 flex-col p-4">
           <motion.span

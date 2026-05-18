@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import EmptyState from "@/app/components/ui/EmptyState";
 import PageHeader from "@/app/components/ui/PageHeader";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
@@ -106,7 +107,7 @@ function ServicosContent() {
     <div className="min-h-screen bg-[#f8f7f5] text-[#1c1917] dark:bg-[#0a0a0a] dark:text-white">
       <Navbar />
 
-      <main className="relative px-6 pt-14 pb-10 sm:px-8" style={{ paddingTop: CONTENT_OFFSET_TOP }}>
+      <main className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset" >
         <div className="mx-auto max-w-6xl">
           <PageHeader
             title="Serviços"
@@ -218,14 +219,16 @@ function ServicosContent() {
                   <span>A carregar serviços…</span>
                 </div>
               ) : lista.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-[#e7e5e4] bg-[#fafaf9] py-12 text-center dark:border-[#333] dark:bg-[#0a0a0a]">
-                  <p className="text-[#57534e] dark:text-gray-400">Nenhum serviço encontrado.</p>
-                  {canGerirServicos && (
-                    <Link href="/servicos/novo" className={btnPrimary + " mt-4 inline-block"}>
-                      Novo serviço
-                    </Link>
-                  )}
-                </div>
+                <EmptyState
+                  title="Nenhum serviço encontrado."
+                  action={
+                    canGerirServicos ? (
+                      <Link href="/servicos/novo" className={btnPrimary}>
+                        Novo serviço
+                      </Link>
+                    ) : undefined
+                  }
+                />
               ) : (
                 <>
                   <div className="space-y-3 lg:hidden">

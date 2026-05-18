@@ -1,8 +1,9 @@
 /**
- * API de autenticação pública e sessão: existem utilizadores, login, primeiro registo, /me.
+ * API de autenticação pública e sessão: existem utilizadores, login, primeiro registo, /me, confirm-email.
  */
 
 import { apiPath } from "./apiConfig";
+import { safeParseJson } from "./api";
 
 /** GET api/auth/existem-utilizadores — sem token (bootstrap). */
 export async function fetchExistemUtilizadores(): Promise<boolean> {
@@ -74,4 +75,36 @@ export async function fetchAuthMe(token: string): Promise<Record<string, unknown
   });
   if (res.status === 401 || !res.ok) return null;
   return (await res.json()) as Record<string, unknown>;
+}
+
+export type ConfirmEmailResult =
+  | { status: "redirect"; token: string }
+  | { status: "ok"; message: string }
+  | { status: "error"; message: string };
+
+/** GET api/auth/confirm-email — confirma email e opcionalmente devolve JWT. */
+export async function confirmEmail(userId: string, code: string): Promise<ConfirmEmailResult> {
+  const url = apiPath(
+    `api/auth/confirm-email?userId=${encodeURIComponent(userId)}&code=${encodeURIComponent(code)}`
+  );
+  const res = await fetch(url);
+  const data = (await safeParseJson(res).catch(() => ({}))) as Record<string, unknown>;
+
+  if (res.ok) {
+    const token =
+      (data.token as string) ??
+      (data.Token as string) ??
+      (data.accessToken as string) ??
+      (data.AccessToken as string);
+    if (token) return { status: "redirect", token };
+    return {
+      status: "ok",
+      message: (data.message as string) ?? "Email confirmado com sucesso. Já pode iniciar sessão.",
+    };
+  }
+
+  return {
+    status: "error",
+    message: (data.error as string) ?? "Não foi possível confirmar o email.",
+  };
 }

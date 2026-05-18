@@ -58,7 +58,7 @@ Finalproj/
 │   └── app/lib/*Api.ts         # Chamadas à API por domínio
 ├── Finalproj.Tests/            # Testes unitários (domínio)
 ├── Finalproj.IntegrationTests/ # Testes HTTP (auth, 401/403, IDOR)
-└── Docs/                       # Documentação técnica
+└── Docs/                       # 8 ficheiros — ver Docs/README.md
 ```
 
 ## Convenções de nomenclatura
@@ -113,11 +113,11 @@ npm run test:e2e
 | `npm run typecheck`, `npm run lint`, `npm test` em `apps/web/` | Sim |
 | Novo endpoint sensível tem teste **401** e/ou **403** | Sim |
 | Sem secrets em ficheiros versionados | Sim |
-| `Docs/api/API.md` atualizado se a API mudou | Se aplicável |
+| `Docs/API.md` atualizado se a API mudou | Se aplicável |
 | Migração EF se o modelo mudou | Se aplicável |
 | Sem `console.log` de debug no frontend | Sim |
 
-Ver também [Docs/frontend/CHECKLIST-QUALIDADE-PR.md](Docs/frontend/CHECKLIST-QUALIDADE-PR.md).
+Ver o índice [Docs/README.md](Docs/README.md) (testes, segurança, roles).
 
 ## Regra de ouro (segurança)
 

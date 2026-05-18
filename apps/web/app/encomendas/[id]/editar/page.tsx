@@ -169,7 +169,7 @@ export default function EditarEncomendaPage() {
     return (
       <div className="min-h-screen bg-[#f8f7f5] dark:bg-[#0a0a0a]">
         <Navbar />
-        <main style={{ paddingTop: CONTENT_OFFSET_TOP }} className="p-8">
+        <main  className="p-8 pt-content-offset">
           {queryError && (
             <p className="mb-4 rounded-xl bg-red-100 px-4 py-3 text-sm text-red-800 dark:bg-red-900/30 dark:text-red-400">
               {queryError instanceof Error ? queryError.message : "Erro ao carregar."}
@@ -188,7 +188,7 @@ export default function EditarEncomendaPage() {
     return (
       <div className="min-h-screen bg-[#f8f7f5] dark:bg-[#0a0a0a]">
         <Navbar />
-        <main style={{ paddingTop: CONTENT_OFFSET_TOP }} className="p-8">
+        <main  className="p-8 pt-content-offset">
           <p className="text-gray-600 dark:text-gray-400">
             Apenas o criador da encomenda ou um administrador podem editá-la. Encomendas só podem ser editadas nos estados Pendente ou Aceite.
           </p>
@@ -259,7 +259,7 @@ export default function EditarEncomendaPage() {
     <div className="min-h-screen bg-[#f8f7f5] text-[#1c1917] dark:bg-[#0a0a0a] dark:text-white">
       <Navbar />
 
-      <main className="relative px-6 pt-14 pb-10 sm:px-8" style={{ paddingTop: CONTENT_OFFSET_TOP }}>
+      <main className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset" >
         <div className="mx-auto max-w-3xl">
           <motion.div initial={fadeInUp.initial} animate={fadeInUp.animate} transition={transitionSmooth}>
             <h1 className="font-heading text-2xl tracking-tight sm:text-3xl">Editar encomenda</h1>

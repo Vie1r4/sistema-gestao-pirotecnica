@@ -24,6 +24,11 @@ public class EndpointMutationAuthorizationTests : IntegrationTestBase
     [InlineData("POST", "/api/paiol", null, HttpStatusCode.Unauthorized)]
     [InlineData("POST", "/api/paiol", ConstantesRoles.Armazem, HttpStatusCode.Forbidden)]
     [InlineData("POST", "/api/paiol", ConstantesRoles.Comercial, HttpStatusCode.Forbidden)]
+    [InlineData("POST", "/api/produtos", null, HttpStatusCode.Unauthorized)]
+    [InlineData("POST", "/api/produtos", ConstantesRoles.Armazem, HttpStatusCode.Forbidden)]
+    [InlineData("POST", "/api/produtos", ConstantesRoles.Comercial, HttpStatusCode.Forbidden)]
+    [InlineData("POST", "/api/servicos", null, HttpStatusCode.Unauthorized)]
+    [InlineData("POST", "/api/servicos", ConstantesRoles.Armazem, HttpStatusCode.Forbidden)]
     public async Task Mutation_Endpoint_ReturnsExpectedStatus(
         string method,
         string url,
@@ -86,6 +91,20 @@ public class EndpointMutationAuthorizationTests : IntegrationTestBase
             HttpMethod.Post,
             "/api/funcionarios",
             AuthClientExtensions.EmptyMultipartContent());
+        Assert.NotEqual(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.NotEqual(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Delete_AdminUtilizador_Admin_NotForbidden()
+    {
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var (user, _) = await TestDataSeeder.EnsureUserAsync(
+            scope.ServiceProvider,
+            "delete-admin-ok@pirofafe.pt",
+            ConstantesRoles.Comercial);
+        var client = await Factory.CreateAuthenticatedClientAsync(ConstantesRoles.Admin);
+        var response = await client.SendAuthorizedAsync(HttpMethod.Delete, $"/api/admin/utilizadores/{user.Id}");
         Assert.NotEqual(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.NotEqual(HttpStatusCode.Forbidden, response.StatusCode);
     }

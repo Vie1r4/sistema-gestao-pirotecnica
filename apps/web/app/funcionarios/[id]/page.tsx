@@ -93,7 +93,7 @@ export default function FuncionarioDetalhePage() {
     return (
       <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a]">
         <Navbar />
-        <main style={{ paddingTop: CONTENT_OFFSET_TOP }} className="p-8">
+        <main  className="p-8 pt-content-offset">
           {error && (
             <p className="rounded-xl bg-red-100 px-4 py-3 text-sm text-red-800 dark:bg-red-900/30 dark:text-red-400">
               {error}
@@ -120,8 +120,8 @@ export default function FuncionarioDetalhePage() {
       <Navbar />
 
       <main
-        className="relative px-6 pt-14 pb-10 sm:px-8"
-        style={{ paddingTop: CONTENT_OFFSET_TOP }}
+        className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset"
+        
       >
         <div className="mx-auto max-w-4xl">
           <motion.div

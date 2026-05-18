@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import type { ColumnDef } from "@tanstack/react-table";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import { DataTable } from "@/app/components/ui/DataTable";
+import EmptyState from "@/app/components/ui/EmptyState";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { labelPerfilRisco } from "@/app/lib/armazem";
@@ -70,10 +71,15 @@ function armazemColumns(): ColumnDef<PaiolComOcupacao, unknown>[] {
               aria-valuemax={100}
               aria-label={`Ocupação do paiol: ${pct.toFixed(0)}%`}
             >
-              <div
-                className="h-full rounded-full bg-[#f97316] transition-[width] duration-300"
-                style={{ width: `${pct}%` }}
-              />
+              <svg className="h-full w-full" viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden>
+                <rect width="100" height="4" className="fill-gray-200 dark:fill-[#333]" />
+                <rect
+                  width={Math.min(100, Math.max(0, pct))}
+                  height="4"
+                  className="fill-[#f97316]"
+                  rx="2"
+                />
+              </svg>
             </div>
             <span className="shrink-0 text-xs text-[#57534e] dark:text-gray-400">{pct.toFixed(0)}%</span>
           </div>
@@ -180,8 +186,8 @@ function ArmazemContent() {
       <Navbar />
 
       <main
-        className="relative px-6 pt-14 pb-10 sm:px-8"
-        style={{ paddingTop: CONTENT_OFFSET_TOP }}
+        className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset"
+        
       >
         <div className="mx-auto max-w-6xl">
           <motion.div
@@ -255,16 +261,17 @@ function ArmazemContent() {
                 <span>A carregar paióis…</span>
               </div>
             ) : paiois.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-[#e7e5e4] bg-[#fafaf9] py-12 text-center dark:border-[#333] dark:bg-[#0a0a0a]">
-                <p className="text-[#57534e] dark:text-gray-400">
-                  Não tem acesso a nenhum paiol ou ainda não existem paióis. Os administradores podem criar paióis em Gestão de Paióis.
-                </p>
-                {canGerirArmazem && (
-                  <Link href="/armazem/gestao" className={btnPrimary + " mt-4 inline-block"}>
-                    Ir para Gestão de Paióis
-                  </Link>
-                )}
-              </div>
+              <EmptyState
+                title="Não tem acesso a nenhum paiol ou ainda não existem paióis."
+                description="Os administradores podem criar paióis em Gestão de Paióis."
+                action={
+                  canGerirArmazem ? (
+                    <Link href="/armazem/gestao" className={btnPrimary}>
+                      Ir para Gestão de Paióis
+                    </Link>
+                  ) : undefined
+                }
+              />
             ) : (
               <DataTable
                 columns={columns}

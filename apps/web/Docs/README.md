@@ -1,7 +1,6 @@
-# Documentação do frontend
+# Documentação
 
-A documentação específica do **frontend** foi centralizada na pasta **`docs/frontend/`** na raiz do repositório.
+Toda a documentação está em **[Docs/](../../Docs/)** na raiz do repositório.
 
-- **Índice completo:** [docs/README.md](../../docs/README.md)
-- **Frontend (auditoria, APIs, pendências):** [docs/frontend/](../../docs/frontend/)
-- **Convenção API no frontend** (2.ª vez mesmo endpoint → `lib/*Api.ts`): [README.md — Chamadas API (lib)](../README.md#chamadas-api-lib)
+- Índice: [Docs/README.md](../../Docs/README.md)
+- Convenção `*Api.ts`: [apps/web/README.md](../README.md#chamadas-api-lib)

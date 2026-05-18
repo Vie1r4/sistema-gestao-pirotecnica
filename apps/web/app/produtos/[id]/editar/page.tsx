@@ -163,7 +163,7 @@ export default function EditarProdutoPage() {
     return (
       <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a]">
         <Navbar />
-        <main style={{ paddingTop: CONTENT_OFFSET_TOP }} className="p-8">
+        <main  className="p-8 pt-content-offset">
           {queryError && (
             <p className="mb-4 rounded-xl bg-red-100 px-4 py-3 text-sm text-red-800 dark:bg-red-900/30 dark:text-red-400">
               {queryError instanceof Error ? queryError.message : "Erro ao carregar."}
@@ -181,8 +181,8 @@ export default function EditarProdutoPage() {
       <Navbar />
 
       <main
-        className="relative px-6 pt-14 pb-10 sm:px-8"
-        style={{ paddingTop: CONTENT_OFFSET_TOP }}
+        className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset"
+        
       >
         <div className="mx-auto max-w-2xl">
           <motion.div initial={fadeInUp.initial} animate={fadeInUp.animate} transition={transitionSmooth}>

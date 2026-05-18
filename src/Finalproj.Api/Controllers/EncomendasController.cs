@@ -63,9 +63,15 @@ public class EncomendasController : ControllerBase
         return await _workflow.GetDetailDtoAsync(id, cancellationToken);
     }
 
-    // Lista encomendas com filtro por estado e paginação
+    /// <summary>Lista encomendas com filtro por estado e paginação.</summary>
+    /// <response code="200">Lista paginada e totais por estado</response>
+    /// <response code="401">Não autenticado</response>
+    /// <response code="403">Sem permissão (ex.: Armazém)</response>
     [HttpGet]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirEncomendas)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Index(string? estado, int pagina = 1, int itensPorPagina = 20, CancellationToken cancellationToken = default)
     {
         if (pagina < 1) pagina = 1;
@@ -74,9 +80,13 @@ public class EncomendasController : ControllerBase
         return Ok(await _workflow.ListAsync(estado, pagina, itensPorPagina, cancellationToken));
     }
 
-    // Detalhe da encomenda + stock actual por produto
+    /// <summary>Detalhe da encomenda e stock disponível por produto.</summary>
+    /// <response code="200">Encomenda e metadados</response>
+    /// <response code="404">Encomenda não encontrada</response>
     [HttpGet("{id:int}")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirEncomendas)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Details(int? id, CancellationToken cancellationToken = default)
     {
         if (id == null) return NotFound();
@@ -207,6 +217,10 @@ public class EncomendasController : ControllerBase
     /// </summary>
     [HttpPost("submeter")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirEncomendas)]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> SubmeterEncomenda([FromBody] SubmeterEncomendaDto input, CancellationToken cancellationToken = default)
     {
         var clienteId = input.ClienteId;
@@ -237,8 +251,15 @@ public class EncomendasController : ControllerBase
     /// Atualiza encomenda (data entrega, observações e itens). Apenas quando estado é Pendente ou Aceite.
     /// Atualiza reservas para refletir as novas quantidades por produto.
     /// </summary>
+    /// <summary>Actualiza encomenda Pendente ou Aceite (itens e observações).</summary>
+    /// <response code="200">Encomenda actualizada</response>
+    /// <response code="400">Dados ou estado inválidos</response>
+    /// <response code="404">Encomenda não encontrada</response>
     [HttpPut("{id:int}")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirEncomendas)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Update(int id, [FromBody] EditEncomendaDto input, CancellationToken cancellationToken = default)
     {
         var validationResult = await _editEncomendaValidator.ValidateAsync(input, cancellationToken);
@@ -257,11 +278,15 @@ public class EncomendasController : ControllerBase
         return Ok(new { encomenda = encomendaDto, encomendaEditada = true });
     }
 
-    /// <summary>
-    /// Aceita uma encomenda em estado Pendente (reservas mantidas; registo de auditoria).
-    /// </summary>
+    /// <summary>Aceita encomenda em estado Pendente (reservas mantidas; auditoria).</summary>
+    /// <response code="200">Encomenda aceite</response>
+    /// <response code="400">Estado inválido</response>
+    /// <response code="404">Encomenda não encontrada</response>
     [HttpPost("{id:int}/aceitar")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirEncomendas)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Aceitar(int id, CancellationToken cancellationToken = default)
     {
         var userId = User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -293,8 +318,15 @@ public class EncomendasController : ControllerBase
     /// <summary>
     /// Rejeita a encomenda, libertando reservas e registando o motivo opcional.
     /// </summary>
+    /// <summary>Rejeita encomenda Pendente ou Aceite.</summary>
+    /// <response code="200">Encomenda rejeitada</response>
+    /// <response code="400">Estado inválido</response>
+    /// <response code="404">Encomenda não encontrada</response>
     [HttpPost("{id:int}/rejeitar")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirEncomendas)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Rejeitar(int id, [FromBody] RejeitarEncomendaDto? input, CancellationToken cancellationToken = default)
     {
         var motivoRejeicao = input?.MotivoRejeicao;
@@ -309,11 +341,13 @@ public class EncomendasController : ControllerBase
         return Ok(new { encomenda = encomendaDtoRej, encomendaRejeitada = true });
     }
 
-    /// <summary>
-    /// Dados para preparação FIFO da encomenda (paióis acessíveis conforme roles do utilizador).
-    /// </summary>
+    /// <summary>Dados para preparação FIFO da encomenda (paióis acessíveis conforme roles).</summary>
+    /// <response code="200">Dados de preparação</response>
+    /// <response code="404">Encomenda não encontrada</response>
     [HttpGet("{id:int}/preparar")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirEncomendas)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Preparar(int? id, CancellationToken cancellationToken = default)
     {
         if (id == null) return NotFound();
@@ -324,8 +358,13 @@ public class EncomendasController : ControllerBase
         return Ok(data);
     }
 
+    /// <summary>Regista retiradas FIFO e avança encomenda para preparada.</summary>
+    /// <response code="200">Preparação registada</response>
+    /// <response code="400">Stock ou dados inválidos</response>
     [HttpPost("{id:int}/registar-preparacao")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirEncomendas)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> RegistarPreparacao(int id, [FromBody] List<RetiradaPreparacaoInput>? retiradas, CancellationToken cancellationToken = default)
     {
         var userId = User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -350,8 +389,14 @@ public class EncomendasController : ControllerBase
     /// <summary>
     /// Conclui a encomenda após preparação (estado final; auditoria no log de sistema).
     /// </summary>
+    /// <response code="200">Encomenda concluída</response>
+    /// <response code="400">Estado inválido</response>
+    /// <response code="404">Encomenda não encontrada</response>
     [HttpPost("{id:int}/concluir")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirEncomendas)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Concluir(int id, CancellationToken cancellationToken = default)
     {
         var (encomenda, erro) = await _workflow.ConcluirAsync(id, cancellationToken);

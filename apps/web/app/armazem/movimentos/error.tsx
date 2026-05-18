@@ -2,7 +2,7 @@
 
 import PageError from "@/app/components/PageError";
 
-export default function armazem/movimentosError({
+export default function ArmazemMovimentosError({
   error,
   reset,
 }: {

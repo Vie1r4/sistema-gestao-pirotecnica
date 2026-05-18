@@ -2,7 +2,7 @@
 
 import PageError from "@/app/components/PageError";
 
-export default function armazem/stockError({
+export default function ArmazemStockError({
   error,
   reset,
 }: {

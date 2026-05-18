@@ -69,8 +69,12 @@ namespace Finalproj.Controllers
             return Ok(await _adminStats.GetLogsAsync(acao, pagina, itensPorPagina, cancellationToken));
         }
 
-        // Lista de utilizadores com roles e nome do funcionário associado (se houver)
+        /// <summary>Lista utilizadores Identity com roles e funcionário associado.</summary>
+        /// <response code="200">Lista de utilizadores</response>
+        /// <response code="403">Sem permissão Admin</response>
         [HttpGet("utilizadores")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> Utilizadores(CancellationToken cancellationToken = default)
         {
             var utilizadores = new List<UtilizadorComRolesViewModel>();
@@ -113,8 +117,12 @@ namespace Finalproj.Controllers
             return Ok(new { model, funcionariosDisponiveis });
         }
 
+        /// <summary>Actualiza roles e associação utilizador-funcionário (apenas Admin).</summary>
+        /// <response code="200">Utilizador actualizado</response>
+        /// <response code="404">Utilizador não encontrado ou ID inconsistente</response>
         [HttpPut("utilizadores/{id}")]
-        // Grava roles e associação utilizador-funcionário
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> EditarUtilizador(string id, [FromBody] EditarUtilizadorRolesViewModel model, CancellationToken cancellationToken = default)
         {
             if (id != model.Id) return NotFound();

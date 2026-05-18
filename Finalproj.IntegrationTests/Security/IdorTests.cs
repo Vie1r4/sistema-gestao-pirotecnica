@@ -125,6 +125,61 @@ public class IdorTests : IntegrationTestBase
     }
 
     [Fact]
+    public async Task Servico_DownloadDocumentoExtra_Armazem_Returns403()
+    {
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<FinalprojContext>();
+        var clienteId = TestDataSeeder.GetSeedClienteId(scope.ServiceProvider);
+        var encomenda = new Encomenda
+        {
+            ClienteId = clienteId,
+            Estado = ConstantesEncomenda.CONCLUIDA,
+            DataCriacao = DateTime.UtcNow
+        };
+        context.Encomendas.Add(encomenda);
+        await context.SaveChangesAsync();
+
+        var servico = new Servico
+        {
+            ClienteId = clienteId,
+            EncomendaId = encomenda.Id,
+            DataServico = DateTime.UtcNow.Date,
+            Local = "Local"
+        };
+        context.Servicos.Add(servico);
+        await context.SaveChangesAsync();
+
+        var docExtra = new ServicoDocumentoExtra
+        {
+            ServicoId = servico.Id,
+            Nome = "Planta",
+            Caminho = "documentos/servicos/1/planta.pdf"
+        };
+        context.ServicoDocumentoExtras.Add(docExtra);
+        await context.SaveChangesAsync();
+
+        var client = await Factory.CreateAuthenticatedClientAsync(ConstantesRoles.Armazem);
+        var response = await client.GetAsync($"/api/servicos/{servico.Id}/documentos/{docExtra.Id}");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Put_AdminUtilizador_Gestor_Returns403()
+    {
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var (user, _) = await TestDataSeeder.EnsureUserAsync(
+            scope.ServiceProvider,
+            "admin-put-target@pirofafe.pt",
+            ConstantesRoles.Comercial);
+        var client = await Factory.CreateAuthenticatedClientAsync(ConstantesRoles.Gestor);
+        var response = await client.SendAuthorizedAsync(
+            HttpMethod.Put,
+            $"/api/admin/utilizadores/{user.Id}",
+            System.Net.Http.Json.JsonContent.Create(new { id = user.Id, roles = Array.Empty<object>() }));
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Put_Funcionario_Comercial_Returns403()
     {
         await using var scope = Factory.Services.CreateAsyncScope();

@@ -501,9 +501,15 @@ namespace Finalproj.Controllers
             return Ok(new { item = FuncionarioResponseDtoMapping.Map(item, includeSensitive: false), contaDesassociada = true, aviso = message });
         }
 
-        // Devolve documento (CC, ADR, licença, outros ou extra por id) inline. Admin/Gestor podem ver qualquer; outros apenas os seus.
+        /// <summary>Download de documento do funcionário (CC, ADR, licença, extra). IDOR: só o próprio ou Admin/Gestor.</summary>
+        /// <response code="200">Ficheiro inline</response>
+        /// <response code="403">Sem permissão para este funcionário</response>
+        /// <response code="404">Funcionário ou documento inexistente</response>
         [HttpGet("{id:int}/documentos")]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirFuncionarios)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Download(int id, string tipo, int? extraId = null, CancellationToken cancellationToken = default)
         {
             var funcionario = await _funcionarios.GetByIdAsync(id, false, cancellationToken);

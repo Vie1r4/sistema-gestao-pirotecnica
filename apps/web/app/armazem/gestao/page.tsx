@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import EmptyState from "@/app/components/ui/EmptyState";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { labelPerfilRisco } from "@/app/lib/armazem";
@@ -119,8 +120,8 @@ function GestaoContent() {
       <Navbar />
 
       <main
-        className="relative px-6 pt-14 pb-10 sm:px-8"
-        style={{ paddingTop: CONTENT_OFFSET_TOP }}
+        className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset"
+        
       >
         <div className="mx-auto max-w-6xl">
           <motion.div
@@ -179,14 +180,15 @@ function GestaoContent() {
                 {queryError instanceof Error ? queryError.message : "Erro ao carregar dados."}
               </p>
             ) : mostrarVazio ? (
-              <div className="rounded-xl border border-dashed border-[#e7e5e4] bg-[#fafaf9] py-12 text-center dark:border-[#333] dark:bg-[#0a0a0a]">
-                <p className="text-[#57534e] dark:text-gray-400">
-                  Ainda não há paióis com acesso. Crie o primeiro (em Criar novo paiol marque pelo menos um cargo com acesso, ex. Admin).
-                </p>
-                <Link href="/armazem/novo" className={btnPrimary + " mt-4 inline-block"}>
-                  Criar novo paiol
-                </Link>
-              </div>
+              <EmptyState
+                title="Ainda não há paióis com acesso."
+                description="Em Criar novo paiol marque pelo menos um cargo com acesso (ex. Admin)."
+                action={
+                  <Link href="/armazem/novo" className={btnPrimary}>
+                    Criar novo paiol
+                  </Link>
+                }
+              />
             ) : mostrarLista ? (
               <>
                 <p className="mb-4 text-sm text-[#57534e] dark:text-gray-400">

@@ -148,7 +148,7 @@ function RegistarSaidaContent() {
     return (
       <div className="min-h-screen bg-[#f8f7f5] dark:bg-[#0a0a0a]">
         <Navbar />
-        <main style={{ paddingTop: CONTENT_OFFSET_TOP }} className="p-8">
+        <main  className="p-8 pt-content-offset">
           <p className="text-gray-600 dark:text-gray-400">
             Deve indicar o paiol e o produto. Aceda a partir do conteúdo do paiol e clique em &quot;Retirar&quot; na linha do produto.
           </p>
@@ -164,7 +164,7 @@ function RegistarSaidaContent() {
     return (
       <div className="min-h-screen bg-[#f8f7f5] dark:bg-[#0a0a0a]">
         <Navbar />
-        <main style={{ paddingTop: CONTENT_OFFSET_TOP }} className="p-8">
+        <main  className="p-8 pt-content-offset">
           {loadingForm ? (
             <div className="flex justify-center py-12">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent" />
@@ -187,8 +187,8 @@ function RegistarSaidaContent() {
       <Navbar />
 
       <main
-        className="relative px-6 pt-14 pb-10 sm:px-8"
-        style={{ paddingTop: CONTENT_OFFSET_TOP }}
+        className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset"
+        
       >
         <div className="mx-auto max-w-2xl">
           <motion.div

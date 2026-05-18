@@ -37,6 +37,14 @@ const AREAS_PIE: { key: string; label: string; color: string }[] = [
   { key: "funcionarios", label: "Funcionários", color: "#06b6d4" },
 ];
 
+const LEGEND_DOT_CLASS: Record<string, string> = {
+  clientes: "legend-dot-clientes",
+  servicos: "legend-dot-servicos",
+  produtos: "legend-dot-produtos",
+  paiois: "legend-dot-paiols",
+  funcionarios: "legend-dot-funcionarios",
+};
+
 function useCountUp(value: number, enabled: boolean, durationMs = 800) {
   const [display, setDisplay] = useState(0);
   useEffect(() => {
@@ -175,6 +183,7 @@ export default function DashboardGestor({
     };
     const total = Object.values(values).reduce((a, b) => a + b, 0);
     return AREAS_PIE.filter((a) => values[a.key] > 0).map((a) => ({
+      key: a.key,
       name: a.label,
       value: values[a.key],
       total,
@@ -359,7 +368,7 @@ export default function DashboardGestor({
                           ))}
                         </Pie>
                         <Tooltip
-                          contentStyle={{ borderRadius: "12px", border: "1px solid #e7e5e4" }}
+                          wrapperClassName="rounded-xl border border-[#e7e5e4] bg-white px-3 py-2 text-sm shadow dark:border-[#333] dark:bg-[#111]"
                           formatter={(value: number, name: string, props: { payload?: { percent?: number } }) => {
                             const pct = props?.payload?.percent;
                             return [
@@ -375,8 +384,7 @@ export default function DashboardGestor({
                     {pieData.map((entry) => (
                       <div key={entry.name} className="flex items-center gap-2">
                         <span
-                          className="h-3 w-3 shrink-0 rounded-full"
-                          style={{ backgroundColor: entry.color }}
+                          className={`h-3 w-3 shrink-0 rounded-full ${LEGEND_DOT_CLASS[entry.key] ?? ""}`}
                           aria-hidden
                         />
                         <span className="text-sm text-[#1c1917] dark:text-white">{entry.name}</span>
