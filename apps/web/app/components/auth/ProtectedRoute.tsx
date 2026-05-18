@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { isAuthenticated } from "@/app/lib/auth";
+import { ensureAccessToken, isAuthenticated } from "@/app/lib/auth";
 import { UserProvider } from "@/app/context/UserContext";
 import RoutePermissionGuard from "./RoutePermissionGuard";
 
@@ -29,6 +29,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -36,13 +37,25 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   useEffect(() => {
     if (!mounted) return;
+    let cancelled = false;
+    setAuthReady(false);
+    ensureAccessToken().then(() => {
+      if (!cancelled) setAuthReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, pathname]);
+
+  useEffect(() => {
+    if (!mounted || !authReady) return;
     if (isRotaPublica(pathname)) return;
     if (!isAuthenticated()) {
       router.replace("/login");
     }
-  }, [mounted, pathname, router]);
+  }, [mounted, authReady, pathname, router]);
 
-  if (!mounted) {
+  if (!mounted || !authReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#fafafa] dark:bg-[#0a0a0a]">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent" />

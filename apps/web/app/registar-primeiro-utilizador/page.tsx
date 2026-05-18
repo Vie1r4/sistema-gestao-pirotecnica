@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { safeParseJson } from "@/app/lib/api";
 import { postRegistarPrimeiroUtilizador } from "@/app/lib/authApi";
@@ -17,6 +18,7 @@ const btnPrimary =
   "data-button w-full rounded-xl bg-[#f97316] px-5 py-3 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
 
 export default function RegistarPrimeiroUtilizadorPage() {
+  const router = useRouter();
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -52,11 +54,9 @@ export default function RegistarPrimeiroUtilizadorPage() {
         (data.token ?? data.Token ?? data.accessToken ?? data.AccessToken) as string | undefined;
       const refreshToken = (data.refreshToken ?? data.RefreshToken) as string | undefined;
       if (res.ok && token) {
-        if (typeof window !== "undefined") {
-          // refresh token passou para cookie HttpOnly no backend
-          setToken(token);
-          window.location.href = "/";
-        }
+        // refresh token passou para cookie HttpOnly no backend
+        setToken(token);
+        router.replace("/");
         return;
       }
       setMessage((data.error ?? data.Error ?? "Ocorreu um erro. Tente novamente.") as string);

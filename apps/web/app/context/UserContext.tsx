@@ -5,10 +5,12 @@ import { useQuery } from "@tanstack/react-query";
 import {
   getToken,
   getTokenExpirationSeconds,
+  ensureAccessToken,
   refreshAccessToken,
   logout,
 } from "@/app/lib/auth";
 import { fetchAuthMe } from "@/app/lib/authApi";
+import { useAuthStore } from "@/app/stores/useAuthStore";
 
 export type CurrentUser = {
   id: string;
@@ -78,6 +80,7 @@ function useRefreshTokenScheduler() {
 
 export function UserProvider({ children }: { children: ReactNode }) {
   useRefreshTokenScheduler();
+  const storeToken = useAuthStore((s) => s.token);
 
   const {
     data,
@@ -85,9 +88,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
     refetch: queryRefetch,
     isFetching,
   } = useQuery({
-    queryKey: ["auth", "me"],
+    queryKey: ["auth", "me", storeToken],
     queryFn: async (): Promise<CurrentUser | null> => {
-      const token = getToken();
+      const token = (await ensureAccessToken()) ?? getToken();
       if (!token) return null;
       const raw = await fetchAuthMe(token);
       if (!raw) return null;

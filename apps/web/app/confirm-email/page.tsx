@@ -2,7 +2,7 @@
 
 import { Suspense, useMemo } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { confirmEmail } from "@/app/lib/authApi";
@@ -13,6 +13,7 @@ const cardClass =
   "card-hover rounded-2xl border border-[#e7e5e4] bg-white p-8 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:border-[#1f1f1f] dark:bg-[#111] dark:shadow-none sm:p-10";
 
 function ConfirmEmailContent() {
+  const router = useRouter();
   const params = useSearchParams();
   const userId = useMemo(() => params.get("userId") ?? "", [params]);
   const code = useMemo(() => params.get("code") ?? "", [params]);
@@ -24,7 +25,7 @@ function ConfirmEmailContent() {
       const result = await confirmEmail(userId, code);
       if (result.status === "redirect") {
         setToken(result.token);
-        window.location.href = "/";
+        router.replace("/");
         return result;
       }
       return result;

@@ -55,7 +55,7 @@ export default function LoginPage() {
           (data.AccessToken as string);
         if (token) {
           setToken(token);
-          window.location.href = "/";
+          router.replace("/");
           return;
         }
       }

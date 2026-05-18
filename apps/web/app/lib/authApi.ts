@@ -19,6 +19,7 @@ export async function postLogin(email: string, password: string): Promise<Respon
   return fetch(apiPath("api/auth/login"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ email: email.trim(), password }),
   });
 }
@@ -32,6 +33,7 @@ export async function postRegistarPrimeiroUtilizador(body: {
   return fetch(apiPath("api/auth/registar-primeiro-utilizador"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({
       email: body.email.trim(),
       password: body.password,
@@ -72,6 +74,7 @@ export async function postResetPassword(body: {
 export async function fetchAuthMe(token: string): Promise<Record<string, unknown> | null> {
   const res = await fetch(apiPath("api/auth/me"), {
     headers: { Authorization: `Bearer ${token}` },
+    credentials: "include",
   });
   if (res.status === 401 || !res.ok) return null;
   return (await res.json()) as Record<string, unknown>;

@@ -44,6 +44,23 @@ export function isAuthenticated(): boolean {
   return token != null && token.length > 0;
 }
 
+let bootstrapPromise: Promise<string | null> | null = null;
+
+/**
+ * Garante access token em memória: usa o existente ou tenta refresh via cookie HttpOnly.
+ * Útil após reload (Zustand perde o JWT) ou antes de redirecionar rotas protegidas.
+ */
+export async function ensureAccessToken(): Promise<string | null> {
+  const existing = getToken();
+  if (existing) return existing;
+  if (!bootstrapPromise) {
+    bootstrapPromise = refreshAccessToken().finally(() => {
+      bootstrapPromise = null;
+    });
+  }
+  return bootstrapPromise;
+}
+
 /** Renova o access token usando o cookie HttpOnly de refresh. */
 export async function refreshAccessToken(): Promise<string | null> {
   try {
