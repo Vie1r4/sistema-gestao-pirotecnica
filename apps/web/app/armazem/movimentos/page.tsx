@@ -315,7 +315,7 @@ function MovimentosContent() {
         className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset"
         
       >
-        <div className="mx-auto max-w-6xl">
+        <div className="content-container">
           <motion.div
             initial={fadeInUp.initial}
             animate={fadeInUp.animate}
@@ -347,11 +347,7 @@ function MovimentosContent() {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               Filtros
             </h2>
-            <form
-              method="get"
-              action="/armazem/movimentos"
-              className="mt-4 flex flex-wrap items-end gap-4"
-            >
+            <div className="mt-4 flex flex-wrap items-end gap-4">
               <div>
                 <label htmlFor="tipo" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Tipo de movimento
@@ -362,7 +358,9 @@ function MovimentosContent() {
                   value={tipo}
                   onChange={(e) => {
                     const v = e.target.value || undefined;
-                    router.push(buildUrl({ tipo: v, paiolId: paiolIdParam || undefined }));
+                    router.push(
+                      buildUrl({ tipo: v, paiolId: paiolIdParam || undefined, pagina: 1 })
+                    );
                   }}
                   className={`${inputClass} mt-1`}
                 >
@@ -391,14 +389,7 @@ function MovimentosContent() {
                   ))}
                 </select>
               </div>
-              <button
-                type="button"
-                onClick={() => router.push(buildUrl({ tipo, paiolId: paiolIdParam || undefined, pagina: 1 }))}
-                className="rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black hover:opacity-90"
-              >
-                Ver
-              </button>
-            </form>
+            </div>
 
             {error && (
               <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950/30">
@@ -538,7 +529,7 @@ function MovimentosContent() {
             )}
             {!loading && !tipo && (
               <p className="mt-6 text-sm text-[#57534e] dark:text-gray-400">
-                Selecione o tipo de movimento (Entradas ou Saídas) e opcionalmente um paiol, depois clique em Ver.
+                Selecione o tipo de movimento (Entradas ou Saídas); a lista actualiza automaticamente.
               </p>
             )}
           </motion.div>

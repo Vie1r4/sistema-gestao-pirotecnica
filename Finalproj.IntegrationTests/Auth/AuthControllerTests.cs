@@ -1,8 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Finalproj.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -187,6 +189,165 @@ public class AuthControllerTests : IntegrationTestBase
             return end < 0 ? header[start..] : header[start..end];
         }
         return null;
+    }
+
+    [Fact]
+    public async Task ResetPassword_ValidToken_AllowsLoginWithNewPassword()
+    {
+        var client = Factory.CreateClient(new() { HandleCookies = true });
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var sp = scope.ServiceProvider;
+        var email = "reset-ok@pirofafe.pt";
+        await TestDataSeeder.EnsureUserAsync(sp, email, "Admin");
+
+        var userManager = sp.GetRequiredService<UserManager<IdentityUser>>();
+        var user = await userManager.FindByEmailAsync(email);
+        Assert.NotNull(user);
+
+        var rawToken = await userManager.GeneratePasswordResetTokenAsync(user);
+        var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(rawToken));
+        var linkToken = Uri.UnescapeDataString(Uri.EscapeDataString(encodedToken));
+        const string newPassword = "NovaPass123!Z";
+
+        var reset = await client.PostAsJsonAsync("/api/auth/reset-password", new
+        {
+            email,
+            token = linkToken,
+            newPassword,
+            confirmPassword = newPassword
+        });
+        Assert.Equal(HttpStatusCode.OK, reset.StatusCode);
+
+        var login = await client.PostAsJsonAsync("/api/auth/login", new { email, password = newPassword });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+    }
+
+    [Fact]
+    public async Task ResetPassword_TokenWithWhitespaceInMiddle_Succeeds()
+    {
+        var client = Factory.CreateClient();
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var sp = scope.ServiceProvider;
+        var email = "reset-ws@pirofafe.pt";
+        await TestDataSeeder.EnsureUserAsync(sp, email, "Admin");
+
+        var userManager = sp.GetRequiredService<UserManager<IdentityUser>>();
+        var user = await userManager.FindByEmailAsync(email);
+        Assert.NotNull(user);
+
+        var rawToken = await userManager.GeneratePasswordResetTokenAsync(user);
+        var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(rawToken));
+        var corrupted = encoded.Insert(encoded.Length / 2, " ");
+
+        var response = await client.PostAsJsonAsync("/api/auth/reset-password", new
+        {
+            email,
+            token = corrupted,
+            newPassword = "OutraPass456!X",
+            confirmPassword = "OutraPass456!X"
+        });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ResetPassword_UnconfirmedEmail_AllowsLoginAfterReset()
+    {
+        var client = Factory.CreateClient(new() { HandleCookies = true });
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var sp = scope.ServiceProvider;
+        var email = "reset-unconf@pirofafe.pt";
+        var userManager = sp.GetRequiredService<UserManager<IdentityUser>>();
+
+        var existing = await userManager.FindByEmailAsync(email);
+        if (existing != null)
+            await userManager.DeleteAsync(existing);
+
+        var user = new IdentityUser
+        {
+            UserName = email,
+            Email = email,
+            EmailConfirmed = false
+        };
+        var create = await userManager.CreateAsync(user, TestDataSeeder.DefaultPassword);
+        Assert.True(create.Succeeded);
+        await userManager.AddToRoleAsync(user, "Admin");
+
+        var rawToken = await userManager.GeneratePasswordResetTokenAsync(user);
+        var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(rawToken));
+        const string newPassword = "ResetConf789!Q";
+
+        var reset = await client.PostAsJsonAsync("/api/auth/reset-password", new
+        {
+            email,
+            token = encodedToken,
+            newPassword,
+            confirmPassword = newPassword
+        });
+        Assert.Equal(HttpStatusCode.OK, reset.StatusCode);
+
+        var login = await client.PostAsJsonAsync("/api/auth/login", new { email, password = newPassword });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+    }
+
+    [Fact]
+    public async Task ResetPassword_PasswordTooWeak_Returns400WithDetails()
+    {
+        var client = Factory.CreateClient();
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var sp = scope.ServiceProvider;
+        var email = "reset-weak@pirofafe.pt";
+        await TestDataSeeder.EnsureUserAsync(sp, email, "Admin");
+
+        var userManager = sp.GetRequiredService<UserManager<IdentityUser>>();
+        var user = await userManager.FindByEmailAsync(email);
+        Assert.NotNull(user);
+
+        var rawToken = await userManager.GeneratePasswordResetTokenAsync(user);
+        var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(rawToken));
+
+        var response = await client.PostAsJsonAsync("/api/auth/reset-password", new
+        {
+            email,
+            token = encodedToken,
+            newPassword = "abc123",
+            confirmPassword = "abc123"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("A palavra-passe não cumpre os requisitos.", json.GetProperty("error").GetString());
+        Assert.True(json.TryGetProperty("details", out var details));
+        Assert.True(details.GetArrayLength() > 0);
+    }
+
+    [Fact]
+    public async Task ExistemUtilizadores_NaoExpoeCampoExistem()
+    {
+        var client = Factory.CreateClient();
+        var response = await client.GetAsync("/api/auth/existem-utilizadores");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(json.TryGetProperty("primeiroRegistoDisponivel", out var disponivel));
+        Assert.True(disponivel.ValueKind is JsonValueKind.True or JsonValueKind.False);
+        Assert.False(json.TryGetProperty("existem", out _));
+    }
+
+    [Fact]
+    public async Task RegistarPrimeiroUtilizador_PasswordTooWeak_Returns400WithDetails()
+    {
+        var client = Factory.CreateClient();
+        var response = await client.PostAsJsonAsync("/api/auth/registar-primeiro-utilizador", new
+        {
+            email = "primeiro-weak@pirofafe.pt",
+            password = "abc123",
+            nome = "Admin"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("A palavra-passe não cumpre os requisitos.", json.GetProperty("error").GetString());
+        Assert.True(json.TryGetProperty("details", out var details));
+        Assert.True(details.GetArrayLength() > 0);
     }
 
     [Fact]

@@ -111,6 +111,9 @@ public sealed class ProdutoRepository(FinalprojContext context) : IProdutoReposi
 
     public Task<int> CountAsync(CancellationToken cancellationToken = default) =>
         _context.Produtos.CountAsync(cancellationToken);
+
+    public Task<int> CountRegistadosDesdeAsync(DateTime desdeUtc, CancellationToken cancellationToken = default) =>
+        _context.Produtos.CountAsync(p => p.DataRegisto != null && p.DataRegisto >= desdeUtc, cancellationToken);
 }
 
 public sealed class EncomendaRepository(FinalprojContext context) : IEncomendaRepository
@@ -177,7 +180,9 @@ public sealed class EncomendaRepository(FinalprojContext context) : IEncomendaRe
         CancellationToken cancellationToken = default)
     {
         var query = _context.Encomendas.AsNoTracking().Include(e => e.Cliente).AsQueryable();
-        if (!string.IsNullOrEmpty(estadoFiltro) && ConstantesEncomenda.TodosEstados.Contains(estadoFiltro))
+        if (string.Equals(estadoFiltro, ConstantesEncomenda.FILTRO_ATIVAS, StringComparison.OrdinalIgnoreCase))
+            query = query.Where(e => ConstantesEncomenda.EstadosComReserva.Contains(e.Estado));
+        else if (!string.IsNullOrEmpty(estadoFiltro) && ConstantesEncomenda.TodosEstados.Contains(estadoFiltro))
             query = query.Where(e => e.Estado == estadoFiltro);
 
         query = query.OrderBy(e => e.DataEntrega == null)
@@ -235,6 +240,14 @@ public sealed class EncomendaRepository(FinalprojContext context) : IEncomendaRe
         await _context.Encomendas.AsNoTracking()
             .Include(e => e.Cliente)
             .OrderByDescending(e => e.DataCriacao)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Encomenda>> ListPendentesWithClienteAsync(int take, CancellationToken cancellationToken = default) =>
+        await _context.Encomendas.AsNoTracking()
+            .Include(e => e.Cliente)
+            .Where(e => e.Estado == ConstantesEncomenda.PENDENTE)
+            .OrderBy(e => e.DataCriacao)
             .Take(take)
             .ToListAsync(cancellationToken);
 
@@ -421,6 +434,9 @@ public sealed class FuncionarioRepository(FinalprojContext context) : IFuncionar
 
     public Task<int> CountAsync(CancellationToken cancellationToken = default) =>
         _context.Funcionarios.CountAsync(cancellationToken);
+
+    public Task<int> CountRegistadosDesdeAsync(DateTime desdeUtc, CancellationToken cancellationToken = default) =>
+        _context.Funcionarios.CountAsync(f => f.DataRegisto != null && f.DataRegisto >= desdeUtc, cancellationToken);
 }
 
 public sealed class ServicoRepository(FinalprojContext context) : IServicoRepository
@@ -733,6 +749,10 @@ public sealed class LogSistemaRepository(FinalprojContext context) : ILogSistema
 
     public async Task<(IReadOnlyList<(long Id, string? Acao, string? UserId, string? UserName, string? JsonDados, DateTime Timestamp)> Items, int Total)> ListPagedAsync(
         string? acaoFiltro,
+        string? userNameFiltro,
+        string? entidadeFiltro,
+        DateTime? dataInicio,
+        DateTime? dataFim,
         int pagina,
         int itensPorPagina,
         CancellationToken cancellationToken = default)
@@ -740,12 +760,39 @@ public sealed class LogSistemaRepository(FinalprojContext context) : ILogSistema
         var query = _context.LogSistema.AsNoTracking().OrderByDescending(l => l.Timestamp).AsQueryable();
         if (!string.IsNullOrWhiteSpace(acaoFiltro))
             query = query.Where(l => l.Acao != null && l.Acao.Contains(acaoFiltro));
+        if (!string.IsNullOrWhiteSpace(userNameFiltro))
+            query = query.Where(l => l.UserName != null && l.UserName.Contains(userNameFiltro));
+        if (!string.IsNullOrWhiteSpace(entidadeFiltro))
+            query = ApplyEntidadeFiltro(query, entidadeFiltro.Trim());
+        if (dataInicio.HasValue)
+            query = query.Where(l => l.Timestamp >= dataInicio.Value);
+        if (dataFim.HasValue)
+            query = query.Where(l => l.Timestamp < dataFim.Value.Date.AddDays(1));
         var total = await query.CountAsync(cancellationToken);
         var rows = await query.Skip((pagina - 1) * itensPorPagina)
             .Take(itensPorPagina)
             .Select(l => new { l.Id, l.Acao, l.UserId, l.UserName, l.JsonDados, l.Timestamp })
             .ToListAsync(cancellationToken);
         return (rows.Select(l => (l.Id, (string?)l.Acao, l.UserId, l.UserName, l.JsonDados, l.Timestamp)).ToList(), total);
+    }
+
+    private static IQueryable<LogSistema> ApplyEntidadeFiltro(IQueryable<LogSistema> query, string entidade)
+    {
+        return entidade.ToLowerInvariant() switch
+        {
+            "encomenda" => query.Where(l => l.Acao != null && l.Acao.Contains("ENCOMENDA")),
+            "stock" => query.Where(l =>
+                l.Acao != null &&
+                (l.Acao.Contains("STOCK") || l.Acao.Contains("ENTRADA") || l.Acao.Contains("SAIDA"))),
+            "admin" => query.Where(l => l.Acao != null && l.Acao.StartsWith("ADMIN_")),
+            "conta" => query.Where(l =>
+                l.Acao != null &&
+                (l.Acao.StartsWith("ADMIN_") ||
+                 l.Acao.Contains("LOGIN") ||
+                 l.Acao.Contains("LOGOUT") ||
+                 l.Acao.Contains("AUTH"))),
+            _ => query,
+        };
     }
 }
 

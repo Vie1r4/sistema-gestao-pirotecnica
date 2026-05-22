@@ -1,3 +1,4 @@
+using Finalproj.Application.Features.Compilados.Interfaces;
 using Finalproj.Application.Features.Encomendas.DTOs;
 using Finalproj.Application.Features.Encomendas.Interfaces;
 using Finalproj.Application.Features.Paiols.DTOs;
@@ -11,6 +12,7 @@ public sealed class EncomendaWorkflowService(
     IEncomendaRepository encomendas,
     IClienteRepository clientes,
     IProdutoRepository produtos,
+    ICompiladoApplicationService compilados,
     IEncomendaItemRepository itens,
     IReservaRepository reservas,
     IPaiolAcessoRepository acessos,
@@ -61,6 +63,7 @@ public sealed class EncomendaWorkflowService(
         if (cliente == null)
             return null;
         var produtosFiltrados = (await produtos.SearchAsync(pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre, cancellationToken)).Select(ProdutoResponseDtoMapping.Map).ToList();
+        var compiladosLista = await compilados.ListAsync(cancellationToken);
         return new
         {
             cliente = new EncomendaClienteResumoDto { Id = cliente.Id, Nome = cliente.Nome },
@@ -71,6 +74,7 @@ public sealed class EncomendaWorkflowService(
             filtroTecnico = filtroTecnico ?? string.Empty,
             calibre = calibre ?? string.Empty,
             produtosFiltrados,
+            compilados = compiladosLista,
             itensRascunho,
             model = new EncomendaCriarViewModel { ClienteId = clienteId, Itens = itensRascunho.ToList() }
         };
@@ -139,6 +143,7 @@ public sealed class EncomendaWorkflowService(
         if (encomenda.Estado != ConstantesEncomenda.PENDENTE) return (encomenda, "Apenas encomendas pendentes podem ser aceites.");
         encomenda.Estado = ConstantesEncomenda.ACEITE;
         encomenda.FuncionarioAceiteUserId = userId;
+        encomenda.DataAceite ??= DateTime.UtcNow;
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return (encomenda, null);
     }

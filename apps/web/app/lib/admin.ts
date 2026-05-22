@@ -11,6 +11,7 @@ export type UtilizadorComRoles = {
   email: string;
   roles: string[];
   funcionarioAssociadoNome: string | null;
+  emailConfirmed: boolean;
 };
 
 export type RoleItem = { nome: string; atribuido: boolean };
@@ -36,6 +37,7 @@ function mapUtilizador(raw: Record<string, unknown>): UtilizadorComRoles {
       raw.funcionarioAssociadoNome != null || raw.FuncionarioAssociadoNome != null
         ? String(raw.funcionarioAssociadoNome ?? raw.FuncionarioAssociadoNome ?? "")
         : null,
+    emailConfirmed: Boolean(raw.emailConfirmed ?? raw.EmailConfirmed ?? false),
   };
 }
 
@@ -48,6 +50,7 @@ function mapRoleItem(raw: Record<string, unknown>): RoleItem {
 
 export type AdminStats = {
   totalUtilizadores: number;
+  utilizadoresSemEmailConfirmado: number;
   totalEncomendas: number;
   encomendasEsteMes: number;
   totalServicos: number;
@@ -87,6 +90,9 @@ export async function fetchAdminStats(token: string): Promise<AdminStats> {
   const raw = (await res.json()) as Record<string, unknown>;
   return {
     totalUtilizadores: Number(raw.totalUtilizadores ?? 0),
+    utilizadoresSemEmailConfirmado: Number(
+      raw.utilizadoresSemEmailConfirmado ?? raw.UtilizadoresSemEmailConfirmado ?? 0
+    ),
     totalEncomendas: Number(raw.totalEncomendas ?? 0),
     encomendasEsteMes: Number(raw.encomendasEsteMes ?? 0),
     totalServicos: Number(raw.totalServicos ?? 0),
@@ -99,16 +105,59 @@ export async function fetchAdminStats(token: string): Promise<AdminStats> {
   };
 }
 
-/** GET api/admin/logs — logs do sistema com paginação */
+export type AdminHealth = {
+  status: string;
+  database: boolean;
+  environment: string;
+  version: string;
+  utcNow: string;
+};
+
+/** GET api/admin/health — estado da API e base de dados */
+export async function fetchAdminHealth(token: string): Promise<AdminHealth> {
+  const res = await fetch(`${apiPath("api/admin")}/health`, { headers: authHeaders(token) });
+  if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
+  if (!res.ok) throw new Error(`Erro ${res.status}`);
+  const raw = (await res.json()) as Record<string, unknown>;
+  return {
+    status: String(raw.status ?? raw.Status ?? "unknown"),
+    database: Boolean(raw.database ?? raw.Database ?? false),
+    environment: String(raw.environment ?? raw.Environment ?? ""),
+    version: String(raw.version ?? raw.Version ?? ""),
+    utcNow: String(raw.utcNow ?? raw.UtcNow ?? ""),
+  };
+}
+
+/** GET api/admin/logs — logs do sistema com paginação e filtros */
 export async function fetchAdminLogs(
   token: string,
-  opts: { pagina?: number; itensPorPagina?: number; acao?: string } = {}
+  opts: {
+    pagina?: number;
+    itensPorPagina?: number;
+    acao?: string;
+    userName?: string;
+    entidade?: string;
+    dataInicio?: string;
+    dataFim?: string;
+  } = {}
 ): Promise<AdminLogsResponse> {
-  const { pagina = 1, itensPorPagina = 50, acao = "" } = opts;
+  const {
+    pagina = 1,
+    itensPorPagina = 50,
+    acao = "",
+    userName = "",
+    entidade = "",
+    dataInicio = "",
+    dataFim = "",
+  } = opts;
   const params = new URLSearchParams();
   params.set("pagina", String(pagina));
   params.set("itensPorPagina", String(itensPorPagina));
   if (acao) params.set("acao", acao);
+  if (userName) params.set("userName", userName);
+  if (entidade) params.set("entidade", entidade);
+  if (dataInicio) params.set("dataInicio", dataInicio);
+  if (dataFim) params.set("dataFim", dataFim);
   const res = await fetch(`${apiPath("api/admin")}/logs?${params}`, { headers: authHeaders(token) });
   if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
   if (!res.ok) throw new Error(`Erro ${res.status}`);
@@ -218,6 +267,145 @@ export async function updateUtilizador(
   }
 }
 
+export type AdminUserAccountResponse = {
+  success: boolean;
+  message: string;
+  userId?: string;
+  errors?: string[];
+};
+
+async function parseAdminAccountResponse(res: Response): Promise<AdminUserAccountResponse> {
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  const errorsRaw = body.errors ?? body.Errors;
+  return {
+    success: Boolean(body.success ?? body.Success ?? res.ok),
+    message: String(body.message ?? body.Message ?? (res.ok ? "OK" : `Erro ${res.status}`)),
+    userId: body.userId != null || body.UserId != null ? String(body.userId ?? body.UserId) : undefined,
+    errors: Array.isArray(errorsRaw) ? errorsRaw.map(String) : undefined,
+  };
+}
+
+function throwIfAccountFailed(result: AdminUserAccountResponse): void {
+  if (!result.success) {
+    const detail = result.errors?.length ? result.errors.join(" ") : result.message;
+    throw new Error(detail || "Operação falhou.");
+  }
+}
+
+export type CriarUtilizadorOpcoes = {
+  roles: string[];
+  funcionariosDisponiveis: FuncionarioDisponivel[];
+};
+
+/** GET api/admin/utilizadores/criar-opcoes */
+export async function fetchCriarUtilizadorOpcoes(token: string): Promise<CriarUtilizadorOpcoes> {
+  const res = await fetch(`${apiPath("api/admin")}/utilizadores/criar-opcoes`, {
+    headers: authHeaders(token),
+  });
+  if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
+  if (!res.ok) throw new Error(`Erro ${res.status}`);
+  const raw = (await res.json()) as Record<string, unknown>;
+  const roles = (raw.roles ?? raw.Roles) as string[] | undefined;
+  const funcRaw = raw.funcionariosDisponiveis ?? raw.FuncionariosDisponiveis;
+  return {
+    roles: Array.isArray(roles) ? roles : [],
+    funcionariosDisponiveis: Array.isArray(funcRaw)
+      ? (funcRaw as Record<string, unknown>[]).map((f) => ({
+          id: Number(f.id ?? f.Id ?? 0),
+          nomeCompleto: String(f.nomeCompleto ?? f.NomeCompleto ?? ""),
+        }))
+      : [],
+  };
+}
+
+export type CreateUtilizadorPayload = {
+  email: string;
+  password: string;
+  confirmPassword: string;
+  roles: string[];
+  funcionarioId: number | null;
+  enviarEmailConfirmacao: boolean;
+};
+
+/** POST api/admin/utilizadores */
+export async function createUtilizador(
+  token: string,
+  payload: CreateUtilizadorPayload
+): Promise<AdminUserAccountResponse> {
+  const res = await fetch(`${apiPath("api/admin")}/utilizadores`, {
+    method: "POST",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: payload.email,
+      password: payload.password,
+      confirmPassword: payload.confirmPassword,
+      roles: payload.roles,
+      funcionarioId: payload.funcionarioId,
+      enviarEmailConfirmacao: payload.enviarEmailConfirmacao,
+    }),
+  });
+  if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
+  const result = await parseAdminAccountResponse(res);
+  throwIfAccountFailed(result);
+  return result;
+}
+
+/** POST api/admin/utilizadores/{id}/resend-confirm-email */
+export async function resendConfirmEmailAdmin(token: string, id: string): Promise<string> {
+  const res = await fetch(
+    `${apiPath("api/admin")}/utilizadores/${encodeURIComponent(id)}/resend-confirm-email`,
+    { method: "POST", headers: authHeaders(token) }
+  );
+  if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
+  const result = await parseAdminAccountResponse(res);
+  throwIfAccountFailed(result);
+  return result.message;
+}
+
+/** POST api/admin/utilizadores/{id}/confirm-email */
+export async function confirmEmailAdmin(token: string, id: string): Promise<string> {
+  const res = await fetch(
+    `${apiPath("api/admin")}/utilizadores/${encodeURIComponent(id)}/confirm-email`,
+    { method: "POST", headers: authHeaders(token) }
+  );
+  if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
+  const result = await parseAdminAccountResponse(res);
+  throwIfAccountFailed(result);
+  return result.message;
+}
+
+/** POST api/admin/utilizadores/{id}/send-password-reset */
+export async function sendPasswordResetAdmin(token: string, id: string): Promise<string> {
+  const res = await fetch(
+    `${apiPath("api/admin")}/utilizadores/${encodeURIComponent(id)}/send-password-reset`,
+    { method: "POST", headers: authHeaders(token) }
+  );
+  if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
+  const result = await parseAdminAccountResponse(res);
+  throwIfAccountFailed(result);
+  return result.message;
+}
+
+/** PUT api/admin/utilizadores/{id}/credenciais */
+export async function updateUtilizadorCredenciais(
+  token: string,
+  id: string,
+  email: string
+): Promise<string> {
+  const res = await fetch(
+    `${apiPath("api/admin")}/utilizadores/${encodeURIComponent(id)}/credenciais`,
+    {
+      method: "PUT",
+      headers: { ...authHeaders(token), "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    }
+  );
+  if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
+  const result = await parseAdminAccountResponse(res);
+  throwIfAccountFailed(result);
+  return result.message;
+}
+
 /** DELETE api/admin/utilizadores/{id} — eliminar utilizador (não permite eliminar a própria conta). */
 export async function deleteUtilizador(token: string, id: string): Promise<void> {
   const res = await fetch(`${apiPath("api/admin")}/utilizadores/${encodeURIComponent(id)}`, {
@@ -242,4 +430,47 @@ export async function clearAllDataApi(token: string): Promise<void> {
   });
   if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
   if (!res.ok) throw new Error(`Erro ${res.status}`);
+}
+
+export type BackupResult = {
+  message: string;
+  nomeFicheiro: string;
+  tamanhoBytes: number;
+};
+
+export type BackupListItem = {
+  nomeFicheiro: string;
+  tamanhoBytes: number;
+  dataCriacao: string;
+};
+
+/** GET api/admin/backups — lista backups na pasta configurada */
+export async function fetchBackups(token: string): Promise<BackupListItem[]> {
+  const res = await fetch(`${apiPath("api/admin")}/backups`, { headers: authHeaders(token) });
+  if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
+  if (!res.ok) throw new Error(`Erro ${res.status}`);
+  const raw = (await res.json()) as Record<string, unknown>;
+  const arr = (raw.items ?? raw.Items ?? []) as Record<string, unknown>[];
+  if (!Array.isArray(arr)) return [];
+  return arr.map((b) => ({
+    nomeFicheiro: String(b.nomeFicheiro ?? b.NomeFicheiro ?? ""),
+    tamanhoBytes: Number(b.tamanhoBytes ?? b.TamanhoBytes ?? 0),
+    dataCriacao: String(b.dataCriacao ?? b.DataCriacao ?? ""),
+  }));
+}
+
+/** POST api/admin/backups/run — executa backup manual imediato. Requer Admin. */
+export async function runBackupNow(token: string): Promise<BackupResult> {
+  const res = await fetch(`${apiPath("api/admin")}/backups/run`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
+  if (!res.ok) throw new Error(`Erro ${res.status}`);
+  const data = (await res.json()) as Record<string, unknown>;
+  return {
+    message: String(data.message ?? data.Message ?? ""),
+    nomeFicheiro: String(data.nomeFicheiro ?? data.NomeFicheiro ?? ""),
+    tamanhoBytes: Number(data.tamanhoBytes ?? data.TamanhoBytes ?? 0),
+  };
 }

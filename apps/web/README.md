@@ -45,6 +45,16 @@ Em PRs e em `push` às branches `main` e `next`, alterações em `apps/web/**` e
 
 No `eslint.config.mjs`, as regras `react-hooks/set-state-in-effect` e `react-hooks/incompatible-library` estão **desligadas** (`off`): com Next.js e TanStack Query/Table geram avisos em padrões válidos; ver comentários no próprio ficheiro.
 
+## Layout do conteúdo
+
+Largura e padding horizontais estão centralizados em `app/globals.css`:
+
+- `.content-container` — listagens e dashboards (**90rem** / 1440px).
+- `.content-container--admin` — painel `/admin` (**96rem** / 1536px).
+- `.page-shell` — `<main>` com padding alinhado à navbar.
+
+Para afinar no futuro, altere `--content-max-width` e `--content-max-width-admin` em `:root`.
+
 ## Chamadas API (lib)
 
 **Regra de equipa:** na **segunda vez** que o **mesmo endpoint** (mesmo método + caminho) for usado noutro sítio, extrair para uma **função** no módulo `app/lib/*Api.ts` adequado (ex.: `encomendasApi.ts`, `paiolApi.ts`). A primeira ocorrência pode ficar inline; não é obrigatório refatorar código já existente de uma só vez.

@@ -21,6 +21,14 @@ public class Encomenda
     [DataType(DataType.DateTime)]
     public DateTime? DataConclusao { get; set; }
 
+    [Display(Name = "Data de aceitação")]
+    [DataType(DataType.DateTime)]
+    public DateTime? DataAceite { get; set; }
+
+    [Display(Name = "Data de início de preparação")]
+    [DataType(DataType.DateTime)]
+    public DateTime? DataEmPreparacao { get; set; }
+
     [Display(Name = "Data de entrega")]
     [DataType(DataType.Date)]
     public DateTime? DataEntrega { get; set; }

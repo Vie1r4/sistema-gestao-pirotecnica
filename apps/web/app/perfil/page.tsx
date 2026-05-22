@@ -10,6 +10,7 @@ import { getToken, logout } from "../lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { postAlterarPassword, getPerfil, putPerfil } from "../lib/home";
 import { fadeInUp, transitionSmooth } from "../lib/animations";
+import { PASSWORD_HINT, PASSWORD_PLACEHOLDER, validatePasswordClient } from "../lib/passwordPolicy";
 
 const cardClass =
   "card-hover rounded-2xl border border-[#e7e5e4] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:border-[#1f1f1f] dark:bg-[#111] dark:shadow-none sm:p-8";
@@ -161,8 +162,9 @@ export default function PerfilPage() {
       setMessage({ type: "error", text: "A nova palavra-passe e a confirmação não coincidem." });
       return;
     }
-    if (passwordForm.nova.length < 6) {
-      setMessage({ type: "error", text: "A nova palavra-passe deve ter pelo menos 6 caracteres." });
+    const passwordError = validatePasswordClient(passwordForm.nova);
+    if (passwordError) {
+      setMessage({ type: "error", text: passwordError });
       return;
     }
     const token = getToken();
@@ -478,9 +480,10 @@ export default function PerfilPage() {
                       value={passwordForm.nova}
                       onChange={(e) => setPasswordForm((p) => ({ ...p, nova: e.target.value }))}
                       className={inputClass}
-                      placeholder="••••••••"
+                      placeholder={PASSWORD_PLACEHOLDER}
                       autoComplete="new-password"
                     />
+                    <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">{PASSWORD_HINT}</p>
                   </div>
                   <div>
                     <label htmlFor="modal-password-confirmar" className={labelClass}>

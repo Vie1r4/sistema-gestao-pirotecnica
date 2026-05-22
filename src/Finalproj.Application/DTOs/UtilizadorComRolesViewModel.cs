@@ -12,5 +12,7 @@ namespace Finalproj.Application.DTOs
         public IList<string> Roles { get; set; } = new List<string>();
         /// <summary> Nome do funcionário ligado a esta conta (null se não houver). </summary>
         public string? FuncionarioAssociadoNome { get; set; }
+        /// <summary> Indica se o email foi confirmado via link de ativação. </summary>
+        public bool EmailConfirmed { get; set; }
     }
 }

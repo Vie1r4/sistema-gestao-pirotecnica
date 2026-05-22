@@ -13,7 +13,7 @@ namespace Finalproj.Application.DTOs
         public string PasswordAtual { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "A nova palavra-passe é obrigatória.")]
-        [StringLength(100, MinimumLength = 6, ErrorMessage = "A palavra-passe deve ter entre 6 e 100 caracteres.")]
+        [StringLength(100, MinimumLength = 8, ErrorMessage = "A palavra-passe deve ter entre 8 e 100 caracteres.")]
         [DataType(DataType.Password)]
         [Display(Name = "Nova palavra-passe")]
         public string NovaPassword { get; set; } = string.Empty;

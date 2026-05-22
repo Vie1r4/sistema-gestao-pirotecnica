@@ -1,4 +1,5 @@
 using Finalproj.Application.Features.Funcionarios.DTOs;
+using Finalproj.Application.Services.Interfaces;
 using FluentValidation;
 
 namespace Finalproj.Application.Features.Funcionarios.Validators;
@@ -10,7 +11,7 @@ public class CreateFuncionarioInputDtoValidator : AbstractValidator<CreateFuncio
 {
     private static readonly string[] RolesPermitidos = ConstantesRoles.ParaContaFuncionario;
 
-    public CreateFuncionarioInputDtoValidator()
+    public CreateFuncionarioInputDtoValidator(IPasswordValidationService passwordValidation)
     {
         RuleFor(x => x.Funcionario)
             .NotNull()
@@ -62,8 +63,14 @@ public class CreateFuncionarioInputDtoValidator : AbstractValidator<CreateFuncio
             RuleFor(x => x.ContaPassword)
                 .NotEmpty()
                 .WithMessage("A palavra-passe é obrigatória.")
-                .MinimumLength(6)
-                .WithMessage("A palavra-passe deve ter pelo menos 6 caracteres.");
+                .CustomAsync(async (password, context, ct) =>
+                {
+                    if (string.IsNullOrEmpty(password)) return;
+                    var email = context.InstanceToValidate.ContaEmail?.Trim();
+                    var errors = await passwordValidation.ValidateAsync(password, email, email, ct);
+                    foreach (var err in errors)
+                        context.AddFailure(nameof(CreateFuncionarioInputDto.ContaPassword), err);
+                });
 
             RuleFor(x => x.ContaConfirmPassword)
                 .Equal(x => x.ContaPassword)

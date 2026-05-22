@@ -122,7 +122,7 @@ export default function DashboardComercial({
       id="dashboard-comercial"
       className="border-t border-[#e7e5e4] bg-[#fafaf9] px-6 py-24 dark:border-[#1a1a1a] dark:bg-[#050505] sm:px-8 sm:py-32"
     >
-      <div className="mx-auto max-w-6xl">
+      <div className="content-container">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#ea580c] dark:text-[#f97316]">
           Área Comercial
         </p>

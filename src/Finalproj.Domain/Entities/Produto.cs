@@ -33,4 +33,8 @@ public class Produto
     [StringLength(5)]
     [Display(Name = "Grupo de compatibilidade")]
     public string? GrupoCompatibilidade { get; set; }
+
+    [Display(Name = "Data de registo")]
+    [DataType(DataType.DateTime)]
+    public DateTime? DataRegisto { get; set; }
 }

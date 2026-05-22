@@ -115,7 +115,7 @@ export default function DocumentacaoPage() {
     <div className="min-h-screen bg-[#f8f7f5] text-[#1c1917] dark:bg-[#0a0a0a] dark:text-white">
       <Navbar />
       <main className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset" >
-        <div className="mx-auto max-w-6xl">
+        <div className="content-container">
           <motion.div
             initial={fadeInUp.initial}
             animate={fadeInUp.animate}

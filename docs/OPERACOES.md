@@ -11,13 +11,26 @@ Backups da base de dados e observabilidade HTTP. **Maio 2026.**
 | Aspeto | Detalhe |
 |--------|---------|
 | Agendamento | Hora local configurável (`Backups:HoraDiaria`, etc.) |
-| Ficheiros | `.bak` na raiz do content root (`{Prefixo}_{Bd}_{timestamp}.bak`) |
+| Ficheiros | `.bak` em `{ContentRoot}/PirofafeData/Backups/` (`{Prefixo}_{Bd}_{timestamp}.bak`) |
 | Retenção | `Backups:RetencaoDias` — apaga ficheiros antigos com o mesmo prefixo |
 | Manual | `POST /api/admin/backups/run` (Admin) |
 
 Configuração: secção **`Backups`** em `appsettings` ou variáveis `Backups__*`.
 
 **Produção:** considerar volume dedicado para `.bak` e cópias externas; monitorizar espaço em disco.
+
+---
+
+## Dados locais (`PirofafeData`)
+
+Pastas criadas automaticamente no arranque da API (ignoradas pelo Git — ver `.gitignore`):
+
+| Pasta | Conteúdo |
+|-------|----------|
+| `PirofafeData/Uploads/` | Documentos de clientes, funcionários, paióis, serviços (paths relativos na BD) |
+| `PirofafeData/Backups/` | Cópias `.bak` da base de dados |
+
+Configuração: secção **`DadosLocais`** em `appsettings` (`NomePastaDados`, `SubPastaDocumentos`, `SubPastaBackups`, `CaminhoRaizDados` opcional, `UsarFallbackWwwroot` para ficheiros antigos em `wwwroot`).
 
 ---
 

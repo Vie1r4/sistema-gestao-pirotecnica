@@ -70,8 +70,11 @@ builder.Services.AddScoped<FluentValidation.IValidator<Finalproj.Application.Fea
 builder.Services.AddScoped<FluentValidation.IValidator<Finalproj.Application.Features.Funcionarios.DTOs.CreateFuncionarioInputDto>, Finalproj.Application.Features.Funcionarios.Validators.CreateFuncionarioInputDtoValidator>();
 builder.Services.AddScoped<FluentValidation.IValidator<Finalproj.Application.Features.Paiols.DTOs.EntradaPaiolViewModel>, Finalproj.Application.Features.Paiols.Validators.EntradaPaiolViewModelValidator>();
 
-// Opções de documentos (tamanho máximo de upload)
+// Opções de documentos (tamanho máximo de upload) e pastas locais portáteis
+builder.Services.Configure<Finalproj.Infrastructure.Configuration.DadosLocaisOptions>(builder.Configuration.GetSection(Finalproj.Infrastructure.Configuration.DadosLocaisOptions.SectionName));
+builder.Services.Configure<Finalproj.Infrastructure.Configuration.BootstrapOptions>(builder.Configuration.GetSection(Finalproj.Infrastructure.Configuration.BootstrapOptions.SectionName));
 builder.Services.Configure<Finalproj.Infrastructure.Configuration.DocumentosOptions>(builder.Configuration.GetSection(Finalproj.Infrastructure.Configuration.DocumentosOptions.SectionName));
+builder.Services.AddSingleton<Finalproj.Application.Services.IArquivosRaizService, Finalproj.Infrastructure.Services.ArquivosRaizService>();
 builder.Services.Configure<Finalproj.Infrastructure.Services.DatabaseBackupOptions>(
     builder.Configuration.GetSection(Finalproj.Infrastructure.Services.DatabaseBackupOptions.SectionName));
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
@@ -86,24 +89,31 @@ builder.Services.AddScoped<Finalproj.Application.Services.ILogSistemaService, Fi
 builder.Services.AddScoped<Finalproj.Application.Features.Paiols.Interfaces.IStockDisponivelService, Finalproj.Application.Features.Paiols.Services.StockDisponivelService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Encomendas.Interfaces.IEncomendaService, Finalproj.Application.Features.Encomendas.Services.EncomendaService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Servicos.Services.IServicoService, Finalproj.Application.Features.Servicos.Services.ServicoService>();
+builder.Services.AddScoped<Finalproj.Application.Services.IUploadFileContentValidator, Finalproj.Infrastructure.Services.UploadFileContentValidator>();
 builder.Services.AddScoped<Finalproj.Application.Services.IDocumentoStorageService, Finalproj.Infrastructure.Services.DocumentoStorageService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Common.Interfaces.IUserDisplayNameService, Finalproj.Application.Features.Common.Services.UserDisplayNameService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Produtos.Interfaces.IProdutoApplicationService, Finalproj.Application.Features.Produtos.Services.ProdutoApplicationService>();
+builder.Services.AddScoped<Finalproj.Application.Features.Compilados.Interfaces.ICompiladoApplicationService, Finalproj.Application.Features.Compilados.Services.CompiladoApplicationService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Clientes.Interfaces.IClienteApplicationService, Finalproj.Application.Features.Clientes.Services.ClienteApplicationService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Paiols.Interfaces.IPaiolApplicationService, Finalproj.Application.Features.Paiols.Services.PaiolApplicationService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Paiols.Interfaces.IEntradaPaiolApplicationService, Finalproj.Application.Features.Paiols.Services.EntradaPaiolApplicationService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Paiols.Interfaces.ISaidaPaiolApplicationService, Finalproj.Application.Features.Paiols.Services.SaidaPaiolApplicationService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Funcionarios.Interfaces.IFuncionarioApplicationService, Finalproj.Application.Features.Funcionarios.Services.FuncionarioApplicationService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Admin.Interfaces.IAdminStatsService, Finalproj.Application.Features.Admin.Services.AdminStatsService>();
+builder.Services.AddScoped<Finalproj.Application.Features.Admin.Interfaces.IAdminUserAccountService, Finalproj.Infrastructure.Services.AdminUserAccountService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Home.Interfaces.IHomeAnalyticsService, Finalproj.Application.Features.Home.Services.HomeAnalyticsService>();
+builder.Services.AddScoped<Finalproj.Application.Features.GestorAnalytics.Interfaces.IGestorAnalyticsService, Finalproj.Application.Features.GestorAnalytics.Services.GestorAnalyticsService>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.IGestorAnalyticsRepository, Finalproj.Infrastructure.Repositories.GestorAnalyticsRepository>();
 builder.Services.AddScoped<Finalproj.Application.Features.Encomendas.Interfaces.IEncomendaWorkflowService, Finalproj.Application.Features.Encomendas.Services.EncomendaWorkflowService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Servicos.Interfaces.IServicosApiApplicationService, Finalproj.Application.Features.Servicos.Services.ServicosApiApplicationService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Auth.Interfaces.IAuthAccountInfoService, Finalproj.Application.Features.Auth.Services.AuthAccountInfoService>();
 builder.Services.AddScoped<Finalproj.Application.Services.Interfaces.IIdentityUserLookupService, Finalproj.Infrastructure.Services.IdentityUserLookupService>();
+builder.Services.AddScoped<Finalproj.Application.Services.Interfaces.IPasswordValidationService, Finalproj.Infrastructure.Services.IdentityPasswordValidationService>();
 builder.Services.AddScoped<Finalproj.Application.Services.Interfaces.IDatabaseCleanupService, Finalproj.Infrastructure.Services.DatabaseCleanupService>();
 
 builder.Services.AddScoped<Finalproj.Domain.Interfaces.IPaiolRepository, Finalproj.Infrastructure.Repositories.PaiolRepository>();
 builder.Services.AddScoped<Finalproj.Domain.Interfaces.IProdutoRepository, Finalproj.Infrastructure.Repositories.ProdutoRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.ICompiladoRepository, Finalproj.Infrastructure.Repositories.CompiladoRepository>();
 builder.Services.AddScoped<Finalproj.Domain.Interfaces.IEncomendaRepository, Finalproj.Infrastructure.Repositories.EncomendaRepository>();
 builder.Services.AddScoped<Finalproj.Domain.Interfaces.IClienteRepository, Finalproj.Infrastructure.Repositories.ClienteRepository>();
 builder.Services.AddScoped<Finalproj.Domain.Interfaces.IFuncionarioRepository, Finalproj.Infrastructure.Repositories.FuncionarioRepository>();
@@ -136,11 +146,17 @@ builder.Services.AddSession(options =>
     options.IdleTimeout = TimeSpan.FromMinutes(20);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
-    // Permite enviar o cookie de sessão em pedidos cross-origin (frontend localhost:3000 → API localhost:7225)
-    // Como frontend e API são normalmente "same-site" (mesmo host, portas diferentes), Lax reduz CSRF sem quebrar o fluxo.
-    options.Cookie.SameSite = SameSiteMode.Lax;
-    // Em development pode existir HTTP (ex.: telemóvel na LAN). Em produção deve ser HTTPS.
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    if (builder.Environment.IsDevelopment())
+    {
+        // Next.js (http://localhost:3000) → API (https://localhost:7225) é cross-site; Lax não envia o cookie de sessão.
+        options.Cookie.SameSite = SameSiteMode.None;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    }
+    else
+    {
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    }
 });
 
 // Rate limiting (protege endpoints sensíveis: login/reset/refresh/admin)
@@ -176,6 +192,19 @@ builder.Services.AddRateLimiter(options =>
         return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 30,
+            Window = TimeSpan.FromMinutes(1),
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0
+        });
+    });
+
+    // Bootstrap do primeiro admin — limite mais restrito (evita enumeração / abuso)
+    options.AddPolicy("bootstrap", httpContext =>
+    {
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
             Window = TimeSpan.FromMinutes(1),
             QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
             QueueLimit = 0
@@ -261,6 +290,11 @@ if (builder.Environment.IsDevelopment())
                 Array.Empty<string>()
             }
         });
+
+        var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+        var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+        if (File.Exists(xmlPath))
+            options.IncludeXmlComments(xmlPath);
     });
 }
 

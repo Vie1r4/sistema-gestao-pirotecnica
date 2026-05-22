@@ -17,6 +17,9 @@
 | [SEGURANCA.md](SEGURANCA.md) | Sessão, CSP, armazenamento no browser |
 | [TESTES.md](TESTES.md) | Unitários, integração, Vitest, Playwright, CI |
 | [OPERACOES.md](OPERACOES.md) | Backups SQL, correlation id, logs |
+| [frontend/PAINEL-ADMIN.md](frontend/PAINEL-ADMIN.md) | Rotas e funcionalidades do painel `/admin` |
+| [frontend/PAINEL-ADMIN-PLANO.md](frontend/PAINEL-ADMIN-PLANO.md) | Plano de redesign estético (Fase 1) e backlog funcional (Fase 2) |
+| [frontend/PAINEL-GESTOR.md](frontend/PAINEL-GESTOR.md) | Analytics do gestor na home (`/`) |
 
 **Swagger** (só Development): `https://localhost:7225/swagger`
 
@@ -52,7 +55,8 @@ cd apps/web && npm test && npm run test:e2e
 | Auth, matriz 401/403, IDOR | Feito (integração) |
 | E2E + Vitest | 14 + 41 specs |
 | CSP com nonce | Feito (`apps/web/proxy.ts`) |
-| Pendente opcional | Threshold cobertura CI; Swagger XML nos controllers restantes |
+| Pendente opcional | Threshold cobertura CI (≥60% Domain/Application) |
+| Swagger XML | Feito — comentários XML nos controllers (`GenerateDocumentationFile` + Swagger em Development) |
 
 ---
 

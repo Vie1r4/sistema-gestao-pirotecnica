@@ -10,10 +10,11 @@ describe("buildContentSecurityPolicy", () => {
     expect(policy).not.toContain("unsafe-eval");
   });
 
-  it("permite unsafe-eval só em desenvolvimento (script-src)", () => {
+  it("permite unsafe-eval (script) e unsafe-inline (style) só em desenvolvimento", () => {
     const policy = buildContentSecurityPolicy("devnonce", true);
     expect(policy).toContain("'unsafe-eval'");
-    expect(policy).not.toContain("unsafe-inline");
+    expect(policy).toContain("style-src 'self' 'unsafe-inline'");
+    expect(policy).not.toMatch(/style-src[^;]*nonce/);
   });
 
   it("inclui tiles OpenStreetMap e connect-src API", () => {

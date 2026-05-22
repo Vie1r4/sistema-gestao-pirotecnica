@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import { useActionGuard } from "@/app/hooks/useActionGuard";
 import { getToken } from "@/app/lib/auth";
 import { fetchSaidaRegistarForm, postRegistarSaida } from "@/app/lib/saidaPaiolApi";
 import { useToastStore } from "@/app/stores/useToastStore";
@@ -45,7 +46,7 @@ function RegistarSaidaContent() {
   const [quantidade, setQuantidade] = useState("");
   const token = getToken();
   const ids = parsePaiolProdutoIds(paiolId, produtoId);
-  const submittingRef = useRef(false);
+  const submitGuard = useActionGuard();
 
   const { data: formFromApi, isLoading: loadingForm } = useQuery({
     queryKey: ["armazem", "saida-paiol", "registar", ids?.paiolNum, ids?.produtoNum],
@@ -93,8 +94,8 @@ function RegistarSaidaContent() {
         text: err instanceof Error ? err.message : "Erro ao registar saída. Verifique se a API está a correr.",
       });
     },
-    onSettled: () => {
-      submittingRef.current = false;
+    onSettled: (_data, error) => {
+      if (error) submitGuard.end();
     },
   });
 
@@ -115,34 +116,39 @@ function RegistarSaidaContent() {
   const produtoNome = formFromApi?.produtoNome ?? "";
   const temDadosParaForm = formFromApi != null && (formFromApi.paiolNome || formFromApi.produtoNome);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (submittingRef.current || registarMutation.isPending) return;
+    if (!submitGuard.begin() || registarMutation.isPending) return;
     setMessage(null);
     if (!paiolId || !produtoId || !ids) {
       setMessage({ type: "error", text: "Paiol e produto são obrigatórios. Aceda a partir do conteúdo do paiol." });
+      submitGuard.end();
       return;
     }
     const qty = Number(quantidade);
     if (!Number.isFinite(qty) || qty <= 0) {
       setMessage({ type: "error", text: "A quantidade deve ser um número positivo." });
+      submitGuard.end();
       return;
     }
     if (qty > stockDisponivel) {
       setMessage({ type: "error", text: `A quantidade não pode exceder o stock disponível (${stockDisponivel}).` });
+      submitGuard.end();
       return;
     }
     if (!token) {
       router.replace("/login");
+      submitGuard.end();
       return;
     }
-    submittingRef.current = true;
     registarMutation.mutate({
       PaiolId: ids.paiolNum,
       ProdutoId: ids.produtoNum,
       Quantidade: Number(qty),
     });
   };
+
+  const submitting = submitGuard.isBlocked(registarMutation.isPending);
 
   if (!paiolId || !produtoId) {
     return (
@@ -255,8 +261,8 @@ function RegistarSaidaContent() {
                   </p>
                 )}
                 <div className="mt-6 flex flex-wrap gap-3">
-                  <button type="submit" className={btnPrimary} disabled={registarMutation.isPending}>
-                    {registarMutation.isPending ? "A registar…" : "Registar saída"}
+                  <button type="submit" className={btnPrimary} disabled={submitting}>
+                    {submitting ? "A registar…" : "Registar saída"}
                   </button>
                   <Link href={`/armazem/${paiolId}/conteudo`} className={btnSecondary}>
                     Cancelar

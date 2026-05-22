@@ -91,7 +91,7 @@ export default function MapaPage() {
         className="min-h-screen bg-[#fafaf9] dark:bg-[#0a0a0a] pt-content-offset"
         
       >
-        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+        <div className="content-container px-4 py-8 sm:px-6">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
             <h1 className="text-2xl font-bold text-[#1c1917] dark:text-white">
               Mapa — Serviços e Paióis

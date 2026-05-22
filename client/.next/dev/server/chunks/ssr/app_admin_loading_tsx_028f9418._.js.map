@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/shovi/source/repos/Finalproj/client/app/admin/loading.tsx"],"sourcesContent":["export default function AdminLoading() {\r\n  return (\r\n    <div className=\"flex min-h-[40vh] items-center justify-center\">\r\n      <div className=\"flex flex-col items-center gap-4\">\r\n        <div className=\"h-10 w-10 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent\" />\r\n        <p className=\"text-sm text-[#78716c] dark:text-[#666]\">A carregar…</p>\r\n      </div>\r\n    </div>\r\n  );\r\n}\r\n"],"names":[],"mappings":";;;;;;AAAe,SAAS;IACtB,qBACE,8OAAC;QAAI,WAAU;kBACb,cAAA,8OAAC;YAAI,WAAU;;8BACb,8OAAC;oBAAI,WAAU;;;;;;8BACf,8OAAC;oBAAE,WAAU;8BAA0C;;;;;;;;;;;;;;;;;AAI/D"}}]
+}

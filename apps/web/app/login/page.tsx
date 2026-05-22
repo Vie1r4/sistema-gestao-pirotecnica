@@ -15,7 +15,7 @@ const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300";
 const btnPrimary =
   "data-button w-full rounded-xl bg-[#f97316] px-5 py-3 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
 
-import { fetchExistemUtilizadores, postLogin } from "@/app/lib/authApi";
+import { fetchPrimeiroRegistoDisponivel, postLogin } from "@/app/lib/authApi";
 import { setToken } from "@/app/lib/auth";
 
 export default function LoginPage() {
@@ -30,8 +30,8 @@ export default function LoginPage() {
   >("a carregar");
 
   useEffect(() => {
-    fetchExistemUtilizadores()
-      .then((existem) => setEstadoContas(existem ? "comContas" : "semContas"))
+    fetchPrimeiroRegistoDisponivel()
+      .then((disponivel) => setEstadoContas(disponivel ? "semContas" : "comContas"))
       .catch(() => setEstadoContas("erro"));
   }, []);
 

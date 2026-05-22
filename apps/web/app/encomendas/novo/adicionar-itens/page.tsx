@@ -17,9 +17,12 @@ import { getToken } from "@/app/lib/auth";
 import {
   fetchAdicionarItens,
   postAdicionarItem,
+  postAdicionarCompilado,
   postRemoverItem,
   postSubmeter,
+  itensFromDraft,
 } from "@/app/lib/encomendasApi";
+import { useActionGuard } from "@/app/hooks/useActionGuard";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 
 const inputClass =
@@ -66,11 +69,18 @@ function AdicionarItensContent() {
   const [calibre, setCalibre] = useState("");
   const [produtoId, setProdutoId] = useState("");
   const [quantidade, setQuantidade] = useState("");
+  const [compiladoId, setCompiladoId] = useState("");
+  const [quantidadeCompilado, setQuantidadeCompilado] = useState("");
   const [dataEntrega, setDataEntrega] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [mensagem, setMensagem] = useState<"ItemAdicionado" | "Erro" | "ErroStock" | null>(null);
   const [erroRegistar, setErroRegistar] = useState<string | null>(null);
   const prevClienteRef = useRef(clienteId);
+  const draftInitialized = useRef(false);
+  const draftGuard = useActionGuard();
+  const [draftItens, setDraftItens] = useState<
+    Array<{ produtoId: number; produtoNome?: string; quantidade: number }>
+  >([]);
 
   const filterKey = useMemo(
     () => ({
@@ -115,6 +125,22 @@ function AdicionarItensContent() {
   const validId = Boolean(clienteId && !Number.isNaN(cIdNum) && cIdNum >= 1);
   const token = getToken();
 
+  const applyDraftItens = (
+    draft: { itens?: unknown[]; Itens?: unknown[] } | null | undefined
+  ) => {
+    const itens = itensFromDraft(draft);
+    setDraftItens(itens);
+    queryClient.setQueriesData<Awaited<ReturnType<typeof fetchAdicionarItens>>>(
+      { queryKey: ["encomendas", "adicionar-itens", cIdNum] },
+      (old) => (old ? { ...old, itensRascunho: itens } : old)
+    );
+  };
+
+  useEffect(() => {
+    draftInitialized.current = false;
+    setDraftItens([]);
+  }, [cIdNum]);
+
   const {
     data: apiData,
     isLoading: loadingApi,
@@ -128,8 +154,15 @@ function AdicionarItensContent() {
       return fetchAdicionarItens(t, cIdNum, debouncedFilters);
     },
     enabled: mounted && !!token && validId,
+    staleTime: 30_000,
     retry: 1,
   });
+
+  useEffect(() => {
+    if (draftInitialized.current || !apiData) return;
+    setDraftItens(apiData.itensRascunho ?? []);
+    draftInitialized.current = true;
+  }, [apiData, cIdNum]);
 
   const loadError = isError && error instanceof Error ? error.message : null;
 
@@ -155,11 +188,36 @@ function AdicionarItensContent() {
         ...filtrosMutacao,
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["encomendas", "adicionar-itens", cIdNum] });
+    onSuccess: (data) => {
+      applyDraftItens(data.draft);
       setQuantidade("");
       setProdutoId("");
       setMensagem("ItemAdicionado");
+    },
+    onSettled: () => {
+      draftGuard.end();
+    },
+  });
+
+  const addCompiladoMutation = useMutation({
+    mutationFn: async (vars: { compiladoId: number; quantidade: number }) => {
+      const t = getToken();
+      if (!t) throw new Error("no-token");
+      return postAdicionarCompilado(t, {
+        clienteId: cIdNum,
+        compiladoId: vars.compiladoId,
+        quantidade: vars.quantidade,
+        ...filtrosMutacao,
+      });
+    },
+    onSuccess: (data) => {
+      applyDraftItens(data.draft);
+      setQuantidadeCompilado("");
+      setCompiladoId("");
+      setMensagem("ItemAdicionado");
+    },
+    onSettled: () => {
+      draftGuard.end();
     },
   });
 
@@ -173,8 +231,11 @@ function AdicionarItensContent() {
         ...filtrosMutacao,
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["encomendas", "adicionar-itens", cIdNum] });
+    onSuccess: (data) => {
+      applyDraftItens(data.draft);
+    },
+    onSettled: () => {
+      draftGuard.end();
     },
   });
 
@@ -195,6 +256,7 @@ function AdicionarItensContent() {
       else {
         setMensagem("Erro");
         setErroRegistar("Resposta inválida do servidor.");
+        draftGuard.end();
       }
     },
     onError: (err: Error) => {
@@ -206,12 +268,14 @@ function AdicionarItensContent() {
           : msg
       );
     },
+    onSettled: (_data, error) => {
+      if (error) draftGuard.end();
+    },
   });
 
   const apiCliente =
     apiData?.cliente && (apiData.cliente.id || apiData.cliente.nome) ? apiData.cliente : null;
   const apiProdutos = apiData?.produtosFiltrados ?? [];
-  const apiDraftItens = apiData?.itensRascunho ?? [];
   const useApi = !isError && apiData != null;
 
   const cliente = apiCliente ? { id: String(apiCliente.id), nome: apiCliente.nome } : null;
@@ -316,17 +380,39 @@ function AdicionarItensContent() {
     return `/encomendas/novo/adicionar-itens?${p.toString()}`;
   };
 
+  const handleAdicionarCompilado = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!draftGuard.begin() || addCompiladoMutation.isPending) return;
+    const q = parseFloat(quantidadeCompilado.replace(",", "."));
+    if (!compiladoId || Number.isNaN(q) || q < MIN_QUANTIDADE) {
+      setMensagem("Erro");
+      draftGuard.end();
+      return;
+    }
+    setMensagem(null);
+    try {
+      await addCompiladoMutation.mutateAsync({
+        compiladoId: parseInt(compiladoId, 10),
+        quantidade: q,
+      });
+    } catch {
+      setMensagem("Erro");
+    }
+  };
+
   const handleAdicionarItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (addMutation.isPending) return;
+    if (!draftGuard.begin() || addMutation.isPending) return;
     const q = parseFloat(quantidade.replace(",", "."));
     if (!produtoId || Number.isNaN(q) || q < MIN_QUANTIDADE) {
       setMensagem("Erro");
+      draftGuard.end();
       return;
     }
     const t = getToken();
     if (!t) {
       setMensagem("Erro");
+      draftGuard.end();
       return;
     }
     setMensagem(null);
@@ -341,25 +427,29 @@ function AdicionarItensContent() {
     const t = getToken();
     if (!t) return;
     const idNum = parseInt(produtoIdRemover, 10);
-    if (removeMutation.isPending) return;
+    if (!draftGuard.begin() || removeMutation.isPending) return;
     try {
       await removeMutation.mutateAsync(idNum);
-    } catch { /* ignore */ }
+    } catch {
+      draftGuard.end();
+    }
   };
 
   const handleRegistarEncomenda = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submeterMutation.isPending) return;
+    if (!draftGuard.begin() || submeterMutation.isPending) return;
     setErroRegistar(null);
     const t = getToken();
     if (!t) {
       setMensagem("Erro");
       setErroRegistar("Sessão expirada. Faça login novamente.");
+      draftGuard.end();
       return;
     }
-    if (apiDraftItens.length === 0) {
+    if (draftItens.length === 0) {
       setMensagem("Erro");
       setErroRegistar("Adicione pelo menos um produto à encomenda antes de registar.");
+      draftGuard.end();
       return;
     }
     setMensagem(null);
@@ -370,8 +460,15 @@ function AdicionarItensContent() {
     }
   };
 
+  const draftBusy = draftGuard.isBlocked(
+    addMutation.isPending || addCompiladoMutation.isPending || removeMutation.isPending || submeterMutation.isPending
+  );
+
+  const listaCompilados = apiData?.compilados ?? [];
+  const compiladoSelecionado = listaCompilados.find((c) => String(c.id) === compiladoId);
+
   const temFiltros = pesquisa || classificacao || grupoCompatibilidade || filtroTecnico || calibre;
-  const itens = apiDraftItens.map((i) => ({ ...i, produtoId: String(i.produtoId) }));
+  const itens = draftItens.map((i) => ({ ...i, produtoId: String(i.produtoId) }));
 
   return (
     <div className="min-h-screen bg-[#f8f7f5] text-[#1c1917] dark:bg-[#0a0a0a] dark:text-white">
@@ -381,7 +478,7 @@ function AdicionarItensContent() {
         className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset"
         
       >
-        <div className="mx-auto max-w-6xl">
+        <div className="content-container">
           <motion.div
             initial={fadeInUp.initial}
             animate={fadeInUp.animate}
@@ -488,6 +585,62 @@ function AdicionarItensContent() {
                   </div>
                 </motion.div>
 
+                {listaCompilados.length > 0 && (
+                  <motion.div
+                    initial={fadeInUp.initial}
+                    animate={fadeInUp.animate}
+                    transition={{ ...transitionSmooth, delay: 0.06 }}
+                    className="card-hover rounded-2xl border border-[#e7e5e4] bg-white p-5 dark:border-[#1f1f1f] dark:bg-[#111] sm:p-6"
+                  >
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      Adicionar compilado
+                    </h2>
+                    <p className="mt-1 text-sm text-[#57534e] dark:text-gray-400">
+                      Atalho com vários produtos. A quantidade pedida multiplica cada linha (ex.: 10 dúzias → produtos somados no rascunho).
+                    </p>
+                    <form onSubmit={handleAdicionarCompilado} className="mt-4 flex flex-wrap items-end gap-4">
+                      <div className="min-w-[180px] flex-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Compilado</label>
+                        <select
+                          value={compiladoId}
+                          onChange={(e) => setCompiladoId(e.target.value)}
+                          className={`${inputClass} mt-1 w-full`}
+                          required
+                        >
+                          <option value="">— Selecionar —</option>
+                          {listaCompilados.map((c) => (
+                            <option key={c.id} value={c.id}>{c.nome}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="w-28">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Quantidade</label>
+                        <input
+                          type="number"
+                          min={MIN_QUANTIDADE}
+                          step="any"
+                          value={quantidadeCompilado}
+                          onChange={(e) => setQuantidadeCompilado(e.target.value)}
+                          className={`${inputClass} mt-1 w-full`}
+                          required
+                        />
+                      </div>
+                      <button type="submit" className={btnPrimary} disabled={draftBusy}>
+                        {draftBusy ? "A adicionar…" : "Adicionar à encomenda"}
+                      </button>
+                    </form>
+                    {compiladoSelecionado && compiladoSelecionado.itens.length > 0 && (
+                      <ul className="mt-3 text-xs text-[#57534e] dark:text-gray-400">
+                        {compiladoSelecionado.itens.map((i) => (
+                          <li key={i.produtoId}>
+                            {i.produtoNome || `Produto #${i.produtoId}`} × {i.quantidadePorUnidade} por unidade
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </motion.div>
+                )}
+
                 <motion.div
                   initial={fadeInUp.initial}
                   animate={fadeInUp.animate}
@@ -495,7 +648,7 @@ function AdicionarItensContent() {
                   className="card-hover rounded-2xl border border-[#e7e5e4] bg-white p-5 dark:border-[#1f1f1f] dark:bg-[#111] sm:p-6"
                 >
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Adicionar à encomenda
+                    Adicionar produto individual
                   </h2>
                   <form onSubmit={handleAdicionarItem} className="mt-4 flex flex-wrap items-end gap-4">
                     <div className="min-w-[180px] flex-1">
@@ -525,8 +678,8 @@ function AdicionarItensContent() {
                         required
                       />
                     </div>
-                    <button type="submit" className={btnPrimary} disabled={addMutation.isPending}>
-                      {addMutation.isPending ? "A adicionar…" : "Adicionar à encomenda"}
+                    <button type="submit" className={btnPrimary} disabled={draftBusy}>
+                      {draftBusy ? "A adicionar…" : "Adicionar à encomenda"}
                     </button>
                   </form>
                   <p className="mt-2 text-xs text-[#57534e] dark:text-gray-400">
@@ -562,10 +715,10 @@ function AdicionarItensContent() {
                           <button
                             type="button"
                             onClick={() => handleRemoverItem(item.produtoId)}
-                            disabled={removeMutation.isPending && removeMutation.variables === parseInt(item.produtoId, 10)}
+                            disabled={draftBusy}
                             className="text-red-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed dark:text-red-400"
                           >
-                            {removeMutation.isPending && removeMutation.variables === parseInt(item.produtoId, 10) ? "A remover…" : "Remover"}
+                            {draftBusy ? "A remover…" : "Remover"}
                           </button>
                         </li>
                       ))}
@@ -594,8 +747,8 @@ function AdicionarItensContent() {
                           className={`${inputClass} mt-1 w-full`}
                         />
                       </div>
-                      <button type="submit" className={`${btnPrimary} w-full`} disabled={submeterMutation.isPending}>
-                        {submeterMutation.isPending ? "A registar…" : "Registar encomenda"}
+                      <button type="submit" className={`${btnPrimary} w-full`} disabled={draftBusy}>
+                        {draftBusy ? "A registar…" : "Registar encomenda"}
                       </button>
                     </form>
                   )}

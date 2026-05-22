@@ -10,6 +10,7 @@ import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { useToastStore } from "@/app/stores/useToastStore";
 import { fetchCreate, postCreate } from "@/app/lib/encomendasApi";
+import { useActionGuard } from "@/app/hooks/useActionGuard";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 
 const btnPrimary =
@@ -42,6 +43,7 @@ function NovaEncomendaContent() {
   const clienteIdParam = searchParams.get("clienteId") ?? "";
   const [clienteId, setClienteId] = useState(clienteIdParam);
   const [erro, setErro] = useState<string | null>(null);
+  const submitGuard = useActionGuard();
   const token = getToken();
   const clienteIdNum = clienteIdParam ? parseInt(clienteIdParam, 10) : undefined;
   const clienteIdForFetch = clienteIdNum !== undefined && !Number.isNaN(clienteIdNum) ? clienteIdNum : undefined;
@@ -66,6 +68,9 @@ function NovaEncomendaContent() {
     onError: (err) => {
       const msg = err instanceof Error ? err.message : "Erro ao confirmar cliente. Tente novamente.";
       setErro(msg === "Failed to fetch" ? "Não foi possível contactar a API. Confirme que o backend está a correr e que NEXT_PUBLIC_API_URL está correto." : msg);
+    },
+    onSettled: (_data, error) => {
+      if (error) submitGuard.end();
     },
   });
 
@@ -100,23 +105,34 @@ function NovaEncomendaContent() {
     );
   }
 
-  const handleContinuar = async (e: React.FormEvent) => {
+  const handleContinuar = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!clienteId.trim()) return;
+    if (!submitGuard.begin() || createMutation.isPending) return;
+    if (!clienteId.trim()) {
+      submitGuard.end();
+      return;
+    }
     const numId = Number(clienteId);
     if (Number.isNaN(numId) || numId < 1) {
       setErro("Selecione um cliente válido.");
+      submitGuard.end();
       return;
     }
     const existe = clientes.some((c) => c.id === clienteId);
-    if (!existe) return;
+    if (!existe) {
+      submitGuard.end();
+      return;
+    }
     if (useApi && token) {
       setErro(null);
       createMutation.mutate({ clienteId: numId });
     } else {
+      submitGuard.end();
       router.push(`/encomendas/novo/adicionar-itens?clienteId=${encodeURIComponent(clienteId)}`);
     }
   };
+
+  const continuarBusy = submitGuard.isBlocked(createMutation.isPending);
 
   return (
     <div className="min-h-screen bg-[#f8f7f5] text-[#1c1917] dark:bg-[#0a0a0a] dark:text-white">
@@ -182,8 +198,8 @@ function NovaEncomendaContent() {
                     </select>
                   </div>
                   <div className="flex flex-wrap gap-3">
-                    <button type="submit" className={btnPrimary} disabled={!clienteId || createMutation.isPending}>
-                      {createMutation.isPending ? "A processar…" : "Continuar para catálogo"}
+                    <button type="submit" className={btnPrimary} disabled={!clienteId || continuarBusy}>
+                      {continuarBusy ? "A processar…" : "Continuar para catálogo"}
                     </button>
                     <Link href="/encomendas" className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-[#333] dark:text-gray-300">
                       Cancelar

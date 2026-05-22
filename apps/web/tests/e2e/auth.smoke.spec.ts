@@ -6,7 +6,7 @@ test.describe("Auth smoke", () => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ existem: true }),
+        body: JSON.stringify({ primeiroRegistoDisponivel: false }),
       });
     });
 

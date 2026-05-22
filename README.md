@@ -22,7 +22,7 @@ Aplicação full-stack: **backend** ASP.NET Core 8 (API REST + Identity) e **fro
 flowchart LR
   Browser[Next.js apps/web] -->|HTTPS JWT| Api[ASP.NET Core API]
   Api -->|EF Core| Db[(SQL Server)]
-  Api --> Files[wwwroot documentos]
+  Api --> Files[PirofafeData Uploads e Backups]
   Browser -->|cookie HttpOnly refresh| Api
 ```
 
@@ -117,7 +117,7 @@ Por defeito o backend aceita origens `http://localhost:3000` e `https://localhos
 
 O backend inclui um serviço automático de backups SQL Server (`BackgroundService`) com execução diária às **19:00**.
 
-- Destino: ficheiros `.bak` configurados relativamente ao projeto API (ver `appsettings`).
+- Destino: ficheiros `.bak` em `PirofafeData/Backups/` junto ao projecto API (pastas criadas no arranque; ver `DadosLocais` e `Backups` em `appsettings`). Uploads de documentos ficam em `PirofafeData/Uploads/` — não versionados no Git.
 - Configuração: secção `Backups` no `appsettings.json`.
 - Documentação detalhada: [Docs/OPERACOES.md](Docs/OPERACOES.md).
 
@@ -150,4 +150,6 @@ Em produção, defina `NEXT_PUBLIC_API_URL` com a URL da API.
 
 ## Primeiro utilizador
 
-Se não existir nenhum utilizador, ao aceder ao frontend será redirecionado para **Registar primeiro utilizador**. Esse utilizador recebe a role Admin.
+Com `Bootstrap:AllowFirstUserRegistration=true` (por defeito em **Development**; `false` em `appsettings.json` de produção), a página de login mostra **Criar primeiro utilizador** enquanto ainda não existir nenhuma conta. Esse utilizador recebe a role Admin.
+
+Após criar o primeiro admin em produção, defina `Bootstrap__AllowFirstUserRegistration=false` (ou na configuração equivalente) para desativar o bootstrap e evitar enumeração do estado da instalação.

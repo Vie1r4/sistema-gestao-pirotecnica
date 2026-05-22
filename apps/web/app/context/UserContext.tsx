@@ -1,7 +1,9 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { isRotaSemBootstrapAuth } from "@/app/lib/publicRoutes";
 import {
   getToken,
   getTokenExpirationSeconds,
@@ -55,18 +57,22 @@ function useRefreshTokenScheduler() {
       const nowSec = Date.now() / 1000;
       const refreshAtSec = exp - 5 * 60; // 5 min before expiry
       const delayMs = Math.max(0, (refreshAtSec - nowSec) * 1000);
+      const onRefreshDone = (newToken: string | null) => {
+        if (newToken) {
+          scheduleRefresh();
+          return;
+        }
+        const current = getToken();
+        const exp = current ? getTokenExpirationSeconds(current) : null;
+        if (exp != null && exp > Date.now() / 1000) return;
+        logout();
+      };
       if (delayMs <= 0) {
-        refreshAccessToken().then((newToken) => {
-          if (newToken) scheduleRefresh();
-          else logout();
-        });
+        refreshAccessToken().then(onRefreshDone);
         return;
       }
       timeoutRef.current = setTimeout(() => {
-        refreshAccessToken().then((newToken) => {
-          if (newToken) scheduleRefresh();
-          else logout();
-        });
+        refreshAccessToken().then(onRefreshDone);
       }, delayMs);
     }
 
@@ -79,6 +85,8 @@ function useRefreshTokenScheduler() {
 }
 
 export function UserProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const semBootstrap = isRotaSemBootstrapAuth(pathname);
   useRefreshTokenScheduler();
   const storeToken = useAuthStore((s) => s.token);
 
@@ -96,9 +104,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (!raw) return null;
       return parseMeData(raw);
     },
+    enabled: !semBootstrap,
     staleTime: 2 * 60 * 1000,
     retry: false,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: !semBootstrap,
   });
 
   const value = useMemo(

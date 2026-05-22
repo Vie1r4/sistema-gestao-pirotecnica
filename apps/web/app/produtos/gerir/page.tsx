@@ -112,7 +112,7 @@ function GerirContent() {
         className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset"
         
       >
-        <div className="mx-auto max-w-6xl">
+        <div className="content-container">
           <motion.div
             initial={fadeInUp.initial}
             animate={fadeInUp.animate}
@@ -130,6 +130,9 @@ function GerirContent() {
             <div className="flex flex-wrap gap-2">
               <Link href="/produtos" className={btnSecondary}>
                 Voltar ao Catálogo
+              </Link>
+              <Link href="/produtos/compilados" className={btnSecondary}>
+                Gerir compilados
               </Link>
               <Link href="/produtos/novo" className={btnPrimary}>
                 Criar produto

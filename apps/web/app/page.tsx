@@ -161,21 +161,23 @@ export default function Home() {
               transition={{ ...transitionSmooth, delay: 0.18 }}
               className="mt-14 flex flex-wrap items-center justify-center gap-4 sm:gap-5"
             >
-              <Link
-                href="/login"
-                data-button
-                className="group inline-flex items-center gap-2.5 rounded-2xl bg-[#ea580c] px-8 py-4 text-sm font-semibold text-white shadow-[0_2px_12px_-2px_rgba(234,88,12,0.35)] transition-all duration-300 hover:bg-[#c2410c] hover:shadow-[0_8px_24px_-4px_rgba(234,88,12,0.4)] hover:scale-[1.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ea580c] active:scale-[0.98] dark:bg-[#f97316] dark:text-black dark:shadow-[0_4px_20px_-2px_rgba(249,115,22,0.35)] dark:hover:shadow-[0_12px_32px_-4px_rgba(249,115,22,0.4)]"
-              >
-                Aceder à aplicação
-                <motion.span
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                  whileHover={{ x: 2 }}
+              {!token && (
+                <Link
+                  href="/login"
+                  data-button
+                  className="group inline-flex items-center gap-2.5 rounded-2xl bg-[#ea580c] px-8 py-4 text-sm font-semibold text-white shadow-[0_2px_12px_-2px_rgba(234,88,12,0.35)] transition-all duration-300 hover:bg-[#c2410c] hover:shadow-[0_8px_24px_-4px_rgba(234,88,12,0.4)] hover:scale-[1.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ea580c] active:scale-[0.98] dark:bg-[#f97316] dark:text-black dark:shadow-[0_4px_20px_-2px_rgba(249,115,22,0.35)] dark:hover:shadow-[0_12px_32px_-4px_rgba(249,115,22,0.4)]"
                 >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </svg>
-                </motion.span>
-              </Link>
+                  Aceder à aplicação
+                  <motion.span
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                    whileHover={{ x: 2 }}
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </motion.span>
+                </Link>
+              )}
               {(showAreasSection || showComercialDashboard) && (
                 <Link
                   href={showComercialDashboard ? "#dashboard-comercial" : "#dashboard-gestor"}

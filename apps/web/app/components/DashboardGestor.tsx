@@ -1,77 +1,47 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, useInView } from "framer-motion";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from "recharts";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
+import VolumeChart from "@/app/components/gestor-analytics/VolumeChart";
+import ClienteConsumoList from "@/app/components/gestor-analytics/ClienteConsumoList";
+import TopClientesBlock from "@/app/components/gestor-analytics/TopClientesBlock";
+import { GestorDemoBanner, GestorDemoProvider } from "@/app/components/gestor-analytics/GestorDemoProvider";
 import { pt } from "date-fns/locale";
 import { useRef } from "react";
-import { getGestorDashboard, type MovimentoRecenteDto } from "@/app/lib/homeGestor";
+import {
+  gestorDashboardQueryKey,
+  getGestorDashboard,
+  kpiTrendDelta,
+  type MovimentoRecenteDto,
+  type UltimaEncomendaDto,
+} from "@/app/lib/homeGestor";
 import { transitionSmooth, staggerContainer, staggerItem } from "@/app/lib/animations";
 import { useLiveDateTime } from "@/app/hooks/useLiveDateTime";
+import {
+  dashboardPanelClass,
+  dashboardPanelHeaderClass,
+  dashboardPanelHoverClass,
+} from "@/app/components/gestor-analytics/dashboardPanelStyles";
 
 const ROLE_COLORS: Record<string, string> = {
   Admin: "bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-300",
   Gestor: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300",
 };
 
-/** Áreas e cores para o gráfico "Resumo por área" */
-const AREAS_PIE: { key: string; label: string; color: string }[] = [
-  { key: "clientes", label: "Clientes", color: "#3b82f6" },
-  { key: "servicos", label: "Serviços", color: "#8b5cf6" },
-  { key: "produtos", label: "Produtos", color: "#f97316" },
-  { key: "paiois", label: "Paióis", color: "#22c55e" },
-  { key: "funcionarios", label: "Funcionários", color: "#06b6d4" },
-];
-
-const LEGEND_DOT_CLASS: Record<string, string> = {
-  clientes: "legend-dot-clientes",
-  servicos: "legend-dot-servicos",
-  produtos: "legend-dot-produtos",
-  paiois: "legend-dot-paiols",
-  funcionarios: "legend-dot-funcionarios",
-};
-
-function useCountUp(value: number, enabled: boolean, durationMs = 800) {
-  const [display, setDisplay] = useState(0);
-  useEffect(() => {
-    if (!enabled || value === 0) {
-      setDisplay(value);
-      return;
-    }
-    const startTime = performance.now();
-    const step = (time: number) => {
-      const elapsed = time - startTime;
-      const progress = Math.min(elapsed / durationMs, 1);
-      const eased = 1 - (1 - progress) ** 2;
-      setDisplay(Math.round(eased * value));
-      if (progress < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-    return () => {};
-  }, [value, enabled, durationMs]);
-  return display;
-}
+/** Grelha 2/3 + 1/3 em desktop; empilha em mobile. */
+const GRID_3_COL = "grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5";
+const COL_SPAN_MAIN = "min-w-0 lg:col-span-2";
+const COL_SPAN_SIDE = "min-w-0 lg:col-span-1";
 
 type CardStat = {
   title: string;
   value: number;
   href: string;
   icon: React.ReactNode;
-  variation?: string;
+  trendDelta?: number | null;
 };
 
 export default function DashboardGestor({
@@ -98,29 +68,25 @@ export default function DashboardGestor({
     error,
     refetch,
   } = useQuery({
-    queryKey: ["gestor-dashboard"],
+    queryKey: gestorDashboardQueryKey,
     queryFn: () => getGestorDashboard(token),
-    staleTime: 60 * 1000,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
     retry: 2,
     enabled: !!token,
   });
 
   const cards: CardStat[] = useMemo(() => {
     if (!data) return [];
+    const k = data.kpiContexto;
     return [
       {
-        title: "Encomendas pendentes",
-        value: data.encomendasPendentes,
-        href: "/encomendas?estado=Pendente",
-        icon: (
-          <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" />
-          </svg>
-        ),
-      },
-      {
-        title: "Serviços ativos",
+        title: "Serviços registados",
         value: data.totalServicos,
+        trendDelta: kpiTrendDelta(k?.servicos),
         href: "/servicos",
         icon: (
           <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -141,6 +107,7 @@ export default function DashboardGestor({
       {
         title: "Clientes",
         value: data.totalClientes,
+        trendDelta: kpiTrendDelta(k?.clientes),
         href: "/clientes",
         icon: (
           <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -151,6 +118,7 @@ export default function DashboardGestor({
       {
         title: "Funcionários",
         value: data.totalFuncionarios,
+        trendDelta: kpiTrendDelta(k?.funcionarios),
         href: "/funcionarios",
         icon: (
           <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -161,6 +129,7 @@ export default function DashboardGestor({
       {
         title: "Produtos",
         value: data.totalProdutos,
+        trendDelta: kpiTrendDelta(k?.produtos),
         href: "/produtos",
         icon: (
           <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -169,36 +138,6 @@ export default function DashboardGestor({
         ),
       },
     ];
-  }, [data]);
-
-  /** Dados para o gráfico circular: resumo por área (clientes, serviços, produtos, paióis, funcionários) */
-  const pieData = useMemo(() => {
-    if (!data) return [];
-    const values: Record<string, number> = {
-      clientes: data.totalClientes ?? 0,
-      servicos: data.totalServicos ?? 0,
-      produtos: data.totalProdutos ?? 0,
-      paiois: data.totalPaioisAtivos ?? 0,
-      funcionarios: data.totalFuncionarios ?? 0,
-    };
-    const total = Object.values(values).reduce((a, b) => a + b, 0);
-    return AREAS_PIE.filter((a) => values[a.key] > 0).map((a) => ({
-      key: a.key,
-      name: a.label,
-      value: values[a.key],
-      total,
-      percent: total > 0 ? (values[a.key] / total) * 100 : 0,
-      color: a.color,
-    }));
-  }, [data]);
-
-  const lineData = useMemo(() => {
-    if (!data?.encomendasPorMes?.length) return [];
-    return data.encomendasPorMes.map(({ mes, total }) => ({
-      mes: format(parseISO(mes + "-01"), "MMM yy", { locale: pt }),
-      total,
-      mesKey: mes,
-    }));
   }, [data]);
 
   const ultimosMovimentos: MovimentoRecenteDto[] = useMemo(() => {
@@ -210,12 +149,6 @@ export default function DashboardGestor({
       .slice(0, 5);
   }, [data]);
 
-  /** Encomendas com estado Pendente (das últimas recebidas); para o primeiro card. */
-  const encomendasPendentesLista = useMemo(() => {
-    if (!data?.ultimasEncomendas) return [];
-    return data.ultimasEncomendas.filter((e) => e.estado === "Pendente").slice(0, 5);
-  }, [data]);
-
   const temAlertas = data && (data.paioisEmManutencao?.length > 0);
   const roleBadgeClass = ROLE_COLORS[roleLabel] ?? "bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200";
 
@@ -225,7 +158,7 @@ export default function DashboardGestor({
         id="dashboard-gestor"
         className="border-t border-[#e7e5e4] bg-[#fafaf9] px-6 py-24 dark:border-[#1a1a1a] dark:bg-[#050505] sm:px-8 sm:py-32"
       >
-        <div className="mx-auto max-w-6xl">
+        <div className="content-container">
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center dark:border-amber-800 dark:bg-amber-900/20">
             <p className="font-medium text-amber-900 dark:text-amber-200">
               {error instanceof Error ? error.message : "Erro ao carregar o painel."}
@@ -244,67 +177,59 @@ export default function DashboardGestor({
   }
 
   return (
+    <GestorDemoProvider>
     <section
       id="dashboard-gestor"
-      className="border-t border-[#e7e5e4] bg-[#fafaf9] px-6 py-24 dark:border-[#1a1a1a] dark:bg-[#050505] sm:px-8 sm:py-32"
+      className="border-t border-[#e7e5e4] bg-[#fafaf9] px-4 py-12 dark:border-[#1a1a1a] dark:bg-[#050505] sm:px-6 sm:py-16 lg:px-8"
     >
-      <div className="mx-auto max-w-6xl">
-        {/* Topo — Boas-vindas, badge, data/hora */}
+      <div className="content-container">
+        <GestorDemoBanner />
+        {/* Cabeçalho */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="flex flex-wrap items-center justify-between gap-4"
+          className="flex flex-wrap items-start justify-between gap-4"
         >
           <div>
             <h1 className="font-heading text-2xl font-bold tracking-tight text-[#1c1917] sm:text-3xl dark:text-white">
               Bem-vindo, {userName || "Gestor"}
             </h1>
-            <div className="mt-2 flex flex-wrap items-center gap-3">
-              <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${roleBadgeClass}`}>
+            <p className="mt-1.5 text-sm text-[#57534e] dark:text-[#888]">
+              <span className={`mr-2 inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${roleBadgeClass}`}>
                 {roleLabel}
               </span>
-              <span className="text-sm text-[#57534e] dark:text-[#888]">
-                {format(liveDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: pt })}
-                {" · "}
-                <span className="tabular-nums">{format(liveDate, "HH:mm:ss")}</span>
-              </span>
-            </div>
+              {format(liveDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: pt })}
+              {" · "}
+              <span className="tabular-nums">{format(liveDate, "HH:mm:ss")}</span>
+            </p>
           </div>
         </motion.div>
 
-        {/* Secção 1 — Cards de estatísticas */}
+        {/* Linha 1 — Métricas (5 colunas) */}
         <motion.div
           variants={staggerContainer}
           initial="initial"
           animate="animate"
-          className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 lg:gap-6"
+          className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4"
         >
           {isLoading
-            ? Array.from({ length: 6 }).map((_, i) => (
+            ? Array.from({ length: 5 }).map((_, i) => (
                 <div
                   key={i}
-                  className="rounded-2xl border border-[#e7e5e4] bg-white p-5 dark:border-[#222] dark:bg-[#0d0d0d]"
+                  className={`${dashboardPanelClass} p-4`}
                 >
                   <div className="h-10 w-10 animate-pulse rounded-xl bg-[#e7e5e4] dark:bg-[#333]" />
                   <div className="mt-3 h-8 w-16 animate-pulse rounded bg-[#e7e5e4] dark:bg-[#333]" />
                   <div className="mt-2 h-4 w-24 animate-pulse rounded bg-[#e7e5e4] dark:bg-[#333]" />
                 </div>
               ))
-            : cards.map((card, i) => (
-                <StatCard key={card.title} card={card} index={i} enabled={!!data} />
-              ))}
+            : cards.map((card, i) => <StatCard key={card.title} card={card} index={i} />)}
         </motion.div>
 
-        {/* Secção 2 — Alertas (só se houver) */}
+        {/* Alertas (só se houver) */}
         {temAlertas && (
-          <motion.div
-            ref={sec2Ref}
-            initial={{ opacity: 0, y: 24 }}
-            animate={sec2InView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.4 }}
-            className="mt-14"
-          >
+          <div className="mt-4">
             <h2 className="font-semibold text-[#1c1917] dark:text-white">Alertas</h2>
             <div className="mt-3 flex flex-wrap gap-3">
               {data!.paioisEmManutencao.length > 0 && (
@@ -320,353 +245,395 @@ export default function DashboardGestor({
                 </Link>
               )}
             </div>
-          </motion.div>
+          </div>
         )}
 
-        {/* Secção 3 — Gráficos Recharts */}
+        {/* Linha 2 — Movimentos (2/3) + Encomendas pendentes (1/3) */}
+        <motion.div
+          ref={sec2Ref}
+          initial={{ opacity: 0, y: 24 }}
+          animate={sec2InView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.4 }}
+          className={`mt-5 ${GRID_3_COL}`}
+        >
+          <div className={COL_SPAN_MAIN}>
+            <MovimentosArmazemPanel
+              isLoading={isLoading}
+              movimentos={ultimosMovimentos}
+            />
+          </div>
+          <div className={COL_SPAN_SIDE}>
+            {isLoading ? (
+              <div className={`${dashboardPanelClass} h-full min-h-[320px] animate-pulse`} />
+            ) : (
+              data && (
+                <PendingEncomendasPanel
+                  total={data.encomendasPendentes}
+                  lista={data.encomendasPendentesLista}
+                  recebidasSemana={
+                    data.kpiContexto?.encomendasPendentes?.recebidasSemana ?? 0
+                  }
+                />
+              )
+            )}
+          </div>
+        </motion.div>
+
+        {/* Linha 3 — Volume (2/3) + O que o cliente levou (1/3) */}
         <motion.div
           ref={sec3Ref}
           initial={{ opacity: 0, y: 24 }}
           animate={sec3InView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.4 }}
-          className="mt-14 grid gap-8 lg:grid-cols-2"
+          className={`mt-5 ${GRID_3_COL} lg:items-stretch`}
         >
-          <div className="overflow-hidden rounded-2xl border border-[#e7e5e4] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.08)] dark:border-[#222] dark:bg-[#0d0d0d] dark:hover:shadow-[0_4px_20px_-8px_rgba(0,0,0,0.4)]">
-            <div className="border-b border-[#e7e5e4] bg-[#fafaf9] px-5 py-4 dark:border-[#222] dark:bg-[#0a0a0a]">
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#eff6ff] text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-3 3m0 0l3 3m-3-3h7.5m-7.5 0V9" />
-                  </svg>
-                </span>
-                <div>
-                  <h3 className="font-semibold text-[#1c1917] dark:text-white">Resumo por área</h3>
-                  <p className="text-xs text-[#78716c] dark:text-[#666]">Distribuição de registos no sistema</p>
-                </div>
-              </div>
-            </div>
-            <div className="p-4">
-              {pieData.length > 0 ? (
-                <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-stretch">
-                  <div className="h-[220px] w-full min-w-[220px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={pieData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={52}
-                          outerRadius={72}
-                          paddingAngle={3}
-                          dataKey="value"
-                          nameKey="name"
-                          animationBegin={0}
-                          animationDuration={500}
-                        >
-                          {pieData.map((entry) => (
-                            <Cell key={entry.name} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          wrapperClassName="rounded-xl border border-[#e7e5e4] bg-white px-3 py-2 text-sm shadow dark:border-[#333] dark:bg-[#111]"
-                          formatter={(value: number, name: string, props: { payload?: { percent?: number } }) => {
-                            const pct = props?.payload?.percent;
-                            return [
-                              `${value} registo(s)${typeof pct === "number" ? ` — ${pct.toFixed(1)}%` : ""}`,
-                              name,
-                            ];
-                          }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="flex flex-1 flex-wrap content-start gap-x-4 gap-y-2 sm:flex-col sm:justify-center">
-                    {pieData.map((entry) => (
-                      <div key={entry.name} className="flex items-center gap-2">
-                        <span
-                          className={`h-3 w-3 shrink-0 rounded-full ${LEGEND_DOT_CLASS[entry.key] ?? ""}`}
-                          aria-hidden
-                        />
-                        <span className="text-sm text-[#1c1917] dark:text-white">{entry.name}</span>
-                        <span className="tabular-nums text-sm font-medium text-[#57534e] dark:text-[#a3a3a3]">
-                          {entry.value}
-                          {entry.total > 0 && (
-                            <span className="ml-0.5 text-xs text-[#a8a29e] dark:text-[#555]">
-                              ({entry.percent.toFixed(0)}%)
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex h-[220px] flex-col items-center justify-center rounded-xl bg-[#fafaf9] dark:bg-[#0a0a0a]">
-                  <p className="text-sm text-[#78716c] dark:text-[#666]">Sem registos para mostrar.</p>
-                  <p className="mt-1 text-xs text-[#a8a29e] dark:text-[#555]">Os totais aparecem quando existir dados.</p>
-                </div>
-              )}
-            </div>
+          <div className={COL_SPAN_MAIN}>
+            <VolumeChart token={token} layout="panel" />
           </div>
-          <div className="rounded-2xl border border-[#e7e5e4] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:border-[#222] dark:bg-[#0d0d0d]">
-            <h3 className="font-semibold text-[#1c1917] dark:text-white">Evolução encomendas (últimos 6 meses)</h3>
-            <div className="mt-4 h-[260px]">
-              {lineData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={lineData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-[#e7e5e4] dark:stroke-[#333]" />
-                    <XAxis dataKey="mes" className="text-xs" stroke="#78716c" />
-                    <YAxis className="text-xs" stroke="#78716c" allowDecimals={false} />
-                    <Tooltip
-                      contentStyle={{ borderRadius: "12px", border: "1px solid #e7e5e4" }}
-                      formatter={(v: number) => [v, "Encomendas"]}
-                      labelFormatter={(mes) => mes}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="total"
-                      name="Encomendas"
-                      stroke="#f97316"
-                      strokeWidth={2}
-                      dot={{ fill: "#f97316", r: 4 }}
-                      animationBegin={0}
-                      animationDuration={600}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex h-full items-center justify-center text-sm text-[#78716c] dark:text-[#666]">
-                  Sem dados
-                </div>
-              )}
-            </div>
+          <div className={COL_SPAN_SIDE}>
+            <ClienteConsumoList token={token} compact filtersOnly />
           </div>
         </motion.div>
 
-        {/* Secção 4 — Atividade recente */}
+        {/* Linha 4 — Melhores clientes (100%) */}
         <motion.div
           ref={sec4Ref}
           initial={{ opacity: 0, y: 24 }}
           animate={sec4InView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.4 }}
-          className="mt-14 grid gap-8 lg:grid-cols-2"
+          className="mt-5"
         >
-          {/* Card Encomendas pendentes — requerem decisão (aceitar/rejeitar) */}
-          <div className="overflow-hidden rounded-2xl border border-[#e7e5e4] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.08)] dark:border-[#222] dark:bg-[#0d0d0d] dark:hover:shadow-[0_4px_20px_-8px_rgba(0,0,0,0.4)]">
-            <div className="border-b border-[#e7e5e4] bg-[#fffbeb] px-5 py-4 dark:border-[#222] dark:bg-amber-950/20">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </span>
-                  <div>
-                    <h3 className="font-semibold text-[#1c1917] dark:text-white">Encomendas pendentes</h3>
-                    <p className="text-xs text-[#78716c] dark:text-[#a3a3a3]">A aguardar aceite ou rejeição</p>
-                  </div>
-                </div>
-                {!isLoading && data && (
-                  <span className="flex h-8 min-w-[2rem] items-center justify-center rounded-full bg-amber-200 px-2.5 text-sm font-bold tabular-nums text-amber-900 dark:bg-amber-800 dark:text-amber-100">
-                    {data.encomendasPendentes}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="min-h-[200px]">
-              {isLoading ? (
-                <ul className="divide-y divide-[#e7e5e4] dark:divide-[#222]">
-                  {[1, 2, 3].map((i) => (
-                    <li key={i} className="flex items-center gap-3 px-5 py-4">
-                      <span className="h-4 w-12 animate-pulse rounded bg-[#e7e5e4] dark:bg-[#333]" />
-                      <span className="h-4 flex-1 animate-pulse rounded bg-[#e7e5e4] dark:bg-[#333]" />
-                    </li>
-                  ))}
-                </ul>
-              ) : encomendasPendentesLista.length === 0 ? (
-                <div className="flex flex-col items-center justify-center px-5 py-12 text-center">
-                  <p className="text-sm text-[#78716c] dark:text-[#888]">
-                    {data && data.encomendasPendentes > 0
-                      ? "Nenhuma pendente nas últimas encomendas listadas."
-                      : "Nenhuma encomenda pendente."}
-                  </p>
-                  <Link
-                    href={data?.encomendasPendentes ? "/encomendas?estado=Pendente" : "/encomendas"}
-                    className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-amber-100 px-4 py-2 text-sm font-medium text-amber-900 transition-colors hover:bg-amber-200 dark:bg-amber-900/50 dark:text-amber-100 dark:hover:bg-amber-800/50"
-                  >
-                    {data?.encomendasPendentes ? "Ver pendentes" : "Ver encomendas"}
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                  </Link>
-                </div>
-              ) : (
-                <ul className="divide-y divide-[#e7e5e4] dark:divide-[#222]">
-                  {encomendasPendentesLista.map((enc) => (
-                    <li key={enc.id}>
-                      <Link
-                        href={`/encomendas/${enc.id}`}
-                        className="group flex items-center gap-4 border-l-2 border-transparent px-5 py-4 transition-colors hover:border-amber-500 hover:bg-[#fffbeb]/50 dark:hover:border-amber-500 dark:hover:bg-amber-950/10"
-                      >
-                        <span className="font-semibold tabular-nums text-[#1c1917] dark:text-white">#{enc.id}</span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-[#1c1917] dark:text-white">
-                            {enc.cliente?.nome ?? `Cliente ${enc.clienteId}`}
-                          </p>
-                          {enc.dataCriacao && (
-                            <p className="text-xs text-[#78716c] dark:text-[#666]">
-                              {format(new Date(enc.dataCriacao), "d MMM, HH:mm", { locale: pt })}
-                            </p>
-                          )}
-                        </div>
-                        <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
-                          Pendente
-                        </span>
-                        <svg className="h-4 w-4 shrink-0 text-[#a8a29e] group-hover:text-amber-600 dark:group-hover:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                        </svg>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div className="border-t border-[#e7e5e4] bg-[#fafaf9] px-5 py-3 dark:border-[#222] dark:bg-[#0a0a0a]">
-              <Link
-                href="/encomendas?estado=Pendente"
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-[#ea580c] transition-colors hover:text-[#c2410c] dark:text-[#f97316] dark:hover:text-[#fb923c]"
-              >
-                Ver todas as pendentes
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </Link>
-            </div>
-          </div>
-
-          {/* Card Últimos movimentos */}
-          <div className="overflow-hidden rounded-2xl border border-[#e7e5e4] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.08)] dark:border-[#222] dark:bg-[#0d0d0d] dark:hover:shadow-[0_4px_20px_-8px_rgba(0,0,0,0.4)]">
-            <div className="border-b border-[#e7e5e4] bg-[#fafaf9] px-5 py-4 dark:border-[#222] dark:bg-[#0a0a0a]">
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f0fdf4] text-green-600 dark:bg-green-900/30 dark:text-green-400">
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-                  </svg>
-                </span>
-                <div>
-                  <h3 className="font-semibold text-[#1c1917] dark:text-white">Movimentos de armazém</h3>
-                  <p className="text-xs text-[#78716c] dark:text-[#666]">Entradas e saídas recentes</p>
-                </div>
-              </div>
-            </div>
-            <div className="min-h-[200px]">
-              {isLoading ? (
-                <ul className="divide-y divide-[#e7e5e4] dark:divide-[#222]">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <li key={i} className="flex items-center gap-3 px-5 py-4">
-                      <span className="h-4 w-16 animate-pulse rounded bg-[#e7e5e4] dark:bg-[#333]" />
-                      <span className="h-4 flex-1 animate-pulse rounded bg-[#e7e5e4] dark:bg-[#333]" />
-                    </li>
-                  ))}
-                </ul>
-              ) : ultimosMovimentos.length === 0 ? (
-                <div className="flex flex-col items-center justify-center px-5 py-12 text-center">
-                  <p className="text-sm text-[#78716c] dark:text-[#888]">Nenhum movimento recente.</p>
-                  <Link href="/armazem/movimentos" className="mt-2 text-sm font-medium text-[#ea580c] hover:underline dark:text-[#f97316]">
-                    Ver histórico
-                  </Link>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <div className="min-w-[480px]">
-                    <div className="grid grid-cols-[auto_auto_1fr_1fr_auto_auto] gap-2 border-b border-[#e7e5e4] px-5 py-2 text-xs font-medium uppercase tracking-wider text-[#78716c] dark:border-[#222] dark:text-[#666]">
-                      <span>Data</span>
-                      <span className="w-16">Tipo</span>
-                      <span className="truncate">Paiol</span>
-                      <span className="truncate">Produto</span>
-                      <span className="text-right">Qtd</span>
-                      <span className="w-12 text-right">Ref.</span>
-                    </div>
-                    <ul className="divide-y divide-[#e7e5e4] dark:divide-[#222]">
-                      {ultimosMovimentos.map((m) => (
-                        <li
-                          key={`${m.tipo}-${m.id}`}
-                          className="transition-colors hover:bg-[#fafaf9] dark:hover:bg-[#111]"
-                        >
-                          <div className="grid grid-cols-[auto_auto_1fr_1fr_auto_auto] gap-2 px-5 py-3 text-sm">
-                            <span className="tabular-nums text-[#57534e] dark:text-[#a3a3a3]">
-                              {format(new Date(m.data), "dd/MM HH:mm", { locale: pt })}
-                            </span>
-                            <span
-                              className={`w-fit rounded px-2 py-0.5 text-xs font-medium ${
-                                m.tipo === "Entrada"
-                                  ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
-                                  : "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
-                              }`}
-                            >
-                              {m.tipo}
-                            </span>
-                            <span className="truncate font-medium text-[#1c1917] dark:text-white" title={m.paiolNome}>
-                              {m.paiolNome || "—"}
-                            </span>
-                            <span className="truncate text-[#57534e] dark:text-[#a3a3a3]" title={m.produtoNome}>
-                              {m.produtoNome || "—"}
-                            </span>
-                            <span className="text-right tabular-nums font-medium text-[#1c1917] dark:text-white">
-                              {Number(m.quantidade)}
-                            </span>
-                            <span className="w-12 text-right">
-                              {m.encomendaId != null ? (
-                                <Link
-                                  href={`/encomendas/${m.encomendaId}`}
-                                  className="font-medium text-[#ea580c] hover:underline dark:text-[#f97316]"
-                                >
-                                  #{m.encomendaId}
-                                </Link>
-                              ) : (
-                                <span className="text-[#a8a29e] dark:text-[#555]">—</span>
-                              )}
-                            </span>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="border-t border-[#e7e5e4] bg-[#fafaf9] px-5 py-3 dark:border-[#222] dark:bg-[#0a0a0a]">
-              <Link
-                href="/armazem/movimentos"
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-[#ea580c] transition-colors hover:text-[#c2410c] dark:text-[#f97316] dark:hover:text-[#fb923c]"
-              >
-                Ver todos os movimentos
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </Link>
-            </div>
-          </div>
+          <TopClientesBlock token={token} layout="wide" />
         </motion.div>
       </div>
     </section>
+    </GestorDemoProvider>
   );
 }
 
-function StatCard({ card, index, enabled }: { card: CardStat; index: number; enabled: boolean }) {
-  const displayValue = useCountUp(card.value, enabled);
+function MovimentosArmazemPanel({
+  isLoading,
+  movimentos,
+}: {
+  isLoading: boolean;
+  movimentos: MovimentoRecenteDto[];
+}) {
+  return (
+    <div className={`overflow-hidden ${dashboardPanelClass} ${dashboardPanelHoverClass}`}>
+      <div
+        className={`${dashboardPanelHeaderClass} flex flex-wrap items-center justify-between gap-3 px-5 py-4`}
+      >
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f0fdf4] text-green-600 dark:bg-green-900/30 dark:text-green-400">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+            </svg>
+          </span>
+          <div>
+            <h3 className="font-semibold text-[#1c1917] dark:text-white">Movimentos de armazém</h3>
+            <p className="text-xs text-[#78716c] dark:text-[#666]">Entradas e saídas recentes</p>
+          </div>
+        </div>
+        <Link
+          href="/armazem/movimentos"
+          className="inline-flex items-center gap-1 text-sm font-medium text-[#ea580c] hover:underline dark:text-[#f97316]"
+        >
+          Ver todos os movimentos
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+          </svg>
+        </Link>
+      </div>
+      <div className="min-h-[220px]">
+        {isLoading ? (
+          <ul className="divide-y divide-[#e7e5e4] dark:divide-[#222]">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <li key={i} className="flex items-center gap-3 px-5 py-4">
+                <span className="h-4 w-16 animate-pulse rounded bg-[#e7e5e4] dark:bg-[#333]" />
+                <span className="h-4 flex-1 animate-pulse rounded bg-[#e7e5e4] dark:bg-[#333]" />
+              </li>
+            ))}
+          </ul>
+        ) : movimentos.length === 0 ? (
+          <div className="flex flex-col items-center justify-center px-5 py-12 text-center">
+            <p className="text-sm text-[#78716c] dark:text-[#888]">Nenhum movimento recente.</p>
+            <Link
+              href="/armazem/movimentos"
+              className="mt-2 text-sm font-medium text-[#ea580c] hover:underline dark:text-[#f97316]"
+            >
+              Ver histórico
+            </Link>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <div className="min-w-[520px]">
+              <div className="grid grid-cols-[auto_auto_1fr_1fr_auto_auto] gap-2 border-b border-[#e7e5e4] px-5 py-2 text-[10px] font-semibold uppercase tracking-wider text-[#78716c] dark:border-[#222] dark:text-[#666]">
+                <span>Data</span>
+                <span className="w-14">Tipo</span>
+                <span>P/L</span>
+                <span>Produto</span>
+                <span className="text-right">Qtd</span>
+                <span className="w-12 text-right">Ref.</span>
+              </div>
+              <ul className="divide-y divide-[#e7e5e4] dark:divide-[#222]">
+                {movimentos.map((m) => (
+                  <li
+                    key={`${m.tipo}-${m.id}`}
+                    className="transition-colors hover:bg-[#fafaf9] dark:hover:bg-[#111]"
+                  >
+                    <div className="grid grid-cols-[auto_auto_1fr_1fr_auto_auto] gap-2 px-5 py-2.5 text-sm">
+                      <span className="tabular-nums text-[#57534e] dark:text-[#a3a3a3]">
+                        {format(new Date(m.data), "dd/MM HH:mm", { locale: pt })}
+                      </span>
+                      <span
+                        className={`w-fit rounded px-2 py-0.5 text-xs font-medium ${
+                          m.tipo === "Entrada"
+                            ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
+                            : "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+                        }`}
+                      >
+                        {m.tipo}
+                      </span>
+                      <span
+                        className="truncate font-medium text-[#1c1917] dark:text-white"
+                        title={m.paiolNome}
+                      >
+                        {m.paiolNome || "—"}
+                      </span>
+                      <span
+                        className="truncate text-[#57534e] dark:text-[#a3a3a3]"
+                        title={m.produtoNome}
+                      >
+                        {m.produtoNome || "—"}
+                      </span>
+                      <span className="text-right tabular-nums font-medium text-[#1c1917] dark:text-white">
+                        {Number(m.quantidade)}
+                      </span>
+                      <span className="w-12 text-right">
+                        {m.encomendaId != null ? (
+                          <Link
+                            href={`/encomendas/${m.encomendaId}`}
+                            className="font-medium text-[#ea580c] hover:underline dark:text-[#f97316]"
+                          >
+                            #{m.encomendaId}
+                          </Link>
+                        ) : (
+                          <span className="text-[#a8a29e] dark:text-[#555]">—</span>
+                        )}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function tempoDesdeCriacao(dataCriacao: string, agora: Date): string {
+  const diff = Math.max(0, agora.getTime() - new Date(dataCriacao).getTime());
+  const s = Math.floor(diff / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+}
+
+function legendaPedidosRecebidos(recebidas: number, pendentes: number): string | undefined {
+  if (recebidas <= 0) return undefined;
+  const base =
+    recebidas === 1
+      ? "1 pedido recebido nos últimos 7 dias"
+      : `${recebidas} pedidos recebidos nos últimos 7 dias`;
+  if (pendentes === 0) return `${base} · nenhum por tratar agora`;
+  return base;
+}
+
+function PendingEncomendasPanel({
+  total,
+  lista,
+  recebidasSemana,
+}: {
+  total: number;
+  lista: UltimaEncomendaDto[];
+  recebidasSemana: number;
+}) {
+  const agora = useLiveDateTime();
+  const legenda = legendaPedidosRecebidos(recebidasSemana, total);
+  const verTodasHref = "/encomendas?estado=Todos&pagina=1";
+  const destaque = lista[0];
+  const restantes = lista.slice(1);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.08 }}
+      className={`${dashboardPanelClass} ${dashboardPanelHoverClass} flex h-full min-h-[320px] flex-col`}
+    >
+      <div
+        className={`flex flex-wrap items-start justify-between gap-2 ${dashboardPanelHeaderClass} px-4 py-3`}
+      >
+        <h2 className="text-sm font-semibold text-[#1c1917] dark:text-white">
+          Encomendas pendentes
+        </h2>
+        <Link
+          href={verTodasHref}
+          className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-[#ea580c] hover:underline dark:text-[#f97316]"
+        >
+          Ver todas
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+          </svg>
+        </Link>
+      </div>
+
+      <div className="flex flex-1 flex-col gap-3 p-4">
+        {total === 0 ? (
+          <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-[#e7e5e4] px-3 py-8 text-center dark:border-[#333]">
+            <p className="text-sm font-medium text-[#1c1917] dark:text-white">
+              Nenhuma encomenda pendente
+            </p>
+            <p className="mt-1 text-xs text-[#78716c] dark:text-[#888]">
+              Novos pedidos aparecem aqui para tratares na ficha da encomenda.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="rounded-xl border border-[#e7e5e4] bg-[#fafaf9] px-3 py-2.5 dark:border-[#2a2a2a] dark:bg-[#111]">
+              <div className="flex items-center gap-2">
+                <span className="text-[#ea580c] dark:text-[#f97316]">
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"
+                    />
+                  </svg>
+                </span>
+                <div>
+                  <p className="text-lg font-bold tabular-nums text-[#1c1917] dark:text-white">
+                    {total}
+                  </p>
+                  <p className="text-[10px] text-[#78716c] dark:text-[#888]">
+                    {total === 1 ? "encomenda" : "encomendas"} · Aguardando aceitação
+                  </p>
+                </div>
+              </div>
+              {legenda && (
+                <p className="mt-2 text-[10px] leading-snug text-[#78716c] dark:text-[#888]">
+                  {legenda}
+                </p>
+              )}
+            </div>
+
+            {destaque && (
+              <Link
+                href={`/encomendas/${destaque.id}`}
+                className="block rounded-xl border border-[#e7e5e4] bg-white p-3 transition-shadow hover:shadow-md dark:border-[#333] dark:bg-[#0d0d0d]"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-[#1c1917] dark:text-white">
+                      {destaque.cliente?.nome ?? `Encomenda #${destaque.id}`}
+                    </p>
+                    <p className="mt-0.5 text-xs text-[#78716c] dark:text-[#888]">
+                      #{destaque.id}
+                      {destaque.dataEntrega
+                        ? ` · Entrega ${format(new Date(destaque.dataEntrega), "dd/MM/yyyy", { locale: pt })}`
+                        : ""}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-lg bg-[#fafaf9] px-2 py-1 font-mono text-xs tabular-nums text-[#57534e] dark:bg-[#111] dark:text-[#a3a3a3]">
+                    {tempoDesdeCriacao(destaque.dataCriacao, agora)}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-[#ea580c] dark:text-[#f97316]">
+                  Abrir encomenda →
+                </p>
+              </Link>
+            )}
+
+            {restantes.length > 0 ? (
+              <ul className="divide-y divide-[#e7e5e4] rounded-xl border border-[#e7e5e4] dark:divide-[#222] dark:border-[#333]">
+                {restantes.map((enc) => (
+                  <li key={enc.id}>
+                    <Link
+                      href={`/encomendas/${enc.id}`}
+                      className="block px-3 py-2 text-sm transition-colors hover:bg-[#fafaf9] dark:hover:bg-[#111]"
+                    >
+                      <span className="font-medium text-[#1c1917] dark:text-white">
+                        {enc.cliente?.nome ?? `#${enc.id}`}
+                      </span>
+                      <span className="ml-1 text-xs text-[#78716c]">#{enc.id}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : total <= 1 ? (
+              <p className="text-center text-xs text-[#78716c] dark:text-[#888]">
+                Nenhuma outra encomenda pendente
+              </p>
+            ) : null}
+
+            {total > lista.length && (
+              <p className="text-center text-xs text-[#78716c] dark:text-[#888]">
+                +{total - lista.length} outra{total - lista.length !== 1 ? "s" : ""} ·{" "}
+                <Link href={verTodasHref} className="font-medium text-[#ea580c] hover:underline">
+                  ver todas
+                </Link>
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+function StatCard({ card, index }: { card: CardStat; index: number }) {
+  const trend =
+    card.trendDelta != null && card.trendDelta !== 0
+      ? card.trendDelta > 0
+        ? "up"
+        : "down"
+      : null;
   return (
     <motion.div variants={staggerItem} transition={{ ...transitionSmooth, delay: index * 0.05 }}>
       <Link
         href={card.href}
-        className="card-hover group flex flex-col rounded-2xl border border-[#e7e5e4] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-8px_rgba(249,115,22,0.2)] dark:border-[#222] dark:bg-[#0d0d0d] dark:shadow-[0_4px_20px_-8px_rgba(0,0,0,0.3)] dark:hover:shadow-[0_8px_28px_-8px_rgba(0,0,0,0.4)]"
+        className={`card-hover group flex flex-col p-4 ${dashboardPanelClass} transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-8px_rgba(249,115,22,0.15)] dark:hover:shadow-[0_8px_28px_-8px_rgba(0,0,0,0.4)]`}
       >
-        <span className="text-[#ea580c] dark:text-[#f97316]">{card.icon}</span>
-        <span className="mt-3 text-2xl font-bold tracking-tight text-[#1c1917] dark:text-white">{displayValue}</span>
-        <span className="mt-1 text-sm font-semibold text-[#1c1917] dark:text-white">{card.title}</span>
-        {card.variation && (
-          <span className="mt-0.5 text-xs text-[#78716c] dark:text-[#888]">{card.variation}</span>
-        )}
+        <div className="flex items-start justify-between gap-2">
+          <span className="text-[#ea580c] dark:text-[#f97316]">{card.icon}</span>
+          {trend === "up" && (
+            <span
+              className="text-sm font-bold text-emerald-600 dark:text-emerald-400"
+              title="Aumentou nos últimos 7 dias vs 7 dias anteriores"
+              aria-hidden
+            >
+              ▲
+            </span>
+          )}
+          {trend === "down" && (
+            <span
+              className="text-sm font-bold text-red-500 dark:text-red-400"
+              title="Desceu nos últimos 7 dias vs 7 dias anteriores"
+              aria-hidden
+            >
+              ▼
+            </span>
+          )}
+        </div>
+        <span className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-[#1c1917] dark:text-white">
+          {card.value}
+        </span>
+        <span className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-[#78716c] dark:text-[#888]">
+          {card.title}
+        </span>
       </Link>
     </motion.div>
   );

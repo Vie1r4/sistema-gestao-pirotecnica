@@ -13,7 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Finalproj.Controllers
 {
-    // Entradas no paiol: formulário Registar com validação MLE e licença; histórico em Paiol/Movimentos
+    /// <summary>Registo de entradas de stock no paiol (validação MLE e licença).</summary>
     [Route("api/entrada-paiol")]
     [ApiController]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Policy = PoliticasAutorizacao.PodeVerArmazemStock)]
@@ -32,7 +32,8 @@ namespace Finalproj.Controllers
             _entradaPaiolValidator = entradaPaiolValidator;
         }
 
-        // Indica onde obter o histórico de entradas (Paiol/Movimentos)
+        /// <summary>Indica onde obter o histórico de entradas (Paiol/Movimentos).</summary>
+
         [HttpGet]
         public IActionResult Index()
         {
@@ -43,7 +44,8 @@ namespace Finalproj.Controllers
             });
         }
 
-        // GET: formulário com filtros (paiol, classificação, grupo, etc.)
+        /// <summary>Formulário com filtros (paiol, classificação, grupo, etc.).</summary>
+
         [HttpGet("registar")]
         public async Task<IActionResult> Registar(int? paiolId, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default)
         {
@@ -65,8 +67,8 @@ namespace Finalproj.Controllers
             });
         }
 
+        /// <summary>Valida com MotorValidacaoPaiol, grava entrada e regista no log.</summary>
         [HttpPost("registar")]
-        // Valida com MotorValidacaoPaiol, grava entrada e regista no log
         public async Task<IActionResult> Registar([FromBody] EntradaPaiolViewModel model, CancellationToken cancellationToken = default)
         {
             var validationResult = await _entradaPaiolValidator.ValidateAsync(model, cancellationToken);

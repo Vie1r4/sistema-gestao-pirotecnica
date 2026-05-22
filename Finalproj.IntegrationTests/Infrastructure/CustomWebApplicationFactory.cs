@@ -49,5 +49,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     {
         public Task<string> ExecuteBackupNowAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult("noop");
+
+        public Task<IReadOnlyList<BackupListItem>> ListBackupsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<BackupListItem>>(Array.Empty<BackupListItem>());
     }
 }

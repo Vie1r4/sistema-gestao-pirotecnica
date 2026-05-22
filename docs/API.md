@@ -1,6 +1,6 @@
 # Documentação da API PIROFAFE
 
-**Última revisão:** maio de 2026 (`/api/auth/me` com `permissions`, confirm-email, backups Admin). Índice: [Docs/README.md](README.md).
+**Última revisão:** maio de 2026 (gestão de contas Admin B03–B07, `/api/auth/me` com `permissions`). Índice: [Docs/README.md](README.md).
 
 API REST do sistema de gestão pirotécnica; backend em **ASP.NET Core 8**; documentação interativa via **Swagger** (UI disponível **apenas em ambiente Development** — em produção o Swagger está desligado por segurança).
 
@@ -27,14 +27,15 @@ Authorization: Bearer <token>
 
 ### Fluxo
 
-1. **Verificar se existem utilizadores** (público)  
+1. **Bootstrap do primeiro administrador** (público, rate limit `bootstrap`)  
    `GET /api/auth/existem-utilizadores`  
-   Resposta: `{ "existem": true }` ou `{ "existem": false }`.
+   Resposta: `{ "primeiroRegistoDisponivel": true|false }` — **não** indica se já existem contas (evita enumeração).  
+   `true` só quando `Bootstrap:AllowFirstUserRegistration` está ativo **e** ainda não há utilizadores.
 
-2. **Registar primeiro utilizador** (apenas quando não existem contas)  
+2. **Registar primeiro utilizador** (requer bootstrap ativo e BD sem contas)  
    `POST /api/auth/registar-primeiro-utilizador`  
-   Body: `{ "email": "...", "password": "..." }`  
-   Este utilizador recebe a role **Admin**.
+   Body: `{ "email": "...", "password": "...", "nome": "..." }` (nome opcional)  
+   Este utilizador recebe a role **Admin**. Com bootstrap desativado: **404**.
 
 3. **Login**  
    `POST /api/auth/login`  
@@ -65,7 +66,7 @@ Authorization: Bearer <token>
 8. **Redefinir palavra-passe** (público; link do email)  
    `POST /api/auth/reset-password`  
    Body: `{ "email": "...", "token": "...", "newPassword": "...", "confirmPassword": "..." }`  
-   Resposta: 200 se sucesso; 400 se token inválido/expirado ou password não cumprir regras.
+   Resposta: 200 se sucesso; 400 se token inválido/expirado ou password não cumprir as mesmas regras do Identity (mín. 8 caracteres, maiúsculas, minúsculas, algarismo e carácter especial).
 
 9. **Confirmar email** (público; link enviado ao criar conta)  
    `GET /api/auth/confirm-email?userId=...&code=...`  
@@ -100,6 +101,8 @@ Sem token → **401**; com token mas sem permissão → **403**.
 
 ## Swagger (recomendado em desenvolvimento)
 
+A documentação OpenAPI inclui **comentários XML** dos controllers (`GenerateDocumentationFile` em `Finalproj.Api.csproj`). Cada operação mostra resumo e, onde aplicável, códigos de resposta (`ProducesResponseType`).
+
 A forma mais rápida de explorar e testar a API é usar o **Swagger UI** (só com `ASPNETCORE_ENVIRONMENT=Development` ou equivalente):
 
 1. Inicie o backend: `dotnet run` (na raiz do projeto).
@@ -120,7 +123,7 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/existem-utilizadores` | Verifica se já existem utilizadores (público) |
+| GET | `/existem-utilizadores` | Bootstrap: `primeiroRegistoDisponivel` (público, rate limit bootstrap) |
 | POST | `/registar-primeiro-utilizador` | Regista o primeiro utilizador (Admin) |
 | POST | `/login` | Login; devolve JWT (refresh token em cookie HttpOnly) |
 | GET | `/me` | Dados do utilizador autenticado (`roles`, **`permissions`**) |
@@ -157,6 +160,7 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | POST | `/create` | Criar encomenda |
 | GET | `/adicionar-itens` | Dados para adicionar itens |
 | POST | `/adicionar-item` | Adicionar item ao rascunho |
+| POST | `/adicionar-compilado` | Adicionar compilado (atalho); expande para produtos no rascunho |
 | POST | `/remover-item` | Remover item |
 | POST | `/submeter` | Submeter encomenda |
 | PUT | `/{id}` | Editar encomenda |
@@ -229,6 +233,18 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | GET | `/{id}/delete` | Confirmação |
 | DELETE | `/{id}` | Eliminar |
 
+### Compilados — `/api/compilados`
+
+Atalhos nomeados (ex.: «Dúzia») com lista de produtos e quantidade **por unidade** do atalho. Nas encomendas, `POST /api/encomendas/adicionar-compilado` multiplica cada linha pela quantidade pedida. Política: **PodeGerirProdutos** (Admin, Gestor).
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/` | Lista com itens e nomes de produto |
+| GET | `/{id}` | Detalhe |
+| POST | `/` | Criar (`nome`, `itens[]` com `produtoId`, `quantidadePorUnidade`) |
+| PUT | `/{id}` | Atualizar |
+| DELETE | `/{id}` | Eliminar |
+
 ### Funcionários — `/api/funcionarios`
 
 | Método | Endpoint | Descrição |
@@ -252,10 +268,20 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
 | GET | `/` | Resumo |
-| GET | `/utilizadores` | Lista de utilizadores |
-| GET | `/utilizadores/{id}` | Detalhe utilizador |
-| PUT | `/utilizadores/{id}` | Atualizar (roles, etc.) |
+| GET | `/stats` | Estatísticas do dashboard (`utilizadoresSemEmailConfirmado`, totais, etc.) |
+| GET | `/logs` | Logs paginados (`acao`, `userName`, `entidade`, `dataInicio`, `dataFim`, `pagina`, `itensPorPagina`). `entidade`: `encomenda`, `stock`, `admin`, `conta` |
+| GET | `/health` | Estado da API (`status`, `database`, `environment`, `version`, `utcNow`) |
+| GET | `/utilizadores` | Lista de utilizadores (`emailConfirmed` por item) |
+| GET | `/utilizadores/criar-opcoes` | Roles permitidas e funcionários sem conta |
+| POST | `/utilizadores` | Criar conta (`email`, `password`, `roles`, `funcionarioId?`, `enviarEmailConfirmacao`) |
+| GET | `/utilizadores/{id}` | Detalhe utilizador (roles, funcionário) |
+| PUT | `/utilizadores/{id}` | Atualizar roles e funcionário associado |
+| PUT | `/utilizadores/{id}/credenciais` | Alterar email/username (`{ email }`) |
+| POST | `/utilizadores/{id}/resend-confirm-email` | Reenviar email de confirmação |
+| POST | `/utilizadores/{id}/confirm-email` | Marcar email como confirmado (admin) |
+| POST | `/utilizadores/{id}/send-password-reset` | Enviar link de redefinição de palavra-passe |
 | DELETE | `/utilizadores/{id}` | Eliminar |
+| GET | `/backups` | Lista ficheiros `.bak` na pasta de backups (nome, tamanho, data) |
 | POST | `/backups/run` | Executar backup manual da BD (Admin) |
 | POST | `/clear-all-data` | Limpar dados (cuidado; apenas em Development) |
 
@@ -270,6 +296,19 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | GET | `/perfil` | Perfil |
 | PUT | `/perfil` | Atualizar perfil |
 | POST | `/alterar-password` | Alterar palavra-passe |
+| GET | `/gestor-dashboard` | KPIs e atividade recente (Admin, Gestor). Inclui `kpiContexto`, `encomendasPendentesLista` (até 8, estado Pendente). |
+
+### Analytics do gestor — `/api/gestor-analytics`
+
+Autorização: **Admin**, **Gestor** (JWT).
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/volume` | Volume de encomendas. Query: `granularidade` = `dia` \| `semana` \| `mes` \| `ano`, `dias` (7–1095, default 90). A consulta inclui +1 ano para comparação homóloga. Variação % no client (homóloga). No painel: **Ctrl+scroll** no gráfico altera agrupamento (ano→mês→semana→dia). |
+| GET | `/comparacao-anual` | Ano civil **atual vs anterior** (ex.: 2026 vs 2025), slots fixos no eixo X. Query: `periodoId` (`7`, `30`, `90`, `180`, `365`, `730`, `1095`; default `365`), `produtoId`, `clienteId` (opcionais). `730` = Jan–Dez; `1095` = 52 semanas ISO. Cada slot: `chave`, `rotulo`, `futuro`, `atual`, `anoAnterior`. Com `produtoId`, totais em unidades. Resposta: `ano`, `anoAnterior`, `semanas[]`, `zonasPico[]`, `materiais[]`, `clientes[]`. |
+| GET | `/consumo-cliente` | O que o cliente encomendou no intervalo. Query obrigatória: `clienteId`, `desde`, `ate` (yyyy-MM-dd, inclusivos; ex. `2025-04-15` e `2025-04-20`); opcional: `produtoId`. Resposta: `desde`, `ate`, `linhas[]`, totais, `materiais`/`clientes`. |
+| GET | `/previsao` | *(legado — removido do painel)* Previsão 30/60/90 dias. Query: `dias`, `crescimentoPct`. |
+| GET | `/top-clientes` | Top por encomendas e por serviços. Query: `limite`. Campo `risco` (volume em queda vs 90 dias anteriores). |
 
 ---
 

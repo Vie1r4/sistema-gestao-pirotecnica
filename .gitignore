@@ -496,3 +496,9 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Dados locais PIROFAFE (uploads + backups portáteis)
+**/PirofafeData/
+
+# Backups SQL na raiz da API (legado, antes da subpasta)
+**/db-backup_*.bak

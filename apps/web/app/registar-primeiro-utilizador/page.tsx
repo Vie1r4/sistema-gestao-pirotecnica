@@ -8,6 +8,12 @@ import { safeParseJson } from "@/app/lib/api";
 import { postRegistarPrimeiroUtilizador } from "@/app/lib/authApi";
 import { setToken } from "@/app/lib/auth";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
+import {
+  formatApiPasswordDetails,
+  PASSWORD_HINT,
+  PASSWORD_PLACEHOLDER,
+  validatePasswordClient,
+} from "@/app/lib/passwordPolicy";
 
 const inputClass =
   "mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-[#f97316] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-white dark:placeholder-gray-500";
@@ -34,8 +40,9 @@ export default function RegistarPrimeiroUtilizadorPage() {
       setMessage("Preencha o email e a palavra-passe.");
       return;
     }
-    if (password.length < 6) {
-      setMessage("A palavra-passe deve ter pelo menos 6 caracteres.");
+    const passwordError = validatePasswordClient(password);
+    if (passwordError) {
+      setMessage(passwordError);
       return;
     }
     if (password !== confirmar) {
@@ -59,7 +66,10 @@ export default function RegistarPrimeiroUtilizadorPage() {
         router.replace("/");
         return;
       }
-      setMessage((data.error ?? data.Error ?? "Ocorreu um erro. Tente novamente.") as string);
+      setMessage(
+        formatApiPasswordDetails(data) ??
+          ((data.error ?? data.Error ?? "Ocorreu um erro. Tente novamente.") as string)
+      );
     } catch {
       setMessage("Não foi possível contactar o servidor. Tente novamente.");
     } finally {
@@ -131,13 +141,14 @@ export default function RegistarPrimeiroUtilizadorPage() {
                 id="reg-password"
                 type="password"
                 required
-                minLength={6}
+                minLength={8}
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className={inputClass}
-                placeholder="Mínimo 6 caracteres"
+                placeholder={PASSWORD_PLACEHOLDER}
               />
+              <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">{PASSWORD_HINT}</p>
             </div>
             <div>
               <label htmlFor="reg-confirmar" className={labelClass}>

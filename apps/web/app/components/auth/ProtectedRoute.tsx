@@ -3,23 +3,9 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ensureAccessToken, isAuthenticated } from "@/app/lib/auth";
+import { isRotaPublica, isRotaSemBootstrapAuth } from "@/app/lib/publicRoutes";
 import { UserProvider } from "@/app/context/UserContext";
 import RoutePermissionGuard from "./RoutePermissionGuard";
-
-/** Rotas acessíveis sem login (exceção à proteção). */
-const ROTAS_PUBLICAS = [
-  "/",
-  "/login",
-  "/registar-primeiro-utilizador",
-  "/forgot-password",
-  "/reset-password",
-  "/confirm-email",
-];
-
-function isRotaPublica(pathname: string | null): boolean {
-  if (!pathname) return false;
-  return ROTAS_PUBLICAS.some((rota) => pathname === rota || pathname.startsWith(rota + "/"));
-}
 
 type ProtectedRouteProps = {
   children: React.ReactNode;
@@ -39,6 +25,10 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     if (!mounted) return;
     let cancelled = false;
     setAuthReady(false);
+    if (isRotaSemBootstrapAuth(pathname)) {
+      setAuthReady(true);
+      return;
+    }
     ensureAccessToken().then(() => {
       if (!cancelled) setAuthReady(true);
     });

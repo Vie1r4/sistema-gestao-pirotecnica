@@ -20,9 +20,9 @@ Sistema de gestão pirotécnica: paióis e stock (MLE/NEM, FIFO), catálogo de p
 | `Finalproj.Api` | Controllers, `Program.cs`, middleware, `proxy` não (CSP é no Next) |
 | `Finalproj.Application` | Serviços de aplicação, DTOs, validadores FluentValidation |
 | `Finalproj.Domain` | Entidades, constantes (`ConstantesRoles`, etc.) |
-| `Finalproj.Infrastructure` | EF `FinalprojContext`, email, ficheiros, backups, `LogSistemaService` |
+| `Finalproj.Infrastructure` | EF `FinalprojContext`, email, `ArquivosRaizService`, `DocumentoStorageService`, backups, `LogSistemaService` |
 
-Serviços de negócio relevantes: `EncomendaService` (preparação FIFO), `StockDisponivelService`, `ServicoService`, `DocumentoStorageService`.
+Serviços de negócio relevantes: `EncomendaService` (preparação FIFO), `StockDisponivelService`, `ServicoService`, `DocumentoStorageService` (uploads em `PirofafeData/Uploads` via `IArquivosRaizService`; validação extensão + magic bytes).
 
 ---
 
@@ -84,5 +84,5 @@ Paginação habitual: `pagina`, `itensPorPagina`; resposta com `totalRegistos`.
 ## Convenções
 
 - Decimais invariantes no binding (`DecimalInvariantModelBinder`).
-- Documentos em `wwwroot`; path traversal validado no storage.
+- Documentos em `PirofafeData/Uploads` (portátil, relativo ao `ContentRootPath`); paths na BD permanecem relativos; leitura com fallback opcional em `wwwroot` (legado). Path traversal validado em `ArquivosRaizService` / `DocumentoStorageService`.
 - Erros `/api/*` em JSON (401/403/404/500); 500 inclui `correlationId` quando aplicável.

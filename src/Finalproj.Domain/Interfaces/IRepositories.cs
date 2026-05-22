@@ -36,6 +36,7 @@ public interface IProdutoRepository
     Task<bool> ExistsAsync(int id, CancellationToken cancellationToken = default);
 
     Task<int> CountAsync(CancellationToken cancellationToken = default);
+    Task<int> CountRegistadosDesdeAsync(DateTime desdeUtc, CancellationToken cancellationToken = default);
 }
 
 public interface IEncomendaRepository
@@ -70,6 +71,7 @@ public interface IEncomendaRepository
     Task<(IReadOnlyList<Encomenda> Items, int Total)> ListHistoricoClientePaginatedAsync(int clienteId, int pagina, int pageSize, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<Encomenda>> ListRecentWithClienteAsync(int take, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Encomenda>> ListPendentesWithClienteAsync(int take, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<(string MesKey, int Total)>> EncomendasPorMesUltimos6MesesAsync(CancellationToken cancellationToken = default);
 }
 
@@ -112,6 +114,7 @@ public interface IFuncionarioRepository
     Task<string?> GetNomeCompletoByUserIdAsync(string userId, CancellationToken cancellationToken = default);
 
     Task<int> CountAsync(CancellationToken cancellationToken = default);
+    Task<int> CountRegistadosDesdeAsync(DateTime desdeUtc, CancellationToken cancellationToken = default);
 }
 
 public interface IServicoRepository
@@ -196,6 +199,10 @@ public interface ILogSistemaRepository
     Task<int> CountAsync(CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<(long Id, string? Acao, string? UserId, string? UserName, string? JsonDados, DateTime Timestamp)> Items, int Total)> ListPagedAsync(
         string? acaoFiltro,
+        string? userNameFiltro,
+        string? entidadeFiltro,
+        DateTime? dataInicio,
+        DateTime? dataFim,
         int pagina,
         int itensPorPagina,
         CancellationToken cancellationToken = default);
@@ -298,4 +305,15 @@ public interface IFuncionarioDocumentoExtraRepository
     Task<FuncionarioDocumentoExtra?> GetByFuncionarioAndIdNoTrackingAsync(int funcionarioId, int id, CancellationToken cancellationToken = default);
     Task AddAsync(FuncionarioDocumentoExtra entity, CancellationToken cancellationToken = default);
     void RemoveRange(IEnumerable<FuncionarioDocumentoExtra> entities);
+}
+
+public interface ICompiladoRepository
+{
+    Task<IReadOnlyList<Compilado>> ListAllWithItensProdutoAsync(CancellationToken cancellationToken = default);
+    Task<Compilado?> GetByIdWithItensProdutoAsync(int id, CancellationToken cancellationToken = default);
+    Task<Compilado?> FindTrackedByIdWithItensAsync(int id, CancellationToken cancellationToken = default);
+    Task AddAsync(Compilado entity, CancellationToken cancellationToken = default);
+    Task UpdateAsync(Compilado entity, CancellationToken cancellationToken = default);
+    Task DeleteAsync(Compilado entity, CancellationToken cancellationToken = default);
+    Task<bool> ExistsAsync(int id, CancellationToken cancellationToken = default);
 }

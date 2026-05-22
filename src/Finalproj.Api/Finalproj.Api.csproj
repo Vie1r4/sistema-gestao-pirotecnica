@@ -7,6 +7,8 @@
     <RootNamespace>Finalproj</RootNamespace>
     <AssemblyName>Finalproj.Api</AssemblyName>
     <UserSecretsId>finalproj-pirofafe-email</UserSecretsId>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
     <!-- Bibliotecas (.NET) em src/: não compilar os seus ficheiros neste host -->
     <DefaultItemExcludes>$(DefaultItemExcludes);..\Finalproj.Domain\**;..\Finalproj.Application\**;..\Finalproj.Infrastructure\**</DefaultItemExcludes>
   </PropertyGroup>

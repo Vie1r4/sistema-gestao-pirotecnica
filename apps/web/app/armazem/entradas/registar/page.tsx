@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import { useActionGuard } from "@/app/hooks/useActionGuard";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { textoClassificacao, CLASSIFICACOES_RISCO, GRUPOS_COMPATIBILIDADE, FILTROS_TECNICOS, CALIBRES } from "@/app/lib/produtos";
@@ -39,7 +40,7 @@ function RegistarEntradaContent() {
   const canGerirArmazem = (user?.permissions ?? []).includes("armazem.gerir");
   const [mounted, setMounted] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const loadingRef = useRef(false);
+  const submitGuard = useActionGuard();
   const paiolIdParam = searchParams.get("paiolId") ?? "";
   const [form, setForm] = useState({
     paiolId: paiolIdParam,
@@ -140,35 +141,33 @@ function RegistarEntradaContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loadingRef.current || registarMutation.isPending) return;
-    loadingRef.current = true;
+    if (!submitGuard.begin() || registarMutation.isPending) return;
     setMessage(null);
     if (!form.paiolId) {
       setMessage({ type: "error", text: "Selecione um paiol." });
-      loadingRef.current = false;
+      submitGuard.end();
       return;
     }
     if (!form.produtoId) {
       setMessage({ type: "error", text: "Selecione um produto." });
-      loadingRef.current = false;
+      submitGuard.end();
       return;
     }
     const qty = Number(form.quantidade);
     if (!Number.isFinite(qty) || qty <= 0) {
       setMessage({ type: "error", text: "A quantidade deve ser um número positivo." });
-      loadingRef.current = false;
+      submitGuard.end();
       return;
     }
     try {
       await registarMutation.mutateAsync();
+      /* sucesso: mantém o guard activo até ao redirect para impedir duplo registo */
     } catch {
-      /* onError já define mensagem */
-    } finally {
-      loadingRef.current = false;
+      submitGuard.end();
     }
   };
 
-  const loading = registarMutation.isPending;
+  const loading = submitGuard.isBlocked(registarMutation.isPending);
 
   if (!mounted) {
     return (

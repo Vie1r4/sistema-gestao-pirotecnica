@@ -1,103 +1,336 @@
 "use client";
 
+
+
 import Link from "next/link";
+
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
-import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+
+import { useEffect, useState } from "react";
+
+import Navbar from "@/app/components/Navbar";
+
 import { getToken } from "@/app/lib/auth";
+
 import { useUser } from "@/app/context/UserContext";
 
-const NAV_ITEMS: { href: string; label: string; group?: string }[] = [
-  { href: "/admin", label: "Dashboard", group: "Geral" },
-  { href: "/admin/utilizadores", label: "Utilizadores", group: "Geral" },
-  { href: "/admin/logs", label: "Logs do sistema", group: "Sistema" },
-  { href: "/admin/definicoes", label: "Definições", group: "Sistema" },
+import { AdminIcons } from "@/app/admin/_components/AdminIcons";
+
+import { adminTheme } from "@/app/admin/_components/adminTheme";
+
+
+
+const NAV_ITEMS: {
+
+  href: string;
+
+  label: string;
+
+  group: string;
+
+  icon: React.ReactNode;
+
+}[] = [
+
+  { href: "/admin", label: "Dashboard", group: "Geral", icon: AdminIcons.dashboard },
+
+  { href: "/admin/utilizadores", label: "Utilizadores", group: "Geral", icon: AdminIcons.users },
+
+  { href: "/admin/logs", label: "Logs do sistema", group: "Sistema", icon: AdminIcons.logs },
+
+  { href: "/admin/definicoes", label: "Definições", group: "Sistema", icon: AdminIcons.settings },
+
 ];
 
-export default function AdminLayout({
-  children,
+
+
+const GROUPS: { id: string; label: string }[] = [
+
+  { id: "Geral", label: "Geral" },
+
+  { id: "Sistema", label: "Sistema" },
+
+];
+
+
+
+function AdminNav({
+
+  pathname,
+
+  onNavigate,
+
 }: {
-  children: React.ReactNode;
+
+  pathname: string;
+
+  onNavigate?: () => void;
+
 }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { user, loading: userLoading } = useUser();
-
-  const isAdmin = (user?.roles ?? []).includes("Admin");
-  const token = getToken();
-
-  useEffect(() => {
-    if (userLoading) return;
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
-    if (!isAdmin) {
-      router.replace("/");
-    }
-  }, [isAdmin, token, userLoading, router]);
-
-  if (userLoading || !token || !isAdmin) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fafafa] dark:bg-[#0a0a0a]">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent" />
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-[#f8f7f5] text-[#1c1917] selection:bg-[#f97316]/20 dark:bg-[#0a0a0a] dark:text-white">
-      <Navbar />
-      <main
-        className="relative px-4 pb-12 pt-4 sm:px-6 sm:pb-16 pt-content-offset"
-        
-      >
-        <div className="mx-auto flex max-w-6xl flex-col gap-8 lg:flex-row">
-          <aside className="lg:w-56 lg:shrink-0">
-            <nav
-              className="sticky top-4 rounded-2xl border border-[#e7e5e4] bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:border-[#222] dark:bg-[#111]"
-              aria-label="Admin"
-            >
-              <p className="mb-3 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-[#78716c] dark:text-[#666]">
-                Painel Admin
-              </p>
-              {["Geral", "Sistema"].map((group) => {
-                const items = NAV_ITEMS.filter((n) => n.group === group);
-                if (items.length === 0) return null;
+
+    <>
+
+      <p className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-widest text-[#a8a29e] dark:text-[#555]">
+
+        Painel Admin
+
+      </p>
+
+      {GROUPS.map((group, gi) => {
+
+        const items = NAV_ITEMS.filter((n) => n.group === group.id);
+
+        if (items.length === 0) return null;
+
+        return (
+
+          <div
+
+            key={group.id}
+
+            className={gi > 0 ? "mt-3 border-t border-[#f0eeec] pt-3 dark:border-[#1a1a1a]" : ""}
+
+          >
+
+            <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-[#c0bbb6] dark:text-[#444]">
+
+              {group.label}
+
+            </p>
+
+            <ul className="space-y-0.5">
+
+              {items.map((item) => {
+
+                const isActive =
+
+                  pathname === item.href ||
+
+                  (item.href !== "/admin" && pathname.startsWith(item.href));
+
                 return (
-                  <div key={group} className="mb-4 last:mb-0">
-                    <p className="mb-1.5 px-3 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#a8a29e] dark:text-[#555]">
-                      {group}
-                    </p>
-                    <ul className="space-y-0.5">
-                      {items.map((item) => {
-                        const isActive =
-                          pathname === item.href ||
-                          (item.href !== "/admin" && pathname.startsWith(item.href));
-                        return (
-                          <li key={item.href}>
-                            <Link
-                              href={item.href}
-                              className={`block rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                                isActive
-                                  ? "bg-[#f97316] text-black dark:bg-[#f97316] dark:text-black"
-                                  : "text-[#57534e] hover:bg-[#fafaf9] hover:text-[#1c1917] dark:text-[#a3a3a3] dark:hover:bg-[#1a1a1a] dark:hover:text-white"
-                              }`}
-                            >
-                              {item.label}
-                            </Link>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
+
+                  <li key={item.href}>
+
+                    <Link
+
+                      href={item.href}
+
+                      onClick={onNavigate}
+
+                      className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+
+                        isActive ? adminTheme.navActive : adminTheme.navIdle
+
+                      }`}
+
+                    >
+
+                      <span className={isActive ? "text-black" : "text-[#a8a29e] dark:text-[#555]"}>
+
+                        {item.icon}
+
+                      </span>
+
+                      {item.label}
+
+                    </Link>
+
+                  </li>
+
                 );
+
               })}
-            </nav>
-          </aside>
-          <div className="min-w-0 flex-1">{children}</div>
-        </div>
-      </main>
-    </div>
+
+            </ul>
+
+          </div>
+
+        );
+
+      })}
+
+      <div className="mt-4 border-t border-[#f0eeec] pt-3 dark:border-[#1a1a1a]">
+
+        <Link
+
+          href="/"
+
+          onClick={onNavigate}
+
+          className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium ${adminTheme.navIdle}`}
+
+        >
+
+          <span className="text-[#a8a29e] dark:text-[#555]">{AdminIcons.exit}</span>
+
+          Voltar à aplicação
+
+        </Link>
+
+      </div>
+
+    </>
+
   );
+
 }
+
+
+
+export default function AdminLayout({
+
+  children,
+
+}: {
+
+  children: React.ReactNode;
+
+}) {
+
+  const pathname = usePathname();
+
+  const router = useRouter();
+
+  const { user, loading: userLoading } = useUser();
+
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+
+
+  const isAdmin = (user?.roles ?? []).includes("Admin");
+
+  const token = getToken();
+
+
+
+  useEffect(() => {
+
+    setMobileNavOpen(false);
+
+  }, [pathname]);
+
+
+
+  useEffect(() => {
+
+    if (userLoading) return;
+
+    if (!token) {
+
+      router.replace("/login");
+
+      return;
+
+    }
+
+    if (!isAdmin) {
+
+      router.replace("/");
+
+    }
+
+  }, [isAdmin, token, userLoading, router]);
+
+
+
+  if (userLoading || !token || !isAdmin) {
+
+    return (
+
+      <div className={`flex min-h-screen items-center justify-center ${adminTheme.pageBg}`}>
+
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent" />
+
+      </div>
+
+    );
+
+  }
+
+
+
+  return (
+
+    <div className={`min-h-screen ${adminTheme.pageBg} text-[#1c1917] selection:bg-[#f97316]/20 dark:text-white`}>
+
+      <Navbar />
+
+      <main className="page-shell relative pb-12 sm:pb-16">
+
+        <div className="content-container content-container--admin pt-6">
+
+          <button
+
+            type="button"
+
+            className="mb-4 flex w-full items-center justify-between rounded-xl border border-[#e7e5e4] bg-white px-4 py-3 text-sm font-medium text-[#57534e] lg:hidden dark:border-[#222] dark:bg-[#111] dark:text-[#a3a3a3]"
+
+            aria-expanded={mobileNavOpen}
+
+            onClick={() => setMobileNavOpen((o) => !o)}
+
+          >
+
+            <span className="flex items-center gap-2">
+
+              {AdminIcons.dashboard}
+
+              Menu do painel
+
+            </span>
+
+            <span className="text-xs text-[#a8a29e]">{mobileNavOpen ? "Fechar" : "Abrir"}</span>
+
+          </button>
+
+
+
+          {mobileNavOpen && (
+
+            <nav
+
+              className={`mb-4 p-3 lg:hidden ${adminTheme.sidebar}`}
+
+              aria-label="Painel Admin (mobile)"
+
+            >
+
+              <AdminNav pathname={pathname} onNavigate={() => setMobileNavOpen(false)} />
+
+            </nav>
+
+          )}
+
+
+
+          <div className="flex flex-col gap-8 lg:flex-row">
+
+            <aside className="hidden lg:block lg:w-64 lg:shrink-0">
+
+              <nav className={`sticky top-content-offset p-3 ${adminTheme.sidebar}`} aria-label="Painel Admin">
+
+                <AdminNav pathname={pathname} />
+
+              </nav>
+
+            </aside>
+
+
+
+            <div className="min-w-0 flex-1">{children}</div>
+
+          </div>
+
+        </div>
+
+      </main>
+
+    </div>
+
+  );
+
+}
+

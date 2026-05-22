@@ -1,5 +1,6 @@
 using Finalproj.Authorization;
 using Finalproj.Application.DTOs;
+using Finalproj.Application.Features.Admin.DTOs;
 using Finalproj.Application.Features.Admin.Interfaces;
 using Finalproj.Application.Services.Interfaces;
 using Finalproj.Infrastructure.Services;
@@ -11,6 +12,7 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace Finalproj.Controllers
 {
+    /// <summary>Painel administrativo: utilizadores, logs, estatísticas e backups (role Admin).</summary>
     [Route("api/admin")]
     [ApiController]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Policy = PoliticasAutorizacao.PodeAcederAdmin)]
@@ -21,6 +23,7 @@ namespace Finalproj.Controllers
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IDatabaseBackupService _databaseBackupService;
         private readonly IAdminStatsService _adminStats;
+        private readonly IAdminUserAccountService _adminUserAccounts;
         private readonly IDatabaseCleanupService _databaseCleanup;
         private readonly IWebHostEnvironment _env;
         private static readonly string[] RolesDisponiveis = ConstantesRoles.Todas;
@@ -30,6 +33,7 @@ namespace Finalproj.Controllers
             RoleManager<IdentityRole> roleManager,
             IDatabaseBackupService databaseBackupService,
             IAdminStatsService adminStats,
+            IAdminUserAccountService adminUserAccounts,
             IDatabaseCleanupService databaseCleanup,
             IWebHostEnvironment env)
         {
@@ -37,11 +41,13 @@ namespace Finalproj.Controllers
             _roleManager = roleManager;
             _databaseBackupService = databaseBackupService;
             _adminStats = adminStats;
+            _adminUserAccounts = adminUserAccounts;
             _databaseCleanup = databaseCleanup;
             _env = env;
         }
 
-        // Dashboard Admin
+        /// <summary>Dashboard Admin.</summary>
+
         [HttpGet]
         public IActionResult Index()
         {
@@ -55,18 +61,35 @@ namespace Finalproj.Controllers
         public async Task<IActionResult> Stats(CancellationToken cancellationToken = default)
         {
             var totalUtilizadores = _userManager.Users.Count();
-            return Ok(await _adminStats.GetStatsAsync(totalUtilizadores, cancellationToken));
+            var utilizadoresSemEmailConfirmado = _userManager.Users.Count(u => !u.EmailConfirmed);
+            return Ok(await _adminStats.GetStatsAsync(totalUtilizadores, utilizadoresSemEmailConfirmado, cancellationToken));
         }
 
         /// <summary>
         /// Logs do sistema (auditoria) com paginação e filtro opcional por ação.
         /// </summary>
         [HttpGet("logs")]
-        public async Task<IActionResult> Logs(string? acao, int pagina = 1, int itensPorPagina = 50, CancellationToken cancellationToken = default)
+        public async Task<IActionResult> Logs(
+            string? acao,
+            string? userName,
+            string? entidade,
+            DateTime? dataInicio,
+            DateTime? dataFim,
+            int pagina = 1,
+            int itensPorPagina = 50,
+            CancellationToken cancellationToken = default)
         {
             if (pagina < 1) pagina = 1;
             if (itensPorPagina < 10 || itensPorPagina > 200) itensPorPagina = 50;
-            return Ok(await _adminStats.GetLogsAsync(acao, pagina, itensPorPagina, cancellationToken));
+            return Ok(await _adminStats.GetLogsAsync(acao, userName, entidade, dataInicio, dataFim, pagina, itensPorPagina, cancellationToken));
+        }
+
+        /// <summary>Estado da API e ligação à base de dados (dashboard admin).</summary>
+        [HttpGet("health")]
+        public async Task<IActionResult> Health(CancellationToken cancellationToken = default)
+        {
+            var version = typeof(AdminController).Assembly.GetName().Version?.ToString();
+            return Ok(await _adminStats.GetHealthAsync(_env.EnvironmentName, version, cancellationToken));
         }
 
         /// <summary>Lista utilizadores Identity com roles e funcionário associado.</summary>
@@ -88,13 +111,36 @@ namespace Finalproj.Controllers
                     UserName = user.UserName ?? "",
                     Email = user.Email ?? "",
                     Roles = roles,
-                    FuncionarioAssociadoNome = user.Id != null && funcionariosPorUserId.TryGetValue(user.Id, out var nome) ? nome : null
+                    FuncionarioAssociadoNome = user.Id != null && funcionariosPorUserId.TryGetValue(user.Id, out var nome) ? nome : null,
+                    EmailConfirmed = user.EmailConfirmed
                 });
             }
             return Ok(utilizadores);
         }
 
-        // GET: formulário editar roles e funcionário associado
+        /// <summary>Roles e funcionários disponíveis para criar uma nova conta.</summary>
+        [HttpGet("utilizadores/criar-opcoes")]
+        public async Task<IActionResult> CriarUtilizadorOpcoes(CancellationToken cancellationToken = default)
+        {
+            return Ok(await _adminUserAccounts.GetCriarOpcoesAsync(cancellationToken));
+        }
+
+        /// <summary>Cria conta Identity (roles, funcionário opcional, email de confirmação opcional).</summary>
+        [HttpPost("utilizadores")]
+        public async Task<IActionResult> CriarUtilizador(
+            [FromBody] CreateAdminUtilizadorRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _adminUserAccounts.CreateUtilizadorAsync(
+                request,
+                _userManager.GetUserId(User),
+                User.Identity?.Name,
+                cancellationToken);
+            return MapAccountResult(result, StatusCodes.Status201Created);
+        }
+
+        /// <summary>Formulário editar roles e funcionário associado.</summary>
+
         [HttpGet("utilizadores/{id}")]
         public async Task<IActionResult> EditarUtilizador(string id, CancellationToken cancellationToken = default)
         {
@@ -144,8 +190,43 @@ namespace Finalproj.Controllers
             return Ok(new { model, success = true });
         }
 
+        [HttpPost("utilizadores/{id}/resend-confirm-email")]
+        public async Task<IActionResult> ResendConfirmEmail(string id, CancellationToken cancellationToken = default)
+        {
+            var result = await _adminUserAccounts.ResendConfirmEmailAsync(
+                id, _userManager.GetUserId(User), User.Identity?.Name, cancellationToken);
+            return MapAccountResult(result);
+        }
+
+        [HttpPost("utilizadores/{id}/confirm-email")]
+        public async Task<IActionResult> ConfirmEmailAdmin(string id, CancellationToken cancellationToken = default)
+        {
+            var result = await _adminUserAccounts.ConfirmEmailAsync(
+                id, _userManager.GetUserId(User), User.Identity?.Name, cancellationToken);
+            return MapAccountResult(result);
+        }
+
+        [HttpPost("utilizadores/{id}/send-password-reset")]
+        public async Task<IActionResult> SendPasswordReset(string id, CancellationToken cancellationToken = default)
+        {
+            var result = await _adminUserAccounts.SendPasswordResetAsync(
+                id, _userManager.GetUserId(User), User.Identity?.Name, cancellationToken);
+            return MapAccountResult(result);
+        }
+
+        [HttpPut("utilizadores/{id}/credenciais")]
+        public async Task<IActionResult> UpdateCredenciais(
+            string id,
+            [FromBody] UpdateAdminUtilizadorCredenciaisRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _adminUserAccounts.UpdateCredenciaisAsync(
+                id, request, _userManager.GetUserId(User), User.Identity?.Name, cancellationToken);
+            return MapAccountResult(result);
+        }
+
+        /// <summary>Apaga conta Identity; desassocia de funcionários e clientes primeiro.</summary>
         [HttpDelete("utilizadores/{id}")]
-        // Apaga conta Identity; desassocia de funcionários e clientes primeiro
         public async Task<IActionResult> EliminarUtilizador(string id, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(id)) return NotFound();
@@ -191,6 +272,22 @@ namespace Finalproj.Controllers
         /// <summary>
         /// Executa backup manual imediato da base de dados (apenas Admin).
         /// </summary>
+        /// <summary>Lista ficheiros de backup na pasta configurada (sem paths absolutos).</summary>
+        [HttpGet("backups")]
+        public async Task<IActionResult> ListBackups(CancellationToken cancellationToken = default)
+        {
+            var items = await _databaseBackupService.ListBackupsAsync(cancellationToken);
+            return Ok(new
+            {
+                items = items.Select(b => new
+                {
+                    nomeFicheiro = b.NomeFicheiro,
+                    tamanhoBytes = b.TamanhoBytes,
+                    dataCriacao = b.DataCriacaoUtc
+                })
+            });
+        }
+
         [HttpPost("backups/run")]
         public async Task<IActionResult> RunBackupNow(CancellationToken cancellationToken = default)
         {
@@ -202,6 +299,28 @@ namespace Finalproj.Controllers
                 message = "Backup executado com sucesso.",
                 nomeFicheiro = info.Name,
                 tamanhoBytes = info.Exists ? info.Length : 0
+            });
+        }
+
+        private IActionResult MapAccountResult(
+            AdminUserAccountResult result,
+            int successStatus = StatusCodes.Status200OK)
+        {
+            if (result.Success)
+            {
+                return StatusCode(successStatus, new
+                {
+                    success = true,
+                    message = result.Message,
+                    userId = result.UserId,
+                });
+            }
+
+            return BadRequest(new
+            {
+                success = false,
+                message = result.Message,
+                errors = result.Errors,
             });
         }
     }

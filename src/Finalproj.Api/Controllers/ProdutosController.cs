@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Finalproj.Controllers
 {
+    /// <summary>Catálogo e gestão de produtos pirotécnicos (classificação, compatibilidade, calibre).</summary>
     [Route("api/produtos")]
     [ApiController]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
@@ -20,7 +21,8 @@ namespace Finalproj.Controllers
             _produtos = produtos;
         }
 
-        // Catálogo com pesquisa e filtros (classificação, grupo, filtro técnico, calibre)
+        /// <summary>Catálogo com pesquisa e filtros (classificação, grupo, filtro técnico, calibre).</summary>
+
         [HttpGet]
         [Authorize(Policy = PoliticasAutorizacao.PodeVerProdutos)]
         public async Task<IActionResult> Index(string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default)
@@ -39,7 +41,8 @@ namespace Finalproj.Controllers
             });
         }
 
-        // Gestão com os mesmos filtros do catálogo
+        /// <summary>Gestão com os mesmos filtros do catálogo.</summary>
+
         [HttpGet("gerir")]
         public async Task<IActionResult> Gerir(string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default)
         {
@@ -57,7 +60,8 @@ namespace Finalproj.Controllers
             });
         }
 
-        // Detalhe do produto
+        /// <summary>Detalhe do produto.</summary>
+
         [HttpGet("{id:int}")]
         [Authorize(Policy = PoliticasAutorizacao.PodeVerProdutos)]
         public async Task<IActionResult> Details(int? id, CancellationToken cancellationToken = default)
@@ -68,9 +72,9 @@ namespace Finalproj.Controllers
             return Ok(ProdutoResponseDtoMapping.Map(produto));
         }
 
+        /// <summary>Formulário novo produto com dropdowns (família, grupo, filtro, calibre).</summary>
         [HttpGet("create")]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirProdutos)]
-        // GET: formulário novo produto; dropdowns família, grupo, filtro, calibre
         public IActionResult Create()
         {
             return Ok(new
@@ -103,7 +107,8 @@ namespace Finalproj.Controllers
             });
         }
 
-        // GET: formulário edição com dropdowns
+        /// <summary>Formulário edição com dropdowns.</summary>
+
         [HttpGet("{id:int}/edit")]
         public async Task<IActionResult> Edit(int? id, CancellationToken cancellationToken = default)
         {
@@ -143,7 +148,8 @@ namespace Finalproj.Controllers
             });
         }
 
-        // GET: confirmação antes de apagar
+        /// <summary>Confirmação antes de apagar.</summary>
+
         [HttpGet("{id:int}/delete")]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirProdutos)]
         public async Task<IActionResult> Delete(int? id, CancellationToken cancellationToken = default)

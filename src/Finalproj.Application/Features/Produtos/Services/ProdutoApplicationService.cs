@@ -1,4 +1,5 @@
 using Finalproj.Application.Features.Produtos.Interfaces;
+using Finalproj.Domain.Entities;
 using Finalproj.Domain.Interfaces;
 
 namespace Finalproj.Application.Features.Produtos.Services;
@@ -13,6 +14,7 @@ public sealed class ProdutoApplicationService(IProdutoRepository produtos, IUnit
 
     public async Task<Produto> CreateAsync(Produto produto, CancellationToken cancellationToken = default)
     {
+        produto.DataRegisto ??= DateTime.UtcNow;
         await produtos.AddAsync(produto, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return produto;

@@ -31,7 +31,8 @@ export function buildContentSecurityPolicy(nonce: string, isDev: boolean): strin
   const scriptSrc = isDev
     ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
     : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`;
-  const styleSrc = `style-src 'self' 'nonce-${nonce}'`;
+  // Com nonce presente, o browser ignora 'unsafe-inline'. Em dev usamos só unsafe-inline para estilos dinâmicos.
+  const styleSrc = isDev ? `style-src 'self' 'unsafe-inline'` : `style-src 'self' 'nonce-${nonce}'`;
 
   return [
     "default-src 'self'",

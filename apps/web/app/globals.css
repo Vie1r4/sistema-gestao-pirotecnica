@@ -6,6 +6,12 @@
 :root {
   --header-height: 56px;
   --content-offset-top: 80px;
+  /** Largura útil do conteúdo (listagens, dashboards). */
+  --content-max-width: 90rem;
+  /** Painel admin (sidebar + grelhas largas). */
+  --content-max-width-admin: 96rem;
+  --content-max-width-narrow: 42rem;
+  --content-padding-x: 1rem;
   --background: #f8f7f5;
   --foreground: #1c1917;
   --card-bg: #ffffff;
@@ -52,6 +58,40 @@ body {
   font-family: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --content-padding-x: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --content-padding-x: 2rem;
+  }
+}
+
+/** Área principal com padding horizontal consistente. */
+.page-shell {
+  padding-left: var(--content-padding-x);
+  padding-right: var(--content-padding-x);
+  padding-top: var(--content-offset-top);
+}
+
+/** Conteúdo centrado com largura máxima (substitui max-w-6xl disperso). */
+.content-container {
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin-inline: auto;
+}
+
+.content-container--admin {
+  max-width: var(--content-max-width-admin);
+}
+
+.content-container--narrow {
+  max-width: var(--content-max-width-narrow);
 }
 
 /** Offset abaixo da navbar fixa (CSP: evitar style={{ paddingTop }} inline). */

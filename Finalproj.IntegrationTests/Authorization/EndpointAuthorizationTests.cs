@@ -35,6 +35,11 @@ public class EndpointAuthorizationTests : IntegrationTestBase
     [InlineData("GET", "/api/servicos", null, HttpStatusCode.Unauthorized)]
     [InlineData("GET", "/api/servicos", ConstantesRoles.Armazem, HttpStatusCode.Forbidden)]
     [InlineData("GET", "/api/servicos", ConstantesRoles.Comercial, HttpStatusCode.OK)]
+    [InlineData("GET", "/api/gestor-analytics/volume", null, HttpStatusCode.Unauthorized)]
+    [InlineData("GET", "/api/gestor-analytics/volume", ConstantesRoles.Armazem, HttpStatusCode.Forbidden)]
+    [InlineData("GET", "/api/gestor-analytics/volume", ConstantesRoles.Comercial, HttpStatusCode.Forbidden)]
+    [InlineData("GET", "/api/gestor-analytics/volume", ConstantesRoles.Gestor, HttpStatusCode.OK)]
+    [InlineData("GET", "/api/gestor-analytics/volume", ConstantesRoles.Admin, HttpStatusCode.OK)]
     public async Task Endpoint_ReturnsExpectedStatus(
         string method,
         string url,

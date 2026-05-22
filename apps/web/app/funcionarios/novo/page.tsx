@@ -12,6 +12,7 @@ import { fetchCreate, postCreate } from "../../lib/funcionariosApi";
 import { useUser } from "@/app/context/UserContext";
 import { useToastStore } from "@/app/stores/useToastStore";
 import { fadeInUp, transitionSmooth } from "../../lib/animations";
+import { PASSWORD_HINT, PASSWORD_PLACEHOLDER, validatePasswordClient } from "../../lib/passwordPolicy";
 
 const cardClass =
   "card-hover rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111] sm:p-8";
@@ -49,7 +50,6 @@ export default function NovoFuncionarioPage() {
     cargo: "Gestor" as CargoFuncionario,
     notas: "",
     criarConta: false,
-    contaEmail: "",
     contaPassword: "",
     contaConfirmar: "",
     contaPerfil: "Gestor" as CargoFuncionario, // UI-only; backend força = cargo
@@ -119,12 +119,13 @@ export default function NovoFuncionarioPage() {
       return;
     }
     if (form.criarConta) {
-      if (!form.contaEmail.trim()) {
-        setMessage({ type: "error", text: "O email da conta de acesso é obrigatório." });
+      if (!form.email.trim()) {
+        setMessage({ type: "error", text: "Preencha o email do funcionário para criar a conta de acesso." });
         return;
       }
-      if (form.contaPassword.length < 6) {
-        setMessage({ type: "error", text: "A palavra-passe deve ter pelo menos 6 caracteres." });
+      const passwordError = validatePasswordClient(form.contaPassword);
+      if (passwordError) {
+        setMessage({ type: "error", text: passwordError });
         return;
       }
       if (form.contaPassword !== form.contaConfirmar) {
@@ -148,7 +149,7 @@ export default function NovoFuncionarioPage() {
     formData.append("Funcionario.Notas", form.notas.trim() || "");
     formData.append("CriarConta", form.criarConta ? "true" : "false");
     if (form.criarConta) {
-      formData.append("ContaEmail", form.contaEmail.trim());
+      formData.append("ContaEmail", form.email.trim());
       formData.append("ContaPassword", form.contaPassword);
       formData.append("ContaConfirmPassword", form.contaConfirmar);
       // Backend força a role da conta = cargo do funcionário (fonte única de verdade)
@@ -466,17 +467,20 @@ export default function NovoFuncionarioPage() {
               </label>
               {form.criarConta && (
                 <div className="mt-4 space-y-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">O email serve para login e tem de ser único no sistema (pode ser o do funcionário ou outro). O sistema valida a unicidade, cria o utilizador com o perfil escolhido e envia um email com as credenciais e o link para confirmar o email.</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">O email de login é o mesmo do funcionário (único no sistema). O sistema valida a unicidade, cria o utilizador com o perfil do cargo e envia as credenciais e o link de confirmação por email.</p>
                   <div>
                     <label htmlFor="contaEmail" className={labelClass}>Email (para login, único no sistema) *</label>
                     <input
                       id="contaEmail"
                       type="email"
-                      value={form.contaEmail}
-                      onChange={(e) => setForm((f) => ({ ...f, contaEmail: e.target.value }))}
+                      value={form.email}
+                      readOnly
                       className={inputClass}
-                      placeholder="Pode ser o email do funcionário ou outro"
+                      placeholder="Preencha o email do funcionário acima"
                     />
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      O email da conta é automaticamente igual ao email do funcionário.
+                    </p>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
@@ -487,8 +491,9 @@ export default function NovoFuncionarioPage() {
                         value={form.contaPassword}
                         onChange={(e) => setForm((f) => ({ ...f, contaPassword: e.target.value }))}
                         className={inputClass}
-                        placeholder="Mínimo 6 caracteres"
+                        placeholder={PASSWORD_PLACEHOLDER}
                       />
+                      <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">{PASSWORD_HINT}</p>
                     </div>
                     <div>
                       <label htmlFor="contaConfirmar" className={labelClass}>Confirmar palavra-passe</label>

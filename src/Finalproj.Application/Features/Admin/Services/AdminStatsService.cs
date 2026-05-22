@@ -13,12 +13,13 @@ public sealed class AdminStatsService(
     ILogSistemaRepository logs,
     IUnitOfWork unitOfWork) : IAdminStatsService
 {
-    public async Task<object> GetStatsAsync(int totalUtilizadores, CancellationToken cancellationToken = default)
+    public async Task<object> GetStatsAsync(int totalUtilizadores, int utilizadoresSemEmailConfirmado, CancellationToken cancellationToken = default)
     {
         var inicioDoMes = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         return new
         {
             totalUtilizadores,
+            utilizadoresSemEmailConfirmado,
             totalEncomendas = await encomendas.CountAsync(cancellationToken),
             encomendasEsteMes = await encomendas.CountCreatedSinceAsync(inicioDoMes, cancellationToken),
             totalServicos = await servicos.CountAsync(cancellationToken),
@@ -31,9 +32,9 @@ public sealed class AdminStatsService(
         };
     }
 
-    public async Task<object> GetLogsAsync(string? acao, int pagina, int itensPorPagina, CancellationToken cancellationToken = default)
+    public async Task<object> GetLogsAsync(string? acao, string? userName, string? entidade, DateTime? dataInicio, DateTime? dataFim, int pagina, int itensPorPagina, CancellationToken cancellationToken = default)
     {
-        var (rows, total) = await logs.ListPagedAsync(acao, pagina, itensPorPagina, cancellationToken);
+        var (rows, total) = await logs.ListPagedAsync(acao, userName, entidade, dataInicio, dataFim, pagina, itensPorPagina, cancellationToken);
         // Objetos anónimos com nomes estáveis — tuplos serializam-se como Item1, Item2 e o cliente perde o id (React keys duplicadas).
         var items = rows.Select(x => new
         {
@@ -45,6 +46,29 @@ public sealed class AdminStatsService(
             timestamp = x.Timestamp,
         }).ToList();
         return new { items, paginaAtual = pagina, itensPorPagina, totalRegistos = total };
+    }
+
+    public async Task<object> GetHealthAsync(string environmentName, string? apiVersion, CancellationToken cancellationToken = default)
+    {
+        var database = false;
+        try
+        {
+            await logs.CountAsync(cancellationToken);
+            database = true;
+        }
+        catch
+        {
+            // BD indisponível
+        }
+
+        return new
+        {
+            status = database ? "ok" : "degraded",
+            database,
+            environment = environmentName,
+            version = apiVersion ?? "unknown",
+            utcNow = DateTime.UtcNow,
+        };
     }
 
     public Task<Dictionary<string, string>> GetFuncionariosPorUserIdAsync(CancellationToken cancellationToken = default) =>

@@ -30,7 +30,7 @@ const btnPrimary =
   "data-button rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
 
 const btnSecondary =
-  "data-button rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-[border-color,background-color,color] duration-200 hover:bg-gray-50 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
+  "data-button rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-[border-color,background-color,color] duration-200 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316] dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
 
 function ProdutosContent() {
   const searchParams = useSearchParams();
@@ -96,7 +96,7 @@ function ProdutosContent() {
         className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset"
         
       >
-        <div className="mx-auto max-w-6xl">
+        <div className="content-container">
           <motion.div
             initial={fadeInUp.initial}
             animate={fadeInUp.animate}
@@ -118,9 +118,14 @@ function ProdutosContent() {
               </p>
             </div>
             {canGerirProdutos && (
-              <Link href="/produtos/gerir" className={btnPrimary}>
-                Gerir produtos
-              </Link>
+              <div className="flex flex-wrap gap-2">
+                <Link href="/produtos/gerir" className={btnPrimary}>
+                  Gerir produtos
+                </Link>
+                <Link href="/produtos/compilados" className={btnSecondary}>
+                  Gerir compilados
+                </Link>
+              </div>
             )}
           </motion.div>
 

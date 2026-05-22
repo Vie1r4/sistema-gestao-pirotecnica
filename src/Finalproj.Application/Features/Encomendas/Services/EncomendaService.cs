@@ -117,6 +117,7 @@ public class EncomendaService : IEncomendaService
 
         encomenda.Estado = ConstantesEncomenda.EM_PREPARACAO;
         encomenda.FuncionarioPreparouUserId = userId;
+        encomenda.DataEmPreparacao ??= DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return (true, null);
     }

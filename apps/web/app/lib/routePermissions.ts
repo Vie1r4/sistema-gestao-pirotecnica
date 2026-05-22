@@ -26,6 +26,7 @@ export function getRequiredPermissionsForPath(pathname: string | null): string[]
 
   // Produtos: gerir, novo, editar, eliminar
   if (pathname === "/produtos/gerir" || pathname.startsWith("/produtos/gerir/")) return ["produtos.gerir"];
+  if (pathname === "/produtos/compilados" || pathname.startsWith("/produtos/compilados/")) return ["produtos.gerir"];
   if (pathname === "/produtos/novo") return ["produtos.gerir"];
   if (pathname.match(/^\/produtos\/[^/]+\/editar(\/|$)/)) return ["produtos.gerir"];
   if (pathname.match(/^\/produtos\/[^/]+\/eliminar(\/|$)/)) return ["produtos.gerir"];

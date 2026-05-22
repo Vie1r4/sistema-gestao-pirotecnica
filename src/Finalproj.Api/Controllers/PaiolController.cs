@@ -7,6 +7,7 @@ using Finalproj.Application.Features.Paiols.Interfaces;
 using Finalproj.Application.Features.Produtos.Interfaces;
 using Finalproj.Application.Services;
 using Finalproj.Application.Services.Interfaces;
+using Finalproj.Helpers;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -15,7 +16,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Finalproj.Controllers
 {
-    // Paióis: CRUD, documentos extras, acesso por role; listagem com ocupação MLE e percentagem
+    /// <summary>Paióis: stock, movimentos, CRUD e documentos; acesso filtrado por cargo.</summary>
     [Route("api/paiol")]
     [ApiController]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
@@ -25,18 +26,16 @@ namespace Finalproj.Controllers
         private readonly IProdutoApplicationService _produtos;
         private readonly UserManager<IdentityUser> _userManager;
         private readonly IIdentityUserLookupService _identityUsers;
-        private readonly IWebHostEnvironment _env;
         private readonly IDocumentoStorageService _documentoStorage;
         private readonly IValidator<CreatePaiolInputDto> _createPaiolValidator;
         private const string PastaDocumentosPaiol = "Documentos/Paiol";
 
-        public PaiolController(IPaiolApplicationService paiois, IProdutoApplicationService produtos, UserManager<IdentityUser> userManager, IIdentityUserLookupService identityUsers, IWebHostEnvironment env, IDocumentoStorageService documentoStorage, IValidator<CreatePaiolInputDto> createPaiolValidator)
+        public PaiolController(IPaiolApplicationService paiois, IProdutoApplicationService produtos, UserManager<IdentityUser> userManager, IIdentityUserLookupService identityUsers, IDocumentoStorageService documentoStorage, IValidator<CreatePaiolInputDto> createPaiolValidator)
         {
             _paiois = paiois;
             _produtos = produtos;
             _userManager = userManager;
             _identityUsers = identityUsers;
-            _env = env;
             _documentoStorage = documentoStorage;
             _createPaiolValidator = createPaiolValidator;
         }
@@ -51,7 +50,8 @@ namespace Finalproj.Controllers
             return (await _paiois.GetPaiolIdsComAcessoAsync(false, roles, cancellationToken)).ToList();
         }
 
-        // GET: Paiol — página operacional: lista de paióis com acesso
+        /// <summary>Paiol - página operacional: lista de paióis com acesso.</summary>
+
         [HttpGet]
         [Authorize(Policy = PoliticasAutorizacao.PodeVerArmazemStock)]
         public async Task<IActionResult> Index(CancellationToken cancellationToken = default)
@@ -60,7 +60,8 @@ namespace Finalproj.Controllers
             return Ok(await _paiois.ListComOcupacaoAsync(idsAcesso, cancellationToken));
         }
 
-        // Catálogo com coluna stock (só nos paióis com acesso)
+        /// <summary>Catálogo com coluna stock (só nos paióis com acesso).</summary>
+
         [HttpGet("stock")]
         [Authorize(Policy = PoliticasAutorizacao.PodeVerArmazemStock)]
         public async Task<IActionResult> Stock(string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default)
@@ -69,7 +70,8 @@ namespace Finalproj.Controllers
             return Ok(await _paiois.GetStockCatalogoAsync(idsAcesso, pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre, cancellationToken));
         }
 
-        // GET: Movimentos — entradas ou saídas, com filtro por paiol
+        /// <summary>Movimentos - entradas ou saídas, com filtro por paiol.</summary>
+
         [HttpGet("movimentos")]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirArmazem)]
         public async Task<IActionResult> Movimentos(string? tipo, int? paiolId, int pagina = 1, int itensPorPagina = 25, CancellationToken cancellationToken = default)
@@ -83,7 +85,8 @@ namespace Finalproj.Controllers
             return Ok(await _paiois.GetMovimentosAsync(idsAcesso, tipo, paiolId, pagina, itensPorPagina, nomesUtilizadoresSaidas, cancellationToken));
         }
 
-        // GET: Gestao — CRUD completo; Admin e Gestor
+        /// <summary>Gestao - CRUD completo; Admin e Gestor.</summary>
+
         [HttpGet("gestao")]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirArmazem)]
         public async Task<IActionResult> Gestao(CancellationToken cancellationToken = default)
@@ -91,7 +94,8 @@ namespace Finalproj.Controllers
             return Ok(await _paiois.ListComOcupacaoAsync(null, cancellationToken));
         }
 
-        // GET: Conteudo — conteúdo do paiol (itens em stock)
+        /// <summary>Conteudo - conteúdo do paiol (itens em stock).</summary>
+
         [HttpGet("{id:int}/conteudo")]
         [Authorize(Policy = PoliticasAutorizacao.PodeVerArmazemStock)]
         public async Task<IActionResult> Conteudo(int? id, CancellationToken cancellationToken = default)
@@ -131,7 +135,8 @@ namespace Finalproj.Controllers
             return data == null ? NotFound() : Ok(data);
         }
 
-        // GET: Create (Admin e Gestor)
+        /// <summary>Create (Admin e Gestor).</summary>
+
         [HttpGet("create")]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirArmazem)]
         public IActionResult Create()
@@ -145,7 +150,8 @@ namespace Finalproj.Controllers
             });
         }
 
-        // POST: Create
+        /// <summary>Create.</summary>
+
         [HttpPost]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirArmazem)]
         public async Task<IActionResult> Create([FromForm] CreatePaiolInputDto input, CancellationToken cancellationToken = default)
@@ -204,7 +210,8 @@ namespace Finalproj.Controllers
             });
         }
 
-        // GET: Edit (Admin e Gestor)
+        /// <summary>Edit (Admin e Gestor).</summary>
+
         [HttpGet("{id:int}/edit")]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirArmazem)]
         public async Task<IActionResult> Edit(int? id, CancellationToken cancellationToken = default)
@@ -228,7 +235,8 @@ namespace Finalproj.Controllers
             });
         }
 
-        // PUT: Edit
+        /// <summary>Edit.</summary>
+
         [HttpPut("{id:int}")]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirArmazem)]
         public async Task<IActionResult> Edit(int id, [FromForm] EditPaiolInputDto input, CancellationToken cancellationToken = default)
@@ -288,7 +296,8 @@ namespace Finalproj.Controllers
             });
         }
 
-        // GET: Delete (apenas Admin)
+        /// <summary>Delete (apenas Admin).</summary>
+
         [HttpGet("{id:int}/delete")]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirArmazem)]
         public async Task<IActionResult> Delete(int? id, CancellationToken cancellationToken = default)
@@ -303,7 +312,8 @@ namespace Finalproj.Controllers
             return Ok(PaiolResponseDtoMapping.Map(paiol));
         }
 
-        // DELETE: Delete
+        /// <summary>Delete.</summary>
+
         [HttpDelete("{id:int}")]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirArmazem)]
         public async Task<IActionResult> DeleteConfirmed(int id, CancellationToken cancellationToken = default)
@@ -313,7 +323,8 @@ namespace Finalproj.Controllers
             return NoContent();
         }
 
-        // Devolve documento extra do paiol (inline). Apenas se o utilizador tiver acesso ao paiol.
+        /// <summary>Devolve documento extra do paiol (inline). Apenas se o utilizador tiver acesso ao paiol.</summary>
+
         [HttpGet("{id:int}/documentos/{extraId:int}")]
         [Authorize(Policy = PoliticasAutorizacao.PodeVerArmazemStock)]
         public async Task<IActionResult> Download(int id, int extraId, CancellationToken cancellationToken = default)
@@ -330,14 +341,8 @@ namespace Finalproj.Controllers
         // Envia ficheiro do disco com Content-Type e nome para inline
         private IActionResult ServirFicheiro(string caminhoRelativo)
         {
-            var caminhoFisico = Path.Combine(_env.WebRootPath, caminhoRelativo);
-            if (!System.IO.File.Exists(caminhoFisico))
-                return NotFound();
-            var ext = Path.GetExtension(caminhoRelativo).ToLowerInvariant();
-            var contentType = ext switch { ".pdf" => "application/pdf", ".jpg" or ".jpeg" => "image/jpeg", ".png" => "image/png", _ => "application/octet-stream" };
-            var nomeFicheiro = Path.GetFileName(caminhoRelativo);
-            Response.Headers["Content-Disposition"] = "inline; filename=\"" + nomeFicheiro.Replace("\"", "\\\"") + "\"";
-            return PhysicalFile(caminhoFisico, contentType);
+            var caminhoFisico = _documentoStorage.ResolverCaminhoFisicoParaLeitura(caminhoRelativo);
+            return DocumentoFileResult.FromPath(this, caminhoFisico, caminhoRelativo) ?? NotFound();
         }
 
     }

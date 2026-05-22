@@ -1,5 +1,6 @@
 using Finalproj.Authorization;
 using Finalproj.Application.Common.Validators;
+using Finalproj.Application.Features.Compilados.Interfaces;
 using Finalproj.Application.Features.Encomendas.DTOs;
 using Finalproj.Application.Features.Encomendas.Interfaces;
 using Finalproj.Application.Features.Paiols.Interfaces;
@@ -13,7 +14,7 @@ using System.Text.Json;
 
 namespace Finalproj.Controllers;
 
-// Encomendas: listagem por estado, detalhe, criar rascunho em sessão, aceitar/rejeitar, preparar (FIFO) e concluir.
+/// <summary>Fluxo de encomendas: rascunho em sessão, submissão, aceitar/rejeitar, preparação FIFO e conclusão.</summary>
 [Route("api/encomendas")]
 [ApiController]
 [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
@@ -25,15 +26,17 @@ public class EncomendasController : ControllerBase
     private readonly IStockDisponivelService _stockDisponivel;
     private readonly IEncomendaService _encomendaService;
     private readonly IEncomendaWorkflowService _workflow;
+    private readonly ICompiladoApplicationService _compilados;
     private readonly IValidator<EditEncomendaDto> _editEncomendaValidator;
 
-    public EncomendasController(ILogSistemaService logSistema, UserManager<IdentityUser> userManager, IStockDisponivelService stockDisponivel, IEncomendaService encomendaService, IEncomendaWorkflowService workflow, IValidator<EditEncomendaDto> editEncomendaValidator)
+    public EncomendasController(ILogSistemaService logSistema, UserManager<IdentityUser> userManager, IStockDisponivelService stockDisponivel, IEncomendaService encomendaService, IEncomendaWorkflowService workflow, ICompiladoApplicationService compilados, IValidator<EditEncomendaDto> editEncomendaValidator)
     {
         _logSistema = logSistema;
         _userManager = userManager;
         _stockDisponivel = stockDisponivel;
         _encomendaService = encomendaService;
         _workflow = workflow;
+        _compilados = compilados;
         _editEncomendaValidator = editEncomendaValidator;
     }
 
@@ -199,6 +202,52 @@ public class EncomendasController : ControllerBase
         return Ok(new { draft, message = $"{produto.Nome} ({quantidade}) adicionado à encomenda." });
     }
 
+    /// <summary>Adiciona um compilado (atalho) ao rascunho, expandindo para produtos individuais.</summary>
+    [HttpPost("adicionar-compilado")]
+    [Authorize(Policy = PoliticasAutorizacao.PodeGerirEncomendas)]
+    public async Task<IActionResult> AdicionarCompilado(
+        int clienteId,
+        int compiladoId,
+        decimal quantidade,
+        string? pesquisa,
+        string? classificacao,
+        string? grupoCompatibilidade,
+        string? filtroTecnico,
+        string? calibre,
+        CancellationToken cancellationToken = default)
+    {
+        if (quantidade <= 0)
+            return BadRequest(new { error = "A quantidade deve ser positiva." });
+
+        var (expansao, erro) = await _compilados.ExpandirAsync(compiladoId, quantidade, cancellationToken);
+        if (erro != null)
+            return BadRequest(new { error = erro });
+
+        var draft = GetDraft();
+        if (draft == null || draft.ClienteId != clienteId)
+            draft = new EncomendaDraftViewModel { ClienteId = clienteId, Itens = new List<EncomendaItemCriarViewModel>() };
+
+        foreach (var (produtoId, qtd) in expansao)
+        {
+            var produto = await _workflow.GetProdutoAsync(produtoId, cancellationToken);
+            if (produto == null)
+                return BadRequest(new { error = $"Produto com id {produtoId} não encontrado." });
+
+            var existente = draft.Itens.FirstOrDefault(i => i.ProdutoId == produtoId);
+            if (existente != null)
+            {
+                existente.Quantidade += qtd;
+                if (string.IsNullOrEmpty(existente.ProdutoNome))
+                    existente.ProdutoNome = produto.Nome;
+            }
+            else
+                draft.Itens.Add(new EncomendaItemCriarViewModel { ProdutoId = produtoId, ProdutoNome = produto.Nome, Quantidade = qtd });
+        }
+
+        SetDraft(draft);
+        return Ok(new { draft, message = "Compilado adicionado à encomenda (produtos expandidos)." });
+    }
+
     [HttpPost("remover-item")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirEncomendas)]
     public IActionResult RemoverItem(int clienteId, int produtoId, string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre)
@@ -248,10 +297,8 @@ public class EncomendasController : ControllerBase
     }
 
     /// <summary>
-    /// Atualiza encomenda (data entrega, observações e itens). Apenas quando estado é Pendente ou Aceite.
-    /// Atualiza reservas para refletir as novas quantidades por produto.
+    /// Actualiza encomenda Pendente ou Aceite (data entrega, observações e itens; reservas de stock).
     /// </summary>
-    /// <summary>Actualiza encomenda Pendente ou Aceite (itens e observações).</summary>
     /// <response code="200">Encomenda actualizada</response>
     /// <response code="400">Dados ou estado inválidos</response>
     /// <response code="404">Encomenda não encontrada</response>

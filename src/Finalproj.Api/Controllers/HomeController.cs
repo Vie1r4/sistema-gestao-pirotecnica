@@ -12,7 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Finalproj.Controllers
 {
-    // Página inicial, perfil, preferências (tema), alterar password; LimparDados para desenvolvimento
+    /// <summary>Página inicial, estatísticas, perfil, preferências e alteração de palavra-passe.</summary>
     [Route("api/home")]
     [ApiController]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
@@ -25,6 +25,7 @@ namespace Finalproj.Controllers
         private readonly IHomeAnalyticsService _homeAnalytics;
         private readonly IDatabaseCleanupService _databaseCleanup;
         private readonly IWebHostEnvironment _env;
+        private readonly IPasswordValidationService _passwordValidation;
         private static readonly string[] RolesDisponiveis = ConstantesRoles.Todas;
 
         public HomeController(
@@ -34,7 +35,8 @@ namespace Finalproj.Controllers
             SignInManager<IdentityUser> signInManager,
             IHomeAnalyticsService homeAnalytics,
             IDatabaseCleanupService databaseCleanup,
-            IWebHostEnvironment env)
+            IWebHostEnvironment env,
+            IPasswordValidationService passwordValidation)
         {
             _logger = logger;
             _userManager = userManager;
@@ -43,9 +45,11 @@ namespace Finalproj.Controllers
             _homeAnalytics = homeAnalytics;
             _databaseCleanup = databaseCleanup;
             _env = env;
+            _passwordValidation = passwordValidation;
         }
 
-        // Página inicial (após login)
+        /// <summary>Página inicial (após login).</summary>
+
         [HttpGet]
         public IActionResult Index()
         {
@@ -72,7 +76,8 @@ namespace Finalproj.Controllers
             return Ok(await _homeAnalytics.GetGestorDashboardAsync(cancellationToken));
         }
 
-        // Página de privacidade
+        /// <summary>Página de privacidade.</summary>
+
         [HttpGet("privacy")]
         public IActionResult Privacy()
         {
@@ -120,7 +125,8 @@ namespace Finalproj.Controllers
             return Ok(new { signedOut = true, message = "Dados limpos. Faça login novamente." });
         }
 
-        // Preferências: tema guardado por utilizador (Perfil.Tema) e em cookie
+        /// <summary>Preferências: tema guardado por utilizador (Perfil.Tema) e em cookie.</summary>
+
         [HttpGet("preferencias")]
         public async Task<IActionResult> Preferencias(CancellationToken cancellationToken = default)
         {
@@ -156,7 +162,8 @@ namespace Finalproj.Controllers
             return Ok(new { temaGuardado = true, tema });
         }
 
-        // Perfil: se tiver funcionário associado, edita dados da ficha do funcionário; senão usa tabela Perfil
+        /// <summary>Perfil: se tiver funcionário associado, edita dados da ficha do funcionário; senão usa tabela Perfil.</summary>
+
         [HttpGet("perfil")]
         public async Task<IActionResult> Perfil(CancellationToken cancellationToken = default)
         {
@@ -190,7 +197,8 @@ namespace Finalproj.Controllers
             return BadRequest(new { model, alterarPasswordViewModel = new AlterarPasswordViewModel(), errors = ModelState });
         }
 
-        // Alterar palavra-passe (Identity) a partir do perfil
+        /// <summary>Alterar palavra-passe (Identity) a partir do perfil.</summary>
+
         [HttpPost("alterar-password")]
         public async Task<IActionResult> AlterarPassword([FromBody] AlterarPasswordViewModel model, CancellationToken cancellationToken = default)
         {
@@ -199,14 +207,22 @@ namespace Finalproj.Controllers
 
             if (ModelState.IsValid)
             {
-                var result = await _userManager.ChangePasswordAsync(user, model.PasswordAtual, model.NovaPassword);
-                if (result.Succeeded)
+                var passwordErrors = await _passwordValidation.ValidateAsync(
+                    model.NovaPassword, user.UserName, user.Email, cancellationToken);
+                foreach (var err in passwordErrors)
+                    ModelState.AddModelError(string.Empty, err);
+
+                if (ModelState.ErrorCount == 0)
                 {
-                    await _signInManager.SignInAsync(user, isPersistent: false);
-                    return Ok(new { passwordAlterada = true });
+                    var result = await _userManager.ChangePasswordAsync(user, model.PasswordAtual, model.NovaPassword);
+                    if (result.Succeeded)
+                    {
+                        await _signInManager.SignInAsync(user, isPersistent: false);
+                        return Ok(new { passwordAlterada = true });
+                    }
+                    foreach (var error in result.Errors)
+                        ModelState.AddModelError(string.Empty, error.Description);
                 }
-                foreach (var error in result.Errors)
-                    ModelState.AddModelError(string.Empty, error.Description);
             }
 
             var perfilModel = await ObterPerfilEditViewModelAsync(user, cancellationToken);

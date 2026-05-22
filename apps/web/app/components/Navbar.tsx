@@ -44,10 +44,12 @@ export default function Navbar() {
   );
   const [scrolled, setScrolled] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarPinned, setSidebarPinned] = useState(false);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleLogoClick = () => {
     setSidebarOpen(false);
+    setSidebarPinned(false);
   };
 
   const clearHideTimeout = () => {
@@ -57,25 +59,49 @@ export default function Navbar() {
     }
   };
 
-  /** Só abre a sidebar quando há utilizador autenticado. */
-  const handleLogoEnter = () => {
-    if (!user) return;
+  const openSidebar = () => {
     clearHideTimeout();
     setSidebarOpen(true);
+  };
+
+  const scheduleCloseSidebar = () => {
+    if (sidebarPinned) return;
+    hideTimeoutRef.current = setTimeout(() => setSidebarOpen(false), HIDE_SIDEBAR_DELAY);
+  };
+
+  const toggleSidebar = () => {
+    if (!user) return;
+    if (sidebarOpen && sidebarPinned) {
+      setSidebarOpen(false);
+      setSidebarPinned(false);
+      return;
+    }
+    setSidebarPinned(true);
+    openSidebar();
+  };
+
+  /** Hover no logo (complementar ao botão Menu). */
+  const handleLogoEnter = () => {
+    if (!user) return;
+    openSidebar();
   };
 
   const handleLogoLeave = () => {
-    hideTimeoutRef.current = setTimeout(() => setSidebarOpen(false), HIDE_SIDEBAR_DELAY);
+    scheduleCloseSidebar();
   };
 
   const handleSidebarEnter = () => {
-    clearHideTimeout();
-    setSidebarOpen(true);
+    openSidebar();
   };
 
   const handleSidebarLeave = () => {
-    hideTimeoutRef.current = setTimeout(() => setSidebarOpen(false), HIDE_SIDEBAR_DELAY);
+    scheduleCloseSidebar();
   };
+
+  useEffect(() => {
+    setSidebarOpen(false);
+    setSidebarPinned(false);
+  }, [pathname]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(typeof window !== "undefined" && window.scrollY > 12);
@@ -100,16 +126,31 @@ export default function Navbar() {
             : "border-[#e7e5e4] bg-white shadow-[0_1px_0_0_rgba(0,0,0,0.04)] dark:border-[#1a1a1a] dark:bg-[#0a0a0a] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.04)]"
         }`}
       >
-        <Link
-          href="/"
-          data-button
-          onClick={handleLogoClick}
-          onMouseEnter={user ? handleLogoEnter : undefined}
-          onMouseLeave={user ? handleLogoLeave : undefined}
-          className="rounded-lg py-2 text-lg font-semibold tracking-tight text-[#ea580c] transition-[color,filter] duration-200 hover:text-[#f97316] hover:drop-shadow-[0_0_12px_rgba(249,115,22,0.25)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316] dark:text-[#f97316] dark:hover:opacity-90 dark:hover:drop-shadow-[0_0_16px_rgba(249,115,22,0.35)]"
-        >
-          PIROFAFE
-        </Link>
+        <div className="flex items-center gap-2">
+          {user ? (
+            <button
+              type="button"
+              aria-label={sidebarOpen ? "Fechar menu" : "Abrir menu"}
+              aria-expanded={sidebarOpen}
+              onClick={toggleSidebar}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#e7e5e4] text-[#444] transition-colors hover:border-[#f97316]/40 hover:bg-[#fff7ed] hover:text-[#ea580c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316] dark:border-[#333] dark:text-gray-300 dark:hover:border-[#f97316]/30 dark:hover:bg-[#161616] dark:hover:text-[#f97316]"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          ) : null}
+          <Link
+            href="/"
+            data-button
+            onClick={handleLogoClick}
+            onMouseEnter={user ? handleLogoEnter : undefined}
+            onMouseLeave={user ? handleLogoLeave : undefined}
+            className="rounded-lg py-2 text-lg font-semibold tracking-tight text-[#ea580c] transition-[color,filter] duration-200 hover:text-[#f97316] hover:drop-shadow-[0_0_12px_rgba(249,115,22,0.25)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316] dark:text-[#f97316] dark:hover:opacity-90 dark:hover:drop-shadow-[0_0_16px_rgba(249,115,22,0.35)]"
+          >
+            PIROFAFE
+          </Link>
+        </div>
         {user ? (
             <Link
               href="/perfil"
@@ -131,6 +172,19 @@ export default function Navbar() {
 
       <AnimatePresence>
         {user && sidebarOpen && (
+          <>
+          <motion.button
+            type="button"
+            aria-label="Fechar menu"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[35] bg-black/20 backdrop-blur-[1px] lg:hidden"
+            onClick={() => {
+              setSidebarOpen(false);
+              setSidebarPinned(false);
+            }}
+          />
           <motion.aside
             initial={{ opacity: 0, x: -16 }}
             animate={{ opacity: 1, x: 0 }}
@@ -149,6 +203,11 @@ export default function Navbar() {
             Navegação
           </motion.span>
           <nav className="flex flex-col gap-2">
+            {visibleLinks.length === 0 ? (
+              <p className="px-4 py-2 text-sm text-[#78716c] dark:text-gray-500">
+                Sem permissões de navegação. Contacte o administrador.
+              </p>
+            ) : null}
             {visibleLinks.map(({ label, href }) => {
               const isActive = pathname === href || pathname.startsWith(href + "/");
               return (
@@ -169,6 +228,7 @@ export default function Navbar() {
           </nav>
             </div>
           </motion.aside>
+          </>
         )}
       </AnimatePresence>
     </>

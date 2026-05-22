@@ -5,6 +5,7 @@ using Finalproj.Application.Features.Servicos.DTOs;
 using Finalproj.Application.Features.Servicos.Interfaces;
 using Finalproj.Application.Features.Servicos.Services;
 using Finalproj.Application.Services;
+using Finalproj.Helpers;
 using Finalproj.Infrastructure.Configuration;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -23,7 +24,6 @@ namespace Finalproj.Controllers;
 public class ServicosApiController : ControllerBase
 {
     private const string PastaDocumentosServico = "Documentos/Servico";
-    private readonly IWebHostEnvironment _env;
     private readonly IDocumentoStorageService _documentoStorage;
     private readonly IServicoService _servicoService;
     private readonly IServicosApiApplicationService _servicosApi;
@@ -31,14 +31,12 @@ public class ServicosApiController : ControllerBase
     private readonly DocumentosOptions _documentosOptions;
 
     public ServicosApiController(
-        IWebHostEnvironment env,
         IDocumentoStorageService documentoStorage,
         IServicoService servicoService,
         IServicosApiApplicationService servicosApi,
         ILogger<ServicosApiController> logger,
         IOptions<DocumentosOptions> documentosOptions)
     {
-        _env = env;
         _documentoStorage = documentoStorage;
         _servicoService = servicoService;
         _servicosApi = servicosApi;
@@ -46,7 +44,8 @@ public class ServicosApiController : ControllerBase
         _documentosOptions = documentosOptions?.Value ?? new DocumentosOptions();
     }
 
-    // GET: api/servicos
+    /// <summary>Servicos.</summary>
+
     [HttpGet]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
     public async Task<IActionResult> Index(
@@ -63,7 +62,8 @@ public class ServicosApiController : ControllerBase
         return Ok(await _servicosApi.ListAsync(clienteId, dataDesde, dataAte, pagina, itensPorPagina, cancellationToken));
     }
 
-    // GET: api/servicos/create
+    /// <summary>Servicos/create.</summary>
+
     [HttpGet("create")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
     public async Task<IActionResult> Create(int? encomendaId, CancellationToken cancellationToken = default)
@@ -81,7 +81,8 @@ public class ServicosApiController : ControllerBase
         });
     }
 
-    // POST: api/servicos
+    /// <summary>Servicos.</summary>
+
     [HttpPost]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
     public async Task<IActionResult> Create([FromForm] CreateServicoInputDto input, CancellationToken cancellationToken = default)
@@ -118,7 +119,8 @@ public class ServicosApiController : ControllerBase
         return CreatedAtAction(nameof(Details), new { id = created.Id }, new { servico = ServicoResponseDtoMapping.Map(createdFull) });
     }
 
-    // GET: api/servicos/5
+    /// <summary>Servicos/5.</summary>
+
     [HttpGet("{id:int}")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
     public async Task<IActionResult> Details(int id, CancellationToken cancellationToken = default)
@@ -127,7 +129,8 @@ public class ServicosApiController : ControllerBase
         return data == null ? NotFound() : Ok(data);
     }
 
-    // GET: api/servicos/5/edit
+    /// <summary>Servicos/5/edit.</summary>
+
     [HttpGet("{id:int}/edit")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
     public async Task<IActionResult> Edit(int id, CancellationToken cancellationToken = default)
@@ -136,7 +139,8 @@ public class ServicosApiController : ControllerBase
         return data == null ? NotFound() : Ok(data);
     }
 
-    // PUT: api/servicos/5
+    /// <summary>Servicos/5.</summary>
+
     [HttpPut("{id:int}")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
     public async Task<IActionResult> Edit(int id, [FromForm] EditServicoInputDto input, CancellationToken cancellationToken = default)
@@ -179,7 +183,8 @@ public class ServicosApiController : ControllerBase
         return Ok(new { servico = ServicoResponseDtoMapping.Map(updatedFull) });
     }
 
-    // GET: api/servicos/5/delete
+    /// <summary>Servicos/5/delete.</summary>
+
     [HttpGet("{id:int}/delete")]
     [Authorize(Policy = PoliticasAutorizacao.PodeApagarServicos)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken = default)
@@ -189,7 +194,8 @@ public class ServicosApiController : ControllerBase
         return Ok(ServicoResponseDtoMapping.Map(servico));
     }
 
-    // DELETE: api/servicos/5
+    /// <summary>Servicos/5.</summary>
+
     [HttpDelete("{id:int}")]
     [Authorize(Policy = PoliticasAutorizacao.PodeApagarServicos)]
     public async Task<IActionResult> DeleteConfirmed(int id, CancellationToken cancellationToken = default)
@@ -219,7 +225,8 @@ public class ServicosApiController : ControllerBase
         return ServirFicheiro(caminho);
     }
 
-    // GET: api/servicos/5/upload-licenca?tipo=0&licencaId=1 (dados para o formulário)
+    /// <summary>Dados para formulário de upload de licença (query tipo, licencaId, origem).</summary>
+
     [HttpGet("{id:int}/upload-licenca")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
     public async Task<IActionResult> GetUploadLicenca(int id, int tipo, int? licencaId, [FromQuery] int origem = 1, CancellationToken cancellationToken = default)
@@ -230,7 +237,8 @@ public class ServicosApiController : ControllerBase
         return data == null ? NotFound() : Ok(data);
     }
 
-    // POST: api/servicos/5/upload-licenca
+    /// <summary>Servicos/5/upload-licenca.</summary>
+
     [HttpPost("{id:int}/upload-licenca")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirServicos)]
     public async Task<IActionResult> UploadLicenca(int id, [FromQuery] int tipo, [FromQuery] int? licencaId, [FromForm] UploadLicencaDto dto, [FromQuery] int origem = 1, CancellationToken cancellationToken = default)
@@ -250,14 +258,10 @@ public class ServicosApiController : ControllerBase
                 return BadRequest(new { message = $"O ficheiro excede o tamanho máximo permitido ({_documentosOptions.MaxFileSizeBytes / (1024 * 1024)} MB)." });
             if (!_documentoStorage.ExtensaoPermitida(ficheiro.FileName))
                 return BadRequest(new { message = "Extensão de ficheiro não permitida." });
-            var pastaLicencas = Path.Combine(_env.WebRootPath!, PastaDocumentosServico, id.ToString(), "Licencas");
-            if (!Directory.Exists(pastaLicencas)) Directory.CreateDirectory(pastaLicencas);
             var ext = Path.GetExtension(ficheiro.FileName).ToLowerInvariant();
             var nomeUnico = $"lic_{lic.Id}_{Guid.NewGuid():N}{ext}";
-            var caminhoFisico = Path.Combine(pastaLicencas, nomeUnico);
-            await using (var stream = new FileStream(caminhoFisico, FileMode.Create))
-                await ficheiro.CopyToAsync(stream);
             var caminhoRelativo = Path.Combine(PastaDocumentosServico, id.ToString(), "Licencas", nomeUnico).Replace('\\', '/');
+            await _documentoStorage.GuardarFicheiroNoCaminhoRelativoAsync(caminhoRelativo, ficheiro, cancellationToken);
             if (!string.IsNullOrWhiteSpace(lic.FicheiroPath))
                 _documentoStorage.ApagarFicheiroSeExistir(lic.FicheiroPath);
             await _servicosApi.SaveLicencaFilePathAsync(lic, caminhoRelativo, cancellationToken);
@@ -298,11 +302,7 @@ public class ServicosApiController : ControllerBase
 
     private IActionResult ServirFicheiro(string caminhoRelativo)
     {
-        var caminhoFisico = Path.Combine(_env.WebRootPath!, caminhoRelativo);
-        if (!System.IO.File.Exists(caminhoFisico)) return NotFound();
-        var ext = Path.GetExtension(caminhoRelativo).ToLowerInvariant();
-        var contentType = ext switch { ".pdf" => "application/pdf", ".jpg" or ".jpeg" => "image/jpeg", ".png" => "image/png", _ => "application/octet-stream" };
-        Response.Headers["Content-Disposition"] = "inline; filename=\"" + Path.GetFileName(caminhoRelativo).Replace("\"", "\\\"") + "\"";
-        return PhysicalFile(caminhoFisico, contentType);
+        var caminhoFisico = _documentoStorage.ResolverCaminhoFisicoParaLeitura(caminhoRelativo);
+        return DocumentoFileResult.FromPath(this, caminhoFisico, caminhoRelativo) ?? NotFound();
     }
 }

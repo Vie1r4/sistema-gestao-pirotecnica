@@ -30,7 +30,7 @@ export default async function RootLayout({
 
   return (
     <html lang="pt" className={plusJakarta.variable} suppressHydrationWarning data-scroll-behavior="smooth">
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased" suppressHydrationWarning>
         <QueryProvider>
           <AuthBootstrap>
           <ThemeSync />

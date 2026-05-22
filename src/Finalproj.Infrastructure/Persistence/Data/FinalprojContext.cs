@@ -20,6 +20,8 @@ public class FinalprojContext : IdentityDbContext<Microsoft.AspNetCore.Identity.
         public DbSet<Cliente> Clientes => Set<Cliente>();
         public DbSet<ClienteDocumentoExtra> ClienteDocumentoExtras => Set<ClienteDocumentoExtra>();
         public DbSet<Produto> Produtos => Set<Produto>();
+        public DbSet<Compilado> Compilados => Set<Compilado>();
+        public DbSet<CompiladoItem> CompiladoItens => Set<CompiladoItem>();
         public DbSet<EntradaPaiol> EntradasPaiol => Set<EntradaPaiol>();
         public DbSet<PaiolAcesso> PaiolAcessos => Set<PaiolAcesso>();
         public DbSet<SaidaPaiol> SaidasPaiol => Set<SaidaPaiol>();
@@ -52,6 +54,29 @@ public class FinalprojContext : IdentityDbContext<Microsoft.AspNetCore.Identity.
             modelBuilder.Entity<Produto>()
                 .Property(p => p.NEMPorUnidade)
                 .HasPrecision(18, 4);
+
+            modelBuilder.Entity<Compilado>()
+                .HasIndex(c => c.Nome);
+
+            modelBuilder.Entity<CompiladoItem>()
+                .Property(i => i.QuantidadePorUnidade)
+                .HasPrecision(18, 4);
+
+            modelBuilder.Entity<CompiladoItem>()
+                .HasOne(i => i.Compilado)
+                .WithMany(c => c.Itens)
+                .HasForeignKey(i => i.CompiladoId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<CompiladoItem>()
+                .HasOne(i => i.Produto)
+                .WithMany()
+                .HasForeignKey(i => i.ProdutoId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<CompiladoItem>()
+                .HasIndex(i => new { i.CompiladoId, i.ProdutoId })
+                .IsUnique();
 
             modelBuilder.Entity<EntradaPaiol>()
                 .Property(e => e.Quantidade)

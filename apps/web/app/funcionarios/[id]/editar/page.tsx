@@ -17,6 +17,7 @@ import { useUser } from "@/app/context/UserContext";
 import { useToastStore } from "@/app/stores/useToastStore";
 import { fetchFuncionarioEditGet, putFuncionario } from "../../../lib/funcionariosApi";
 import { fadeInUp, transitionSmooth } from "../../../lib/animations";
+import { PASSWORD_PLACEHOLDER, validatePasswordClient } from "../../../lib/passwordPolicy";
 
 function mapApiItemToFuncionario(item: Record<string, unknown>): Funcionario {
   const nome = (item.nomeCompleto ?? item.NomeCompleto ?? item.nome ?? "") as string;
@@ -83,7 +84,6 @@ export default function EditarFuncionarioPage() {
     cargo: "Gestor" as CargoFuncionario,
     notas: "",
     criarConta: false,
-    contaEmail: "",
     contaPassword: "",
     contaConfirmar: "",
     contaPerfil: "Gestor" as CargoFuncionario, // UI-only; backend força = cargo do funcionário
@@ -161,7 +161,6 @@ export default function EditarFuncionarioPage() {
       cargo: f.cargo,
       notas: f.notas ?? "",
       criarConta: !f.contaAssociada,
-      contaEmail: (data.contaEmail ?? f.email) ?? "",
       contaPassword: "",
       contaConfirmar: "",
       contaPerfil: f.cargo,
@@ -214,12 +213,13 @@ export default function EditarFuncionarioPage() {
       return;
     }
     if (form.criarConta && !funcionario.contaAssociada) {
-      if (!form.contaEmail.trim()) {
-        setMessage({ type: "error", text: "O email da conta de acesso é obrigatório." });
+      if (!form.email.trim()) {
+        setMessage({ type: "error", text: "Preencha o email do funcionário para criar a conta de acesso." });
         return;
       }
-      if (form.contaPassword.length < 6) {
-        setMessage({ type: "error", text: "A palavra-passe deve ter pelo menos 6 caracteres." });
+      const passwordError = validatePasswordClient(form.contaPassword);
+      if (passwordError) {
+        setMessage({ type: "error", text: passwordError });
         return;
       }
       if (form.contaPassword !== form.contaConfirmar) {
@@ -248,7 +248,9 @@ export default function EditarFuncionarioPage() {
     fd.append("Funcionario.Notas", form.notas.trim());
     if (funcionario.userId) fd.append("Funcionario.UserId", funcionario.userId);
     fd.append("CriarConta", form.criarConta.toString());
-    fd.append("ContaEmail", form.contaEmail);
+    if (form.criarConta && !funcionario.contaAssociada) {
+      fd.append("ContaEmail", form.email.trim());
+    }
     fd.append("ContaPassword", form.contaPassword);
     fd.append("ContaConfirmPassword", form.contaConfirmar);
     // Backend força a role da conta = cargo do funcionário (fonte única de verdade)
@@ -564,9 +566,15 @@ export default function EditarFuncionarioPage() {
                 </label>
                 {form.criarConta && (
                   <div className="mt-4 space-y-4">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Email único no sistema; o sistema cria o utilizador, atribui o perfil e envia as credenciais e o link de confirmação por email.</p>
-                    <div><label htmlFor="contaEmail" className={labelClass}>Email (para login, único no sistema) *</label><input id="contaEmail" type="email" value={form.contaEmail} onChange={(e) => setForm((f) => ({ ...f, contaEmail: e.target.value }))} className={inputClass} required /></div>
-                    <div className="grid gap-4 sm:grid-cols-2"><div><label htmlFor="contaPassword" className={labelClass}>Palavra-passe</label><input id="contaPassword" type="password" value={form.contaPassword} onChange={(e) => setForm((f) => ({ ...f, contaPassword: e.target.value }))} className={inputClass} placeholder="Mín. 6 caracteres" /></div><div><label htmlFor="contaConfirmar" className={labelClass}>Confirmar palavra-passe</label><input id="contaConfirmar" type="password" value={form.contaConfirmar} onChange={(e) => setForm((f) => ({ ...f, contaConfirmar: e.target.value }))} className={inputClass} /></div></div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">O email de login é o mesmo do funcionário (único no sistema). O sistema cria o utilizador, atribui o perfil do cargo e envia as credenciais e o link de confirmação por email.</p>
+                    <div>
+                      <label htmlFor="contaEmail" className={labelClass}>Email (para login, único no sistema) *</label>
+                      <input id="contaEmail" type="email" value={form.email} readOnly className={inputClass} required />
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        O email da conta é automaticamente igual ao email do funcionário.
+                      </p>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2"><div><label htmlFor="contaPassword" className={labelClass}>Palavra-passe</label><input id="contaPassword" type="password" value={form.contaPassword} onChange={(e) => setForm((f) => ({ ...f, contaPassword: e.target.value }))} className={inputClass} placeholder={PASSWORD_PLACEHOLDER} /></div><div><label htmlFor="contaConfirmar" className={labelClass}>Confirmar palavra-passe</label><input id="contaConfirmar" type="password" value={form.contaConfirmar} onChange={(e) => setForm((f) => ({ ...f, contaConfirmar: e.target.value }))} className={inputClass} /></div></div>
                   <div>
                     <label htmlFor="contaPerfil" className={labelClass}>
                       Perfil de acesso (role)

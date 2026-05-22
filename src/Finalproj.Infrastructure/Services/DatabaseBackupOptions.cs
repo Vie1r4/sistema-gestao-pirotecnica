@@ -9,9 +9,9 @@ public sealed class DatabaseBackupOptions
 
     public int MinutoDiario { get; set; } = 0;
 
-    // Prefixo dos ficheiros .bak na raiz do projeto.
+    // Prefixo dos ficheiros .bak em PirofafeData/Backups.
     public string PrefixoFicheiro { get; set; } = "db-backup";
 
-    // Quantos dias manter os backups na raiz.
+    // Quantos dias manter os backups na pasta de backups.
     public int RetencaoDias { get; set; } = 30;
 }

@@ -69,7 +69,7 @@ function EncomendasContent() {
     queryFn: async (): Promise<EncomendasApiData> => {
       const token = getToken();
       if (!token) throw new Error("Sessão expirada. Faça login novamente.");
-      const apiEstado = estado === "Todos" ? "" : estado === "Ativas" ? "" : estado;
+      const apiEstado = estado === "Todos" ? "" : estado === "Ativas" ? "Ativas" : estado;
       const data = await fetchList(token, {
         estado: apiEstado,
         pagina,
@@ -94,7 +94,8 @@ function EncomendasContent() {
   const token = getToken();
   const totais = apiData?.totaisPorEstado ?? {};
   const totalGeral = apiData?.totalGeral ?? 0;
-  const totalAtivas = (totais["Pendente"] ?? 0) + (totais["Aceite"] ?? 0);
+  const totalAtivas =
+    (totais["Pendente"] ?? 0) + (totais["Aceite"] ?? 0) + (totais["Em preparação"] ?? 0);
   const lista: EncomendaLinha[] = apiData?.lista ?? [];
   const total = apiData?.totalRegistos ?? 0;
   const totalPaginas = Math.max(1, Math.ceil(total / ITENS_POR_PAGINA));
@@ -116,7 +117,7 @@ function EncomendasContent() {
         className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset"
         
       >
-        <div className="mx-auto max-w-6xl">
+        <div className="content-container">
             <PageHeader
               title="Encomendas"
               subtitle={

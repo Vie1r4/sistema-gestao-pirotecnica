@@ -3,6 +3,7 @@ using Finalproj.Application.Features.Clientes.DTOs;
 using Finalproj.Application.Features.Clientes.Interfaces;
 using Finalproj.Application.Services;
 using Finalproj.Application.Common.Validators;
+using Finalproj.Helpers;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -10,28 +11,27 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Finalproj.Controllers
 {
-    // Clientes: CRUD, documentos extras; detalhe com encomendas activas e histórico
+    /// <summary>CRUD de clientes, documentos extras e histórico de encomendas.</summary>
     [Route("api/clientes")]
     [ApiController]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class ClientesController : ControllerBase
     {
         private readonly IClienteApplicationService _clientes;
-        private readonly IWebHostEnvironment _env;
         private readonly IDocumentoStorageService _documentoStorage;
         private readonly IValidator<CreateClienteInputDto> _createClienteValidator;
         private const string PastaDocumentosClientes = "Documentos/Clientes";
         private const int HistoricoEncomendasPageSize = 15;
 
-        public ClientesController(IClienteApplicationService clientes, IWebHostEnvironment env, IDocumentoStorageService documentoStorage, IValidator<CreateClienteInputDto> createClienteValidator)
+        public ClientesController(IClienteApplicationService clientes, IDocumentoStorageService documentoStorage, IValidator<CreateClienteInputDto> createClienteValidator)
         {
             _clientes = clientes;
-            _env = env;
             _documentoStorage = documentoStorage;
             _createClienteValidator = createClienteValidator;
         }
 
-        // Lista com pesquisa (nome, email, telefone, NIF) e ordenação
+        /// <summary>Lista com pesquisa (nome, email, telefone, NIF) e ordenação.</summary>
+
         [HttpGet]
         [Authorize(Policy = Finalproj.Authorization.PoliticasAutorizacao.PodeGerirClientes)]
         public async Task<IActionResult> Index(string? pesquisa, string? ordenar, CancellationToken cancellationToken = default)
@@ -46,7 +46,8 @@ namespace Finalproj.Controllers
             });
         }
 
-        // Detalhe do cliente + encomendas com reserva + histórico (concluídas/rejeitadas) paginado
+        /// <summary>Detalhe do cliente + encomendas com reserva + histórico (concluídas/rejeitadas) paginado.</summary>
+
         [HttpGet("{id:int}")]
         [Authorize(Policy = Finalproj.Authorization.PoliticasAutorizacao.PodeGerirClientes)]
         public async Task<IActionResult> Details(int? id, int historicoPagina = 1, CancellationToken cancellationToken = default)
@@ -57,7 +58,8 @@ namespace Finalproj.Controllers
             return details == null ? NotFound() : Ok(details);
         }
 
-        // GET: formulário novo cliente; dropdown tipo
+        /// <summary>Formulário novo cliente; dropdown tipo.</summary>
+
         [HttpGet("create")]
         public IActionResult Create()
         {
@@ -65,9 +67,9 @@ namespace Finalproj.Controllers
             return Ok(new { cliente = ClienteResponseDtoMapping.Map(new Cliente(), includeSensitive: false), tiposCliente });
         }
 
+        /// <summary>Cria cliente e documentos extras na pasta do cliente.</summary>
         [HttpPost]
         [Authorize(Policy = Finalproj.Authorization.PoliticasAutorizacao.PodeGerirClientes)]
-        // Grava cliente e documentos extras na pasta do cliente
         public async Task<IActionResult> Create([FromForm] CreateClienteInputDto input, CancellationToken cancellationToken = default)
         {
             var cliente = input.Cliente;
@@ -107,7 +109,8 @@ namespace Finalproj.Controllers
             });
         }
 
-        // GET: formulário de edição com documentos
+        /// <summary>Formulário de edição com documentos.</summary>
+
         [HttpGet("{id:int}/edit")]
         public async Task<IActionResult> Edit(int? id, CancellationToken cancellationToken = default)
         {
@@ -120,8 +123,8 @@ namespace Finalproj.Controllers
             return Ok(new { item = ClienteResponseDtoMapping.Map(item, includeSensitive: true), tiposCliente });
         }
 
+        /// <summary>Actualiza dados, remove documentos marcados e adiciona novos.</summary>
         [HttpPut("{id:int}")]
-        // Actualiza dados, remove/apaga documentos marcados e adiciona novos
         public async Task<IActionResult> Edit(int id, [FromForm] EditClienteInputDto input, CancellationToken cancellationToken = default)
         {
             var cliente = input.Cliente;
@@ -173,7 +176,8 @@ namespace Finalproj.Controllers
             });
         }
 
-        // GET: confirmação antes de apagar
+        /// <summary>Confirmação antes de apagar.</summary>
+
         [HttpGet("{id:int}/delete")]
         public async Task<IActionResult> Delete(int? id, CancellationToken cancellationToken = default)
         {
@@ -185,8 +189,8 @@ namespace Finalproj.Controllers
             return Ok(ClienteResponseDtoMapping.Map(item, includeSensitive: false));
         }
 
+        /// <summary>Apaga cliente e pasta de documentos.</summary>
         [HttpDelete("{id:int}")]
-        // Apaga cliente e pasta de documentos
         public async Task<IActionResult> DeleteConfirmed(int id, CancellationToken cancellationToken = default)
         {
             if (await _clientes.DeleteAsync(id, cancellationToken))
@@ -194,8 +198,7 @@ namespace Finalproj.Controllers
             return NoContent();
         }
 
-        // Devolve ficheiro de documento extra (inline no browser)
-        /// <summary>Download de documento extra do cliente. Apenas Admin.</summary>
+        /// <summary>Download de documento extra do cliente (inline no browser). Requer política PodeGerirClientes.</summary>
         [HttpGet("{id:int}/documentos/{extraId:int}")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Policy = Finalproj.Authorization.PoliticasAutorizacao.PodeGerirClientes)]
         public async Task<IActionResult> Download(int id, int extraId, CancellationToken cancellationToken = default)
@@ -206,17 +209,10 @@ namespace Finalproj.Controllers
             return ServirFicheiro(caminho);
         }
 
-        // Envia ficheiro do disco com Content-Type e nome para inline
         private IActionResult ServirFicheiro(string caminhoRelativo)
         {
-            var caminhoFisico = Path.Combine(_env.WebRootPath, caminhoRelativo);
-            if (!System.IO.File.Exists(caminhoFisico))
-                return NotFound();
-            var ext = Path.GetExtension(caminhoRelativo).ToLowerInvariant();
-            var contentType = ext switch { ".pdf" => "application/pdf", ".jpg" or ".jpeg" => "image/jpeg", ".png" => "image/png", _ => "application/octet-stream" };
-            var nomeFicheiro = Path.GetFileName(caminhoRelativo);
-            Response.Headers["Content-Disposition"] = "inline; filename=\"" + nomeFicheiro.Replace("\"", "\\\"") + "\"";
-            return PhysicalFile(caminhoFisico, contentType);
+            var caminhoFisico = _documentoStorage.ResolverCaminhoFisicoParaLeitura(caminhoRelativo);
+            return DocumentoFileResult.FromPath(this, caminhoFisico, caminhoRelativo) ?? NotFound();
         }
 
     }

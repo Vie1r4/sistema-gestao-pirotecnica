@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 /** CSP completa com nonce: ver `proxy.ts` e `lib/csp.ts`. */
 const nextConfig: NextConfig = {
+  /** O badge nativo do Next 16 fica mal renderizado com o layout/CSP; erros vêm no terminal e em `npm run typecheck`. */
+  devIndicators: false,
   experimental: {
     /** Hashes SRI em build — complementa CSP strict em produção. */
     sri: {

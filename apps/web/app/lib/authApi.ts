@@ -5,13 +5,24 @@
 import { apiPath } from "./apiConfig";
 import { safeParseJson } from "./api";
 
-/** GET api/auth/existem-utilizadores — sem token (bootstrap). */
-export async function fetchExistemUtilizadores(): Promise<boolean> {
+/** GET api/auth/existem-utilizadores — sem token; indica se o bootstrap do primeiro admin está disponível. */
+export async function fetchPrimeiroRegistoDisponivel(): Promise<boolean> {
   const res = await fetch(apiPath("api/auth/existem-utilizadores"));
   if (!res.ok) throw new Error("http");
-  const data = (await res.json()) as { existem?: boolean };
-  if (data && typeof data.existem === "boolean") return data.existem;
+  const data = (await res.json()) as {
+    primeiroRegistoDisponivel?: boolean;
+    /** @deprecated Resposta antiga; não revela enumeração. */
+    existem?: boolean;
+  };
+  if (typeof data.primeiroRegistoDisponivel === "boolean") return data.primeiroRegistoDisponivel;
+  if (typeof data.existem === "boolean") return !data.existem;
   throw new Error("invalid");
+}
+
+/** @deprecated Use fetchPrimeiroRegistoDisponivel — mantido para compatibilidade interna. */
+export async function fetchExistemUtilizadores(): Promise<boolean> {
+  const disponivel = await fetchPrimeiroRegistoDisponivel();
+  return !disponivel;
 }
 
 /** POST api/auth/login — devolve Response para a página tratar 200/401 e tokens. */

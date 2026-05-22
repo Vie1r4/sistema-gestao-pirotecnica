@@ -6,6 +6,7 @@ using Finalproj.Application.Features.Funcionarios.DTOs;
 using Finalproj.Application.Features.Funcionarios.Interfaces;
 using Finalproj.Application.Features.Home.Interfaces;
 using Finalproj.Application.Services;
+using Finalproj.Helpers;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -16,7 +17,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 namespace Finalproj.Controllers
 {
-    // Funcionários: CRUD, documentos (CC, ADR, licença), associação a conta Identity; acesso por cargo
+    /// <summary>Funcionários: CRUD, documentos, contas Identity e associação utilizador-funcionário.</summary>
     [Route("api/funcionarios")]
     [ApiController]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
@@ -24,7 +25,6 @@ namespace Finalproj.Controllers
     {
         private readonly IFuncionarioApplicationService _funcionarios;
         private readonly IHomeAnalyticsService _homeAnalytics;
-        private readonly IWebHostEnvironment _env;
         private readonly UserManager<IdentityUser> _userManager;
         private readonly IDocumentoStorageService _documentoStorage;
         private readonly IEmailSender _emailSender;
@@ -46,7 +46,6 @@ namespace Finalproj.Controllers
         public FuncionariosController(
             IFuncionarioApplicationService funcionarios,
             IHomeAnalyticsService homeAnalytics,
-            IWebHostEnvironment env,
             UserManager<IdentityUser> userManager,
             IDocumentoStorageService documentoStorage,
             IEmailSender emailSender,
@@ -55,7 +54,6 @@ namespace Finalproj.Controllers
         {
             _funcionarios = funcionarios;
             _homeAnalytics = homeAnalytics;
-            _env = env;
             _userManager = userManager;
             _documentoStorage = documentoStorage;
             _emailSender = emailSender;
@@ -63,7 +61,8 @@ namespace Finalproj.Controllers
             _createFuncionarioValidator = createFuncionarioValidator;
         }
 
-        // Lista com pesquisa e filtro por cargo (sem NSS, IBAN nem caminhos de ficheiros)
+        /// <summary>Lista com pesquisa e filtro por cargo (sem NSS, IBAN nem caminhos de ficheiros).</summary>
+
         [HttpGet]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirFuncionarios)]
         public async Task<IActionResult> Index(string? pesquisa, string? cargo, string? ordenar, CancellationToken cancellationToken = default)
@@ -96,7 +95,8 @@ namespace Finalproj.Controllers
             });
         }
 
-        // Detalhe do funcionário (sem NSS, IBAN nem caminhos de ficheiros)
+        /// <summary>Detalhe do funcionário (sem NSS, IBAN nem caminhos de ficheiros).</summary>
+
         [HttpGet("{id:int}")]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirFuncionarios)]
         public async Task<IActionResult> Details(int? id, CancellationToken cancellationToken = default)
@@ -126,7 +126,8 @@ namespace Finalproj.Controllers
             });
         }
 
-        // GET: formulário criar funcionário; dropdown cargo e roles para conta (sem paths)
+        /// <summary>Formulário criar funcionário; dropdown cargo e roles para conta (sem paths).</summary>
+
         [HttpGet("create")]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirFuncionarios)]
         public IActionResult Create()
@@ -137,9 +138,9 @@ namespace Finalproj.Controllers
             return Ok(new { funcionario, cargos, rolesConta });
         }
 
+        /// <summary>Cria funcionário; opcionalmente cria conta Identity e envia email de confirmação.</summary>
         [HttpPost]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirFuncionarios)]
-        // Grava funcionário, opcionalmente cria conta de acesso; CC/ADR/licença e documentos extras
         public async Task<IActionResult> Create([FromForm] CreateFuncionarioInputDto input, CancellationToken cancellationToken = default)
         {
             var funcionario = input.Funcionario;
@@ -240,9 +241,9 @@ namespace Finalproj.Controllers
             return BadRequest(new { funcionario = dtoBadRequest, cargos = DropdownSelectLists.CargosParaDropdown(), rolesConta = DropdownSelectLists.CargosParaDropdown(), errors = ModelState });
         }
 
+        /// <summary>Formulário de edição com dropdown de cargo; secção criar conta se não tiver UserId.</summary>
         [HttpGet("{id:int}/edit")]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirFuncionarios)]
-        // GET: edição com dropdown cargo; secção Criar conta se não tiver UserId
         public async Task<IActionResult> Edit(int? id, CancellationToken cancellationToken = default)
         {
             if (id == null)
@@ -263,9 +264,9 @@ namespace Finalproj.Controllers
             return Ok(new { item = FuncionarioResponseDtoMapping.Map(item, includeSensitive: true, contaEmailConfirmada: contaEmailConfirmada), cargos, rolesConta, contaEmail, contaEmailConfirmada });
         }
 
+        /// <summary>Actualiza ficha e documentos; opcionalmente cria conta quando ainda não existe.</summary>
         [HttpPut("{id:int}")]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirFuncionarios)]
-        // Actualiza ficha, documentos; opcionalmente cria conta (quando UserId é null)
         public async Task<IActionResult> Edit(int id, [FromForm] EditFuncionarioInputDto input, CancellationToken cancellationToken = default)
         {
             var funcionario = input.Funcionario;
@@ -431,9 +432,9 @@ namespace Finalproj.Controllers
             return BadRequest(new { funcionario = FuncionarioResponseDtoMapping.Map(existing, includeSensitive: true), cargos = DropdownSelectLists.CargosParaDropdown(), rolesConta = DropdownSelectLists.CargosParaDropdown(), errors = ModelState });
         }
 
+        /// <summary>Confirmação antes de apagar (a conta Identity não é apagada neste passo).</summary>
         [HttpGet("{id:int}/delete")]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirFuncionarios)]
-        // GET: confirmação antes de apagar (conta Identity não é apagada)
         public async Task<IActionResult> Delete(int? id, CancellationToken cancellationToken = default)
         {
             if (id == null)
@@ -444,9 +445,9 @@ namespace Finalproj.Controllers
             return Ok(FuncionarioResponseDtoMapping.Map(item, includeSensitive: false));
         }
 
+        /// <summary>Apaga ficha, documentos e conta Identity associada (exceto a conta do utilizador actual).</summary>
         [HttpDelete("{id:int}")]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirFuncionarios)]
-        // Apaga ficha, pasta de documentos e conta Identity associada (se não for a conta do utilizador atual)
         public async Task<IActionResult> DeleteConfirmed(int id, CancellationToken cancellationToken = default)
         {
             var item = await _funcionarios.GetByIdAsync(id, false, cancellationToken);
@@ -525,23 +526,10 @@ namespace Finalproj.Controllers
             return ServirFicheiro(caminhoRelativo);
         }
 
-        // Envia ficheiro do disco com Content-Type e nome para inline
         private IActionResult ServirFicheiro(string caminhoRelativo)
         {
-            var caminhoFisico = Path.Combine(_env.WebRootPath, caminhoRelativo);
-            if (!System.IO.File.Exists(caminhoFisico))
-                return NotFound();
-            var ext = Path.GetExtension(caminhoRelativo).ToLowerInvariant();
-            var contentType = ext switch
-            {
-                ".pdf" => "application/pdf",
-                ".jpg" or ".jpeg" => "image/jpeg",
-                ".png" => "image/png",
-                _ => "application/octet-stream"
-            };
-            var nomeFicheiro = Path.GetFileName(caminhoRelativo);
-            Response.Headers["Content-Disposition"] = "inline; filename=\"" + nomeFicheiro.Replace("\"", "\\\"") + "\"";
-            return PhysicalFile(caminhoFisico, contentType);
+            var caminhoFisico = _documentoStorage.ResolverCaminhoFisicoParaLeitura(caminhoRelativo);
+            return DocumentoFileResult.FromPath(this, caminhoFisico, caminhoRelativo) ?? NotFound();
         }
 
         private async Task EnviarEmailContaCriadaAsync(
@@ -628,8 +616,8 @@ namespace Finalproj.Controllers
                                   Depois pode iniciar sessão em: <a href="{loginUrl}" style="color:#ea580c;text-decoration:underline;">{safeLoginUrl}</a>
                                 </div>
                                 <div style="height:14px;"></div>
-                                <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; font-size:12px; line-height:1.55; color:#6b7280;">
-                                  Recomendamos que altere a palavra-passe após o primeiro login.
+                                <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; font-size:13px; line-height:1.55; color:#9a3412; background:#fff7ed; border:1px solid #fed7aa; border-radius:12px; padding:12px 14px;">
+                                  <strong>Importante — segurança:</strong> mal inicie sessão pela primeira vez, altere a palavra-passe de imediato (menu <strong>Perfil</strong> → Alterar palavra-passe). Não continue a utilizar a palavra-passe enviada neste email.
                                 </div>
                               </td>
                             </tr>

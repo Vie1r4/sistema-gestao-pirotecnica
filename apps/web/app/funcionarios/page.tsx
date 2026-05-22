@@ -145,7 +145,7 @@ function FuncionariosContent() {
         className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset"
         
       >
-        <div className="mx-auto max-w-6xl">
+        <div className="content-container">
           <PageHeader
             title="Funcionários"
             subtitle={

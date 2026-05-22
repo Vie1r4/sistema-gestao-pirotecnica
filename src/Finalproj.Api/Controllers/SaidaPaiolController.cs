@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Finalproj.Controllers
 {
-    // Saídas do paiol: escolher paiol e produto, depois quantidade; acesso por cargo
+    /// <summary>Registo de saídas de stock do paiol.</summary>
     [Route("api/saida-paiol")]
     [ApiController]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Policy = PoliticasAutorizacao.PodeVerArmazemStock)]
@@ -27,7 +27,8 @@ namespace Finalproj.Controllers
             _saidaPaiolValidator = saidaPaiolValidator;
         }
 
-        // Indica onde obter o histórico de saídas (Paiol/Movimentos)
+        /// <summary>Indica onde obter o histórico de saídas (Paiol/Movimentos).</summary>
+
         [HttpGet]
         public IActionResult Index()
         {
@@ -38,7 +39,8 @@ namespace Finalproj.Controllers
             });
         }
 
-        // GET: paiol + produto obrigatórios; mostra stock disponível
+        /// <summary>Paiol + produto obrigatórios; mostra stock disponível.</summary>
+
         [HttpGet("registar")]
         public async Task<IActionResult> Registar(int? paiolId, int? produtoId, CancellationToken cancellationToken = default)
         {
@@ -63,8 +65,8 @@ namespace Finalproj.Controllers
             });
         }
 
+        /// <summary>Regista saída de stock do paiol.</summary>
         [HttpPost("registar")]
-        // Grava saída
         public async Task<IActionResult> Registar([FromBody] SaidaPaiolViewModel model, CancellationToken cancellationToken = default)
         {
             var validationResult = await _saidaPaiolValidator.ValidateAsync(model, cancellationToken);

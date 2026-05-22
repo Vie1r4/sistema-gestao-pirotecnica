@@ -6,9 +6,12 @@ using Finalproj.Application.DTOs;
 using Finalproj.Application.Features.Auth.Interfaces;
 using Finalproj.Application.Services;
 using Finalproj.Application.Services.Interfaces;
+using Finalproj.Infrastructure.Configuration;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -16,6 +19,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Finalproj.Controllers
 {
+    /// <summary>Autenticação JWT, refresh em cookie HttpOnly, registo do primeiro administrador e recuperação de palavra-passe.</summary>
     [Route("api/auth")]
     [ApiController]
     public class AuthController : ControllerBase
@@ -26,19 +30,28 @@ namespace Finalproj.Controllers
         private readonly IEmailSender _emailSender;
         private readonly IAuthAccountInfoService _accountInfo;
         private readonly IIdentityUserLookupService _identityUsers;
+        private readonly IPasswordValidationService _passwordValidation;
+        private readonly BootstrapOptions _bootstrap;
+        private readonly IWebHostEnvironment _env;
 
         public AuthController(
             UserManager<IdentityUser> userManager,
             IConfiguration configuration,
             IEmailSender emailSender,
             IAuthAccountInfoService accountInfo,
-            IIdentityUserLookupService identityUsers)
+            IIdentityUserLookupService identityUsers,
+            IPasswordValidationService passwordValidation,
+            IOptions<BootstrapOptions> bootstrapOptions,
+            IWebHostEnvironment env)
         {
             _userManager = userManager;
             _configuration = configuration;
             _emailSender = emailSender;
             _accountInfo = accountInfo;
             _identityUsers = identityUsers;
+            _passwordValidation = passwordValidation;
+            _bootstrap = bootstrapOptions.Value;
+            _env = env;
         }
 
         private static string HashRefreshToken(string token)
@@ -48,27 +61,28 @@ namespace Finalproj.Controllers
             return Convert.ToBase64String(hash);
         }
 
-        private void SetRefreshTokenCookie(string refreshToken, int days)
+        private CookieOptions BuildRefreshCookieOptions(DateTimeOffset? expires = null)
         {
-            var options = new CookieOptions
+            var crossOriginDev = _env.IsDevelopment();
+            return new CookieOptions
             {
                 HttpOnly = true,
-                Secure = Request.IsHttps,
-                SameSite = SameSiteMode.Lax,
+                Secure = crossOriginDev || Request.IsHttps,
+                SameSite = crossOriginDev ? SameSiteMode.None : SameSiteMode.Lax,
                 Path = "/api/auth",
-                Expires = DateTimeOffset.UtcNow.AddDays(Math.Max(days, 1))
+                Expires = expires
             };
+        }
+
+        private void SetRefreshTokenCookie(string refreshToken, int days)
+        {
+            var options = BuildRefreshCookieOptions(DateTimeOffset.UtcNow.AddDays(Math.Max(days, 1)));
             Response.Cookies.Append(RefreshTokenCookieName, refreshToken, options);
         }
 
         private void ClearRefreshTokenCookie()
         {
-            Response.Cookies.Delete(RefreshTokenCookieName, new CookieOptions
-            {
-                Path = "/api/auth",
-                Secure = Request.IsHttps,
-                SameSite = SameSiteMode.Lax
-            });
+            Response.Cookies.Delete(RefreshTokenCookieName, BuildRefreshCookieOptions());
         }
 
         private string? GetRefreshTokenFromCookie()
@@ -85,14 +99,19 @@ namespace Finalproj.Controllers
         }
 
         /// <summary>
-        /// Indica se existem utilizadores no sistema (para mostrar mensagem "Crie o primeiro utilizador").
+        /// Indica se o registo do primeiro administrador está disponível (bootstrap).
+        /// Não expõe se já existem contas — resposta idêntica quando o bootstrap está desativado ou já há utilizadores.
         /// </summary>
         [HttpGet("existem-utilizadores")]
         [AllowAnonymous]
+        [EnableRateLimiting("bootstrap")]
         public async Task<IActionResult> ExistemUtilizadores(CancellationToken cancellationToken = default)
         {
+            if (!_bootstrap.AllowFirstUserRegistration)
+                return Ok(new { primeiroRegistoDisponivel = false });
+
             var existem = await _identityUsers.AnyUsersAsync(cancellationToken);
-            return Ok(new { existem });
+            return Ok(new { primeiroRegistoDisponivel = !existem });
         }
 
         /// <summary>
@@ -100,19 +119,23 @@ namespace Finalproj.Controllers
         /// </summary>
         [HttpPost("registar-primeiro-utilizador")]
         [AllowAnonymous]
-        [EnableRateLimiting("auth")]
+        [EnableRateLimiting("bootstrap")]
         public async Task<IActionResult> RegistarPrimeiroUtilizador([FromBody] RegistarPrimeiroRequest request, CancellationToken cancellationToken = default)
         {
+            if (!_bootstrap.AllowFirstUserRegistration)
+                return NotFound();
+
             if (await _identityUsers.AnyUsersAsync(cancellationToken))
                 return BadRequest(new { error = "Já existem utilizadores no sistema. Utilize o início de sessão." });
 
             if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
                 return BadRequest(new { error = "Email e palavra-passe são obrigatórios." });
 
-            if (request.Password.Length < 8)
-                return BadRequest(new { error = "A palavra-passe deve ter pelo menos 8 caracteres." });
-
             var email = request.Email.Trim();
+            var passwordErrors = await _passwordValidation.ValidateAsync(request.Password, email, email, cancellationToken);
+            if (passwordErrors.Count > 0)
+                return BadRequest(new { error = "A palavra-passe não cumpre os requisitos.", details = passwordErrors.ToList() });
+
             var user = new IdentityUser
             {
                 UserName = email,
@@ -389,14 +412,11 @@ namespace Finalproj.Controllers
         [HttpPost("reset-password")]
         [AllowAnonymous]
         [EnableRateLimiting("auth")]
-        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request, CancellationToken cancellationToken = default)
         {
             var email = request.Email?.Trim();
             if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.NewPassword))
                 return BadRequest(new { error = "Email, token e nova palavra-passe são obrigatórios." });
-
-            if (request.NewPassword.Length < 6)
-                return BadRequest(new { error = "A palavra-passe deve ter pelo menos 6 caracteres." });
 
             if (!string.IsNullOrWhiteSpace(request.ConfirmPassword) && request.NewPassword != request.ConfirmPassword)
                 return BadRequest(new { error = "A palavra-passe e a confirmação não coincidem." });
@@ -405,20 +425,42 @@ namespace Finalproj.Controllers
             if (user == null)
                 return BadRequest(new { error = "Pedido inválido." });
 
+            var passwordErrors = await _passwordValidation.ValidateAsync(request.NewPassword, user.UserName, user.Email, cancellationToken);
+            if (passwordErrors.Count > 0)
+                return BadRequest(new { error = "A palavra-passe não cumpre os requisitos.", details = passwordErrors.ToList() });
+
             string decodedToken;
             try
             {
-                var bytes = WebEncoders.Base64UrlDecode(request.Token.Trim());
-                decodedToken = Encoding.UTF8.GetString(bytes);
+                decodedToken = PasswordResetTokenDecoder.Decode(request.Token);
             }
-            catch
+            catch (FormatException)
             {
-                return BadRequest(new { error = "Token inválido." });
+                return BadRequest(new { error = "Token inválido ou expirado. Peça um novo link em «Esqueci-me da palavra-passe»." });
             }
 
             var result = await _userManager.ResetPasswordAsync(user, decodedToken, request.NewPassword);
             if (!result.Succeeded)
-                return BadRequest(new { error = "Não foi possível redefinir a palavra-passe.", details = result.Errors.Select(e => e.Description).ToList() });
+            {
+                var details = result.Errors.Select(e => e.Description).ToList();
+                var invalidToken = details.Any(d =>
+                    d.Contains("Invalid token", StringComparison.OrdinalIgnoreCase)
+                    || d.Contains("inválido", StringComparison.OrdinalIgnoreCase));
+                return BadRequest(new
+                {
+                    error = invalidToken
+                        ? "Token inválido ou expirado. Peça um novo link em «Esqueci-me da palavra-passe»."
+                        : "Não foi possível redefinir a palavra-passe.",
+                    details
+                });
+            }
+
+            // Quem conclui o reset provou acesso ao email — desbloqueia login se a conta ainda não estava confirmada.
+            if (!user.EmailConfirmed)
+            {
+                user.EmailConfirmed = true;
+                await _userManager.UpdateAsync(user);
+            }
 
             return Ok(new { message = "Palavra-passe atualizada com sucesso. Já pode iniciar sessão." });
         }

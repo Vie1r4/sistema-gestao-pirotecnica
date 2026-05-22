@@ -86,6 +86,7 @@ export async function fetchAdicionarItens(
   cliente: { id: number; nome: string };
   clienteId: number;
   produtosFiltrados: Array<{ id: number; nome: string; [k: string]: unknown }>;
+  compilados: Array<{ id: number; nome: string; itens: Array<{ produtoId: number; produtoNome?: string; quantidadePorUnidade: number }> }>;
   itensRascunho: Array<{ produtoId: number; produtoNome?: string; quantidade: number }>;
 }> {
   const params = new URLSearchParams({ clienteId: String(clienteId) });
@@ -109,8 +110,30 @@ export async function fetchAdicionarItens(
     cliente: cliente ? { id: Number(cliente.id), nome: String(cliente.nome) } : { id: clienteId, nome: "" },
     clienteId: (data.clienteId ?? data.ClienteId ?? clienteId) as number,
     produtosFiltrados: (data.produtosFiltrados ?? data.ProdutosFiltrados ?? []) as Array<{ id: number; nome: string; [k: string]: unknown }>,
+    compilados: mapCompiladosFromApi(data.compilados ?? data.Compilados),
     itensRascunho: (data.itensRascunho ?? data.ItensRascunho ?? []) as Array<{ produtoId: number; produtoNome?: string; quantidade: number }>,
   };
+}
+
+function mapCompiladosFromApi(raw: unknown): Array<{
+  id: number;
+  nome: string;
+  itens: Array<{ produtoId: number; produtoNome?: string; quantidadePorUnidade: number }>;
+}> {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((c) => {
+    const row = c as Record<string, unknown>;
+    const itensRaw = (row.itens ?? row.Itens ?? []) as Array<Record<string, unknown>>;
+    return {
+      id: Number(row.id ?? row.Id),
+      nome: String(row.nome ?? row.Nome ?? ""),
+      itens: itensRaw.map((i) => ({
+        produtoId: Number(i.produtoId ?? i.ProdutoId),
+        produtoNome: String(i.produtoNome ?? i.ProdutoNome ?? ""),
+        quantidadePorUnidade: Number(i.quantidadePorUnidade ?? i.QuantidadePorUnidade),
+      })),
+    };
+  });
 }
 
 /** POST api/encomendas/adicionar-item — adiciona ao rascunho (session) */
@@ -145,7 +168,58 @@ export async function postAdicionarItem(
     const err = await res.json().catch(() => ({}));
     throw new Error((err as { error?: string }).error ?? `Adicionar-item: ${res.status}`);
   }
-  return res.json();
+  const data = (await res.json()) as Record<string, unknown>;
+  const rawDraft = (data.draft ?? data.Draft) as { itens?: unknown[]; Itens?: unknown[]; clienteId?: number; ClienteId?: number } | undefined;
+  return {
+    draft: {
+      clienteId: Number(rawDraft?.clienteId ?? rawDraft?.ClienteId ?? params.clienteId),
+      itens: itensFromDraft(rawDraft),
+    },
+    message: String(data.message ?? data.Message ?? ""),
+  };
+}
+
+/** POST api/encomendas/adicionar-compilado — expande atalho para produtos no rascunho */
+export async function postAdicionarCompilado(
+  token: string,
+  params: {
+    clienteId: number;
+    compiladoId: number;
+    quantidade: number;
+    pesquisa?: string;
+    classificacao?: string;
+    grupoCompatibilidade?: string;
+    filtroTecnico?: string;
+    calibre?: string;
+  }
+): Promise<{ draft: { clienteId: number; itens: Array<{ produtoId: number; produtoNome?: string; quantidade: number }> }; message: string }> {
+  const q = new URLSearchParams();
+  q.set("clienteId", String(params.clienteId));
+  q.set("compiladoId", String(params.compiladoId));
+  q.set("quantidade", String(params.quantidade));
+  if (params.pesquisa) q.set("pesquisa", params.pesquisa);
+  if (params.classificacao) q.set("classificacao", params.classificacao);
+  if (params.grupoCompatibilidade) q.set("grupoCompatibilidade", params.grupoCompatibilidade);
+  if (params.filtroTecnico) q.set("filtroTecnico", params.filtroTecnico);
+  if (params.calibre) q.set("calibre", params.calibre);
+  const res = await fetch(`${apiPath("api/encomendas")}/adicionar-compilado?${q}`, {
+    method: "POST",
+    headers: authHeaders(token),
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error ?? `Adicionar-compilado: ${res.status}`);
+  }
+  const data = (await res.json()) as Record<string, unknown>;
+  const rawDraft = (data.draft ?? data.Draft) as { itens?: unknown[]; Itens?: unknown[]; clienteId?: number; ClienteId?: number } | undefined;
+  return {
+    draft: {
+      clienteId: Number(rawDraft?.clienteId ?? rawDraft?.ClienteId ?? params.clienteId),
+      itens: itensFromDraft(rawDraft),
+    },
+    message: String(data.message ?? data.Message ?? ""),
+  };
 }
 
 /** POST api/encomendas/remover-item — remove do rascunho (session) */
@@ -175,7 +249,14 @@ export async function postRemoverItem(
     credentials: "include",
   });
   if (!res.ok) throw new Error(`Remover-item: ${res.status}`);
-  return res.json();
+  const data = (await res.json()) as Record<string, unknown>;
+  const rawDraft = (data.draft ?? data.Draft) as { itens?: unknown[]; Itens?: unknown[]; clienteId?: number; ClienteId?: number } | undefined;
+  return {
+    draft: {
+      clienteId: Number(rawDraft?.clienteId ?? rawDraft?.ClienteId ?? params.clienteId),
+      itens: itensFromDraft(rawDraft),
+    },
+  };
 }
 
 /** POST api/encomendas/submeter — cria encomenda a partir do rascunho */
@@ -202,6 +283,27 @@ export async function postSubmeter(
     throw new Error(`Erro ao registar encomenda (${res.status}).`);
   }
   return data as { encomenda: { id: number }; encomendaCriada: boolean };
+}
+
+/**
+ * Normaliza a lista de itens de um rascunho devolvido pela API.
+ * Aceita tanto `{ itens: [...] }` como `{ Itens: [...] }` (case-insensitive do servidor).
+ */
+export function itensFromDraft(
+  draft: { itens?: unknown[]; Itens?: unknown[] } | null | undefined
+): Array<{ produtoId: number; produtoNome?: string; quantidade: number }> {
+  const raw = draft?.itens ?? draft?.Itens;
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item) => {
+    const i = item as Record<string, unknown>;
+    return {
+      produtoId: Number(i.produtoId ?? i.ProdutoId ?? 0),
+      produtoNome: i.produtoNome != null || i.ProdutoNome != null
+        ? String(i.produtoNome ?? i.ProdutoNome ?? "")
+        : undefined,
+      quantidade: Number(i.quantidade ?? i.Quantidade ?? 0),
+    };
+  });
 }
 
 /** POST api/encomendas/{id}/aceitar */

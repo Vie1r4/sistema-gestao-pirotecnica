@@ -1,3 +1,4 @@
+using Finalproj.Application.Services;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
 
@@ -7,19 +8,19 @@ public sealed class DatabaseBackupHostedService : BackgroundService, IDatabaseBa
 {
     private readonly ILogger<DatabaseBackupHostedService> _logger;
     private readonly IConfiguration _configuration;
-    private readonly IHostEnvironment _hostEnvironment;
+    private readonly IArquivosRaizService _arquivos;
     private readonly DatabaseBackupOptions _options;
     private readonly SemaphoreSlim _backupLock = new(1, 1);
 
     public DatabaseBackupHostedService(
         ILogger<DatabaseBackupHostedService> logger,
         IConfiguration configuration,
-        IHostEnvironment hostEnvironment,
+        IArquivosRaizService arquivos,
         IOptions<DatabaseBackupOptions> options)
     {
         _logger = logger;
         _configuration = configuration;
-        _hostEnvironment = hostEnvironment;
+        _arquivos = arquivos;
         _options = options.Value;
     }
 
@@ -60,6 +61,30 @@ public sealed class DatabaseBackupHostedService : BackgroundService, IDatabaseBa
         }
     }
 
+    public Task<IReadOnlyList<BackupListItem>> ListBackupsAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var root = _arquivos.BackupsRoot;
+        if (!Directory.Exists(root))
+            return Task.FromResult<IReadOnlyList<BackupListItem>>(Array.Empty<BackupListItem>());
+
+        var pattern = $"{_options.PrefixoFicheiro}_*.bak";
+        var items = Directory
+            .EnumerateFiles(root, pattern, SearchOption.TopDirectoryOnly)
+            .Select(path =>
+            {
+                var info = new FileInfo(path);
+                return new BackupListItem(
+                    info.Name,
+                    info.Exists ? info.Length : 0,
+                    info.Exists ? info.CreationTimeUtc : DateTime.UtcNow);
+            })
+            .OrderByDescending(x => x.DataCriacaoUtc)
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<BackupListItem>>(items);
+    }
+
     public async Task<string> ExecuteBackupNowAsync(CancellationToken cancellationToken = default)
     {
         await _backupLock.WaitAsync(cancellationToken);
@@ -78,9 +103,10 @@ public sealed class DatabaseBackupHostedService : BackgroundService, IDatabaseBa
                 throw new InvalidOperationException("A connection string não contém o nome da base de dados (Initial Catalog).");
             }
 
+            _arquivos.GarantirPastasExistem();
             var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             var fileName = $"{_options.PrefixoFicheiro}_{dbName}_{timestamp}.bak";
-            var backupPath = Path.Combine(_hostEnvironment.ContentRootPath, fileName);
+            var backupPath = Path.Combine(_arquivos.BackupsRoot, fileName);
             var escapedPath = backupPath.Replace("'", "''");
 
             var sql = $"""
@@ -116,9 +142,12 @@ public sealed class DatabaseBackupHostedService : BackgroundService, IDatabaseBa
             return;
         }
 
-        var root = _hostEnvironment.ContentRootPath;
+        var root = _arquivos.BackupsRoot;
         var pattern = $"{_options.PrefixoFicheiro}_*.bak";
         var limite = DateTime.Now.AddDays(-_options.RetencaoDias);
+
+        if (!Directory.Exists(root))
+            return;
 
         foreach (var file in Directory.EnumerateFiles(root, pattern, SearchOption.TopDirectoryOnly))
         {

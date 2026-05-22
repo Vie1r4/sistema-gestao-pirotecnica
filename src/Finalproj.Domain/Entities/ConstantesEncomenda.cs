@@ -13,6 +13,9 @@ public static class ConstantesEncomenda
     public const string EM_PREPARACAO = "Em preparação";
     public const string CONCLUIDA = "Concluída";
 
+    /// <summary>Valor de query/filtro da lista: encomendas ainda no fluxo operacional.</summary>
+    public const string FILTRO_ATIVAS = "Ativas";
+
     /// <summary> Estados em que o stock continua reservado (não libertar para catálogo). </summary>
     public static readonly string[] EstadosComReserva = { PENDENTE, ACEITE, EM_PREPARACAO };
 
