@@ -26,6 +26,7 @@ namespace Finalproj.Controllers
         private readonly IAdminUserAccountService _adminUserAccounts;
         private readonly IDatabaseCleanupService _databaseCleanup;
         private readonly IWebHostEnvironment _env;
+        private readonly ILogger<AdminController> _logger;
         private static readonly string[] RolesDisponiveis = ConstantesRoles.Todas;
 
         public AdminController(
@@ -35,7 +36,8 @@ namespace Finalproj.Controllers
             IAdminStatsService adminStats,
             IAdminUserAccountService adminUserAccounts,
             IDatabaseCleanupService databaseCleanup,
-            IWebHostEnvironment env)
+            IWebHostEnvironment env,
+            ILogger<AdminController> logger)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -44,6 +46,7 @@ namespace Finalproj.Controllers
             _adminUserAccounts = adminUserAccounts;
             _databaseCleanup = databaseCleanup;
             _env = env;
+            _logger = logger;
         }
 
         /// <summary>Dashboard Admin.</summary>
@@ -255,18 +258,41 @@ namespace Finalproj.Controllers
         public async Task<IActionResult> ClearAllData(CancellationToken cancellationToken = default)
         {
             if (!_env.IsDevelopment())
-                return NotFound();
+                return NotFound(new { error = "Limpeza de dados só está disponível em ambiente de desenvolvimento." });
 
-            await _databaseCleanup.ClearApplicationDataAsync(cancellationToken);
-
-            var users = _userManager.Users.ToList();
-            foreach (var user in users)
+            try
             {
-                await _userManager.RemoveFromRolesAsync(user, await _userManager.GetRolesAsync(user));
-                await _userManager.DeleteAsync(user);
-            }
+                _logger.LogWarning(
+                    "clear-all-data: utilizador {UserId} ({Email}) em Development.",
+                    _userManager.GetUserId(User),
+                    User.Identity?.Name);
 
-            return Ok(new { message = "Todos os dados e contas foram apagados." });
+                await _databaseCleanup.ClearAllForResetAsync(cancellationToken);
+
+                foreach (var user in _userManager.Users.ToList())
+                {
+                    await _userManager.RemoveFromRolesAsync(user, await _userManager.GetRolesAsync(user));
+                    await _userManager.DeleteAsync(user);
+                }
+
+                foreach (var role in _roleManager.Roles.ToList())
+                    await _roleManager.DeleteAsync(role);
+
+                foreach (var roleName in RolesDisponiveis)
+                    await _roleManager.CreateAsync(new IdentityRole(roleName));
+
+                var totalBackups = await _databaseBackupService.CountBackupsAsync(cancellationToken);
+                return Ok(new
+                {
+                    message = "Dados, documentos e contas apagados. Roles repostas — pode registar um novo utilizador.",
+                    existemBackupsAnteriores = totalBackups > 0,
+                    totalBackups
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
 
         /// <summary>
@@ -277,29 +303,120 @@ namespace Finalproj.Controllers
         public async Task<IActionResult> ListBackups(CancellationToken cancellationToken = default)
         {
             var items = await _databaseBackupService.ListBackupsAsync(cancellationToken);
+            var semContas = !_userManager.Users.Any();
+            var resumo = await _databaseBackupService.GetBackupSummaryAsync(semContas, cancellationToken);
             return Ok(new
             {
                 items = items.Select(b => new
                 {
                     nomeFicheiro = b.NomeFicheiro,
                     tamanhoBytes = b.TamanhoBytes,
-                    dataCriacao = b.DataCriacaoUtc
-                })
+                    dataCriacao = b.DataCriacaoUtc,
+                    temDocumentos = b.TemDocumentos,
+                    nomeFicheiroDocumentos = b.NomeFicheiroDocumentos,
+                    tamanhoDocumentosBytes = b.TamanhoDocumentosBytes
+                }),
+                resumo = new
+                {
+                    total = resumo.Total,
+                    semContasNaBd = resumo.SemContasNaBd,
+                    backupsDeInstalacaoAnterior = resumo.BackupsDeInstalacaoAnterior
+                }
             });
+        }
+
+        /// <summary>Apaga um backup (.bak e ZIP de documentos associado).</summary>
+        [HttpDelete("backups/{nomeFicheiro}")]
+        public async Task<IActionResult> DeleteBackup(string nomeFicheiro, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var nome = nomeFicheiro.Trim();
+                _logger.LogWarning(
+                    "Backup DELETE: {Ficheiro} por {UserId}.",
+                    nome,
+                    _userManager.GetUserId(User));
+
+                await _databaseBackupService.DeleteBackupAsync(nome, cancellationToken);
+                return Ok(new { message = "Backup apagado." });
+            }
+            catch (FileNotFoundException)
+            {
+                return NotFound(new { error = "Backup não encontrado." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
 
         [HttpPost("backups/run")]
         public async Task<IActionResult> RunBackupNow(CancellationToken cancellationToken = default)
         {
-            var backupPath = await _databaseBackupService.ExecuteBackupNowAsync(cancellationToken);
-            var info = new FileInfo(backupPath);
-
-            return Ok(new
+            try
             {
-                message = "Backup executado com sucesso.",
-                nomeFicheiro = info.Name,
-                tamanhoBytes = info.Exists ? info.Length : 0
-            });
+                _logger.LogInformation("Backup RUN manual por {UserId}.", _userManager.GetUserId(User));
+                var backupPath = await _databaseBackupService.ExecuteBackupNowAsync(cancellationToken);
+                var info = new FileInfo(backupPath);
+                var uploadsZipPath = backupPath.Replace(".bak", "_uploads.zip", StringComparison.OrdinalIgnoreCase);
+                var uploadsInfo = System.IO.File.Exists(uploadsZipPath) ? new FileInfo(uploadsZipPath) : null;
+
+                return Ok(new
+                {
+                    message = "Backup completo criado (base de dados + documentos).",
+                    nomeFicheiro = info.Name,
+                    tamanhoBytes = info.Exists ? info.Length : 0,
+                    nomeFicheiroDocumentos = uploadsInfo?.Name,
+                    tamanhoDocumentosBytes = uploadsInfo?.Exists == true ? uploadsInfo.Length : 0
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        /// <summary>Descarrega .bak ou ZIP de documentos (_uploads.zip) da pasta de backups (apenas Admin).</summary>
+        [HttpGet("backups/{nomeFicheiro}/download")]
+        public IActionResult DownloadBackup(string nomeFicheiro, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var path = _databaseBackupService.ResolveBackupFullPath(nomeFicheiro);
+            return PhysicalFile(path, "application/octet-stream", Path.GetFileName(path), enableRangeProcessing: true);
+        }
+
+        /// <summary>Restaura BD (.bak) e documentos (ZIP associado), se existir.</summary>
+        [HttpPost("backups/restore")]
+        public async Task<IActionResult> RestoreBackup(
+            [FromBody] RestoreBackupRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(request.NomeFicheiro))
+                return BadRequest(new { error = "Indique o ficheiro de backup." });
+
+            try
+            {
+                var nome = request.NomeFicheiro.Trim();
+                _logger.LogWarning(
+                    "Backup RESTORE: {Ficheiro} por {UserId} — substitui BD e Uploads.",
+                    nome,
+                    _userManager.GetUserId(User));
+
+                await _databaseBackupService.RestoreFromBackupAsync(nome, cancellationToken);
+                return Ok(new
+                {
+                    message = "Backup completo restaurado (base de dados e documentos). Inicie sessão novamente.",
+                    nomeFicheiro = Path.GetFileName(request.NomeFicheiro)
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
 
         private IActionResult MapAccountResult(

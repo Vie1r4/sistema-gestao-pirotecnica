@@ -1,12 +1,9 @@
 /**
- * Limpeza de todos os dados da aplicação (apenas para testes).
- * - clearAllDataAndRedirect: API Admin (POST api/admin/clear-all-data)
- * - homeLimparDadosAndRedirect: API Home (POST api/home/limpar-dados) — apaga dados, recria roles, termina sessão
+ * Limpeza de todos os dados da aplicação (apenas desenvolvimento, via Admin API).
  */
 
 import { getToken } from "@/app/lib/auth";
 import { clearAllDataApi } from "@/app/lib/admin";
-import { postLimparDados } from "@/app/lib/home";
 
 const LOCAL_KEYS = [
   "token",
@@ -32,7 +29,7 @@ const LOCAL_KEYS = [
 
 const SESSION_KEYS = ["pirofafe-encomenda-draft"];
 
-function clearLocalAndRedirect(): void {
+function clearLocalStorage(): void {
   try {
     for (const key of LOCAL_KEYS) {
       localStorage.removeItem(key);
@@ -40,40 +37,26 @@ function clearLocalAndRedirect(): void {
     for (const key of SESSION_KEYS) {
       sessionStorage.removeItem(key);
     }
-  } catch {}
-  window.location.href = "/";
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
- * Limpa todos os dados: chama a API Admin para apagar a base de dados e contas;
- * depois limpa localStorage/sessionStorage e redireciona para a página inicial.
+ * Limpa BD, documentos Uploads, contas e roles (recriadas no servidor); depois limpa o browser e redireciona.
  */
-export async function clearAllDataAndRedirect(): Promise<void> {
-  if (typeof window === "undefined") return;
-  const token = getToken();
-  if (token) {
-    try {
-      await clearAllDataApi(token);
-    } catch {
-      // API em baixo, 403 ou CORS: mesmo assim limpamos o cliente
-    }
+export async function clearAllDataAndRedirect(): Promise<{ message: string }> {
+  if (typeof window === "undefined") {
+    return { message: "" };
   }
-  clearLocalAndRedirect();
-}
 
-/**
- * Limpa dados via API Home (apaga utilizadores e dados, recria roles, termina sessão);
- * depois limpa dados locais e redireciona.
- */
-export async function homeLimparDadosAndRedirect(): Promise<void> {
-  if (typeof window === "undefined") return;
   const token = getToken();
-  if (token) {
-    try {
-      await postLimparDados(token);
-    } catch {
-      // API em baixo ou CORS: mesmo assim limpamos o cliente
-    }
+  if (!token) {
+    throw new Error("Sessão em falta. Inicie sessão como Admin.");
   }
-  clearLocalAndRedirect();
+
+  const result = await clearAllDataApi(token);
+  clearLocalStorage();
+  window.location.href = "/?cleared=1";
+  return result;
 }

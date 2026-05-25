@@ -765,9 +765,15 @@ public sealed class LogSistemaRepository(FinalprojContext context) : ILogSistema
         if (!string.IsNullOrWhiteSpace(entidadeFiltro))
             query = ApplyEntidadeFiltro(query, entidadeFiltro.Trim());
         if (dataInicio.HasValue)
-            query = query.Where(l => l.Timestamp >= dataInicio.Value);
+        {
+            var inicio = DateTime.SpecifyKind(dataInicio.Value.Date, DateTimeKind.Utc);
+            query = query.Where(l => l.Timestamp >= inicio);
+        }
         if (dataFim.HasValue)
-            query = query.Where(l => l.Timestamp < dataFim.Value.Date.AddDays(1));
+        {
+            var fimExclusivo = DateTime.SpecifyKind(dataFim.Value.Date.AddDays(1), DateTimeKind.Utc);
+            query = query.Where(l => l.Timestamp < fimExclusivo);
+        }
         var total = await query.CountAsync(cancellationToken);
         var rows = await query.Skip((pagina - 1) * itensPorPagina)
             .Take(itensPorPagina)

@@ -4,6 +4,7 @@ using Finalproj.Application.DTOs;
 using Finalproj.Application.Features.Home.DTOs;
 using Finalproj.Application.Features.Home.Interfaces;
 using Finalproj.Application.Services.Interfaces;
+using Finalproj.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
@@ -98,24 +99,34 @@ namespace Finalproj.Controllers
         }
 
         /// <summary>
-        /// Confirmação para apagar todos os dados do site (contas e dados). Uso em desenvolvimento.
+        /// Apagar todos os dados (legado). Desativado em produção — usar POST api/admin/clear-all-data em Development.
         /// </summary>
         [HttpGet("limpar-dados")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = ConstantesRoles.Admin)]
         public IActionResult LimparDados()
         {
-            return Ok(new { message = "Use POST api/home/limpar-dados para confirmar a limpeza de todos os dados. A sessão será terminada." });
+            if (!_env.IsDevelopment())
+                return NotFound();
+
+            return Ok(new { message = "Use POST api/home/limpar-dados para confirmar (apenas Development). Prefira Definições → Limpar tudo." });
         }
 
         [HttpPost("limpar-dados")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = ConstantesRoles.Admin)]
         public async Task<IActionResult> LimparDadosConfirmar(CancellationToken cancellationToken = default)
         {
+            if (!_env.IsDevelopment())
+                return NotFound();
+
+            _logger.LogWarning("POST api/home/limpar-dados invocado por {UserId}.", _userManager.GetUserId(User));
+
+            await _databaseCleanup.ClearAllForResetAsync(cancellationToken);
+
             foreach (var user in _userManager.Users.ToList())
                 await _userManager.DeleteAsync(user);
 
             foreach (var role in _roleManager.Roles.ToList())
                 await _roleManager.DeleteAsync(role);
-
-            await _databaseCleanup.ClearApplicationDataAsync(cancellationToken);
 
             foreach (var roleName in RolesDisponiveis)
                 await _roleManager.CreateAsync(new IdentityRole(roleName));

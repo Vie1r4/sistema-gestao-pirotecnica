@@ -423,40 +423,135 @@ export async function deleteUtilizador(token: string, id: string): Promise<void>
 }
 
 /** POST api/admin/clear-all-data — apaga todos os dados e contas (apenas testes). Requer Admin. */
-export async function clearAllDataApi(token: string): Promise<void> {
+export async function clearAllDataApi(token: string): Promise<{ message: string }> {
   const res = await fetch(`${apiPath("api/admin")}/clear-all-data`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
   });
   if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
-  if (!res.ok) throw new Error(`Erro ${res.status}`);
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) {
+    throw new Error(String(data.error ?? data.Error ?? `Erro ${res.status}`));
+  }
+  return { message: String(data.message ?? data.Message ?? "Dados limpos.") };
 }
 
 export type BackupResult = {
   message: string;
   nomeFicheiro: string;
   tamanhoBytes: number;
+  nomeFicheiroDocumentos?: string;
+  tamanhoDocumentosBytes?: number;
 };
 
 export type BackupListItem = {
   nomeFicheiro: string;
   tamanhoBytes: number;
   dataCriacao: string;
+  temDocumentos: boolean;
+  nomeFicheiroDocumentos?: string;
+  tamanhoDocumentosBytes: number;
 };
 
-/** GET api/admin/backups — lista backups na pasta configurada */
-export async function fetchBackups(token: string): Promise<BackupListItem[]> {
+export type BackupCatalogResumo = {
+  total: number;
+  semContasNaBd: boolean;
+  backupsDeInstalacaoAnterior: boolean;
+};
+
+export type BackupsPageData = {
+  items: BackupListItem[];
+  resumo: BackupCatalogResumo;
+};
+
+function mapBackupItem(b: Record<string, unknown>): BackupListItem {
+  return {
+    nomeFicheiro: String(b.nomeFicheiro ?? b.NomeFicheiro ?? ""),
+    tamanhoBytes: Number(b.tamanhoBytes ?? b.TamanhoBytes ?? 0),
+    dataCriacao: String(b.dataCriacao ?? b.DataCriacao ?? ""),
+    temDocumentos: Boolean(b.temDocumentos ?? b.TemDocumentos),
+    nomeFicheiroDocumentos: b.nomeFicheiroDocumentos ?? b.NomeFicheiroDocumentos
+      ? String(b.nomeFicheiroDocumentos ?? b.NomeFicheiroDocumentos)
+      : undefined,
+    tamanhoDocumentosBytes: Number(b.tamanhoDocumentosBytes ?? b.TamanhoDocumentosBytes ?? 0),
+  };
+}
+
+/** GET api/admin/backups — lista backups e resumo (BD vazia vs ficheiros antigos em disco) */
+export async function fetchBackups(token: string): Promise<BackupsPageData> {
   const res = await fetch(`${apiPath("api/admin")}/backups`, { headers: authHeaders(token) });
   if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
   if (!res.ok) throw new Error(`Erro ${res.status}`);
   const raw = (await res.json()) as Record<string, unknown>;
   const arr = (raw.items ?? raw.Items ?? []) as Record<string, unknown>[];
-  if (!Array.isArray(arr)) return [];
-  return arr.map((b) => ({
-    nomeFicheiro: String(b.nomeFicheiro ?? b.NomeFicheiro ?? ""),
-    tamanhoBytes: Number(b.tamanhoBytes ?? b.TamanhoBytes ?? 0),
-    dataCriacao: String(b.dataCriacao ?? b.DataCriacao ?? ""),
-  }));
+  const r = (raw.resumo ?? raw.Resumo ?? {}) as Record<string, unknown>;
+  return {
+    items: Array.isArray(arr) ? arr.map(mapBackupItem) : [],
+    resumo: {
+      total: Number(r.total ?? r.Total ?? 0),
+      semContasNaBd: Boolean(r.semContasNaBd ?? r.SemContasNaBd),
+      backupsDeInstalacaoAnterior: Boolean(
+        r.backupsDeInstalacaoAnterior ?? r.BackupsDeInstalacaoAnterior
+      ),
+    },
+  };
+}
+
+/** DELETE api/admin/backups/{nome}.bak — apaga .bak e ZIP associado */
+export async function deleteBackup(token: string, nomeFicheiro: string): Promise<void> {
+  const nome = encodeURIComponent(nomeFicheiro);
+  const res = await fetch(`${apiPath("api/admin")}/backups/${nome}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) {
+    throw new Error(String(data.error ?? data.Error ?? `Erro ${res.status}`));
+  }
+}
+
+/** GET api/admin/backups/{nome}/download — descarrega .bak ou ZIP de documentos */
+export async function downloadBackup(token: string, nomeFicheiro: string): Promise<void> {
+  const nome = encodeURIComponent(nomeFicheiro);
+  const res = await fetch(`${apiPath("api/admin")}/backups/${nome}/download`, {
+    headers: authHeaders(token),
+  });
+  if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
+  if (!res.ok) throw new Error(`Erro ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nomeFicheiro;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export type RestoreBackupResult = {
+  message: string;
+  nomeFicheiro: string;
+};
+
+/** POST api/admin/backups/restore — substitui a BD pelo backup indicado */
+export async function restoreBackup(token: string, nomeFicheiro: string): Promise<RestoreBackupResult> {
+  const res = await fetch(`${apiPath("api/admin")}/backups/restore`, {
+    method: "POST",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify({ nomeFicheiro }),
+  });
+  if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) {
+    throw new Error(String(data.error ?? data.Error ?? `Erro ${res.status}`));
+  }
+  return {
+    message: String(data.message ?? data.Message ?? "Restauro concluído."),
+    nomeFicheiro: String(data.nomeFicheiro ?? data.NomeFicheiro ?? nomeFicheiro),
+  };
 }
 
 /** POST api/admin/backups/run — executa backup manual imediato. Requer Admin. */
@@ -466,11 +561,16 @@ export async function runBackupNow(token: string): Promise<BackupResult> {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
-  if (!res.ok) throw new Error(`Erro ${res.status}`);
-  const data = (await res.json()) as Record<string, unknown>;
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) {
+    throw new Error(String(data.error ?? data.Error ?? `Erro ${res.status}`));
+  }
+  const docName = data.nomeFicheiroDocumentos ?? data.NomeFicheiroDocumentos;
   return {
     message: String(data.message ?? data.Message ?? ""),
     nomeFicheiro: String(data.nomeFicheiro ?? data.NomeFicheiro ?? ""),
     tamanhoBytes: Number(data.tamanhoBytes ?? data.TamanhoBytes ?? 0),
+    nomeFicheiroDocumentos: docName ? String(docName) : undefined,
+    tamanhoDocumentosBytes: Number(data.tamanhoDocumentosBytes ?? data.TamanhoDocumentosBytes ?? 0),
   };
 }

@@ -49,6 +49,13 @@ Finalproj/
 - **`apps/web/`:** React 19, TanStack Query, Tailwind, Leaflet; chamadas API em `app/lib/*Api.ts`.
 - Ver [CONTRIBUTING.md](CONTRIBUTING.md) para convenções e checklist de PR.
 
+## Painel Admin (frontend)
+
+Rotas em `apps/web/app/admin/`. Documentação: [Docs/frontend/PAINEL-ADMIN.md](Docs/frontend/PAINEL-ADMIN.md).
+
+- **Limpar todos os dados** (UI): só visível fora de `production`, salvo `NEXT_PUBLIC_ALLOW_CLEAR_DATA=true` em `.env.local` (a API continua a exigir ambiente Development).
+- **Teste de restauro RPO:** [Docs/OPERACOES.md](Docs/OPERACOES.md) e `scripts/test-restore-backup-rpo.ps1`.
+
 ## Testes
 
 ```bash

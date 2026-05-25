@@ -48,9 +48,23 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     private sealed class NoOpDatabaseBackupService : IDatabaseBackupService
     {
         public Task<string> ExecuteBackupNowAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult("noop");
+            Task.FromResult("noop.bak");
 
         public Task<IReadOnlyList<BackupListItem>> ListBackupsAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<BackupListItem>>(Array.Empty<BackupListItem>());
+
+        public string ResolveBackupFullPath(string nomeFicheiro) => nomeFicheiro;
+
+        public Task RestoreFromBackupAsync(string nomeFicheiro, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task<int> CountBackupsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(0);
+
+        public Task<BackupCatalogSummary> GetBackupSummaryAsync(bool semContasNaBd, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new BackupCatalogSummary(0, semContasNaBd, false));
+
+        public Task DeleteBackupAsync(string nomeFicheiroBak, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 }

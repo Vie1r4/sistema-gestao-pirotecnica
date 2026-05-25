@@ -16,7 +16,21 @@ Resumo do que está implementado. **Maio 2026.**
 Endpoints: `POST /api/auth/login`, `refresh`, `logout`, `GET /api/auth/me` (roles + **permissions**).  
 Política de palavra-passe (Identity, `IPasswordValidationService`): mín. **8** caracteres, maiúsculas, minúsculas, algarismo e carácter especial — aplicada em `reset-password`, `registar-primeiro-utilizador`, criação de conta de funcionário e `alterar-password`. Reset: token Base64Url no link; `PasswordResetTokenDecoder` tolera espaços/quebras no URL; após sucesso confirma o email (`EmailConfirmed`) para permitir login.
 
-**Bootstrap / enumeração:** `GET /api/auth/existem-utilizadores` devolve apenas `primeiroRegistoDisponivel` (não `existem`). Ativo só com `Bootstrap:AllowFirstUserRegistration=true` e sem contas; rate limit **5/min** (`bootstrap`). Em produção manter `AllowFirstUserRegistration=false` após o primeiro admin.
+**Bootstrap / enumeração:** `GET /api/auth/existem-utilizadores` devolve `primeiroRegistoDisponivel` e, só quando não há contas, `existemBackupsAnteriores` (boolean — **sem** contagem nem nomes de ficheiros). Ativo só com `Bootstrap:AllowFirstUserRegistration=true`. Rate limits separados: `bootstrap-status` (60/min) e `bootstrap-register` (15/min). Em produção manter `AllowFirstUserRegistration=false` após o primeiro admin.
+
+**Backups e reset (Admin / Development):**
+
+| Operação | Quem | Ambiente | Notas |
+|----------|------|----------|--------|
+| Listar / criar / descarregar / apagar / restaurar backup | Role **Admin** (JWT + `PodeAcederAdmin`) | Produção e Dev | Rate limit `admin` (30/min). Paths validados (`Path.GetFileName`, prefixo `db-backup_`, sem `..`). |
+| `POST clear-all-data` | Admin | **Só Development** | Apaga BD, Uploads, contas, tokens; repõe roles. **Não** apaga `.bak` em `PirofafeData/Backups`. Log de auditoria. |
+| `POST home/limpar-dados` | Admin | **Só Development** (legado) | Mesmo objetivo; preferir `clear-all-data` na UI. |
+| Restauro ZIP documentos | Admin | Prod/Dev | Extração com validação anti path-traversal no ZIP. |
+| Leitura de disco (`.bak`) | API no **servidor** | — | Pasta `DadosLocais` / `PirofafeData/Backups`; o browser nunca acede ao disco do cliente. |
+
+Riscos: conta Admin comprometida → restauro ou download de backups; mitigar com passwords fortes, poucos admins e backups externos. Restauro substitui a BD em uso (`RESTORE DATABASE`).
+
+**RPO/RTO:** objetivos e cenários documentados em [OPERACOES.md — RPO e RTO](OPERACOES.md#rpo-e-rto-objetivos-de-recuperação) (RPO ≤ 24 h automático; RTO alvo ~30–60 min; testes de restauro recomendados).
 
 **Email de conta nova (funcionário):** o corpo inclui aviso para alterar a palavra-passe imediatamente após o primeiro login (Perfil).
 
@@ -28,7 +42,7 @@ Políticas em `src/Finalproj.Api/Authorization/PoliticasAutorizacao.cs`. Matriz 
 
 Testes de integração cobrem 401/403 e IDOR nos recursos sensíveis. Novo endpoint com dados por ID → acrescentar teste no mesmo PR.
 
-Outras medidas: rate limiting em auth/admin; `clear-all-data` só em Development; backups Admin sem expor paths absolutos sensíveis.
+Outras medidas: rate limiting em auth/admin/bootstrap; limpeza total só em Development; backups Admin sem paths absolutos na API.
 
 ---
 

@@ -14,4 +14,9 @@ public sealed class DatabaseBackupOptions
 
     // Quantos dias manter os backups na pasta de backups.
     public int RetencaoDias { get; set; } = 30;
+
+    /// <summary>
+    /// COMPRESSION no BACKUP DATABASE (requer SQL Server Standard+). LocalDB/Express falham — manter false em dev.
+    /// </summary>
+    public bool UsarCompressao { get; set; }
 }

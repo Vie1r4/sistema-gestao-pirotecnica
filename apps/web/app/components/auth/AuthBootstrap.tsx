@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { getToken, refreshAccessToken } from "@/app/lib/auth";
 import { isRotaSemBootstrapAuth } from "@/app/lib/publicRoutes";
+import AuthLoadingShell from "./AuthLoadingShell";
 
 type AuthBootstrapProps = {
   children: ReactNode;
@@ -28,11 +29,7 @@ export default function AuthBootstrap({ children }: AuthBootstrapProps) {
   }, [pathname]);
 
   if (!ready) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fafafa] dark:bg-[#0a0a0a]">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent" />
-      </div>
-    );
+    return <AuthLoadingShell />;
   }
 
   return <>{children}</>;

@@ -4,18 +4,117 @@ Backups da base de dados e observabilidade HTTP. **Maio 2026.**
 
 ---
 
-## Backups SQL Server
+## Backups completos (BD + documentos)
 
 `DatabaseBackupHostedService` em `src/Finalproj.Infrastructure` — backup diário + retenção.
+
+Cada execução gera **dois ficheiros** com o mesmo carimbo de data em `{ContentRoot}/PirofafeData/Backups/`:
+
+| Ficheiro | Conteúdo |
+|----------|----------|
+| `{Prefixo}_{Bd}_{timestamp}.bak` | Base de dados SQL (dados da app, contas, paths na BD) |
+| `{Prefixo}_{Bd}_{timestamp}_uploads.zip` | Pasta `PirofafeData/Uploads/` (PDFs e documentos no disco) |
 
 | Aspeto | Detalhe |
 |--------|---------|
 | Agendamento | Hora local configurável (`Backups:HoraDiaria`, etc.) |
-| Ficheiros | `.bak` em `{ContentRoot}/PirofafeData/Backups/` (`{Prefixo}_{Bd}_{timestamp}.bak`) |
-| Retenção | `Backups:RetencaoDias` — apaga ficheiros antigos com o mesmo prefixo |
+| Retenção | `Backups:RetencaoDias` — apaga `.bak` e o ZIP associado |
 | Manual | `POST /api/admin/backups/run` (Admin) |
+| Descarregar | `GET /api/admin/backups/{nome}/download` — `.bak` ou `_uploads.zip` (Admin) |
+| Restaurar | `POST /api/admin/backups/restore` com `{ nomeFicheiro }` do `.bak` — `RESTORE DATABASE` + extração do ZIP de documentos (Admin) |
+
+Backups antigos **só com `.bak`** (sem ZIP) ainda restauram a BD; documentos não são repostos.
+
+---
+
+## RPO e RTO (objetivos de recuperação)
+
+Definições usadas na apresentação do projeto e na operação do Pirofafe.
+
+| Sigla | Significado | Pergunta que responde |
+|-------|-------------|------------------------|
+| **RPO** (Recovery Point Objective) | Ponto de recuperação — quanto **dado se perde no máximo** se houver falha agora | «Até onde voltamos no tempo?» |
+| **RTO** (Recovery Time Objective) | Tempo de recuperação — quanto demora até a app voltar a ser **utilizável** após decisão de restaurar | «Quanto tempo até estar outra vez a trabalhar?» |
+
+Isto **não** é alta disponibilidade (o sistema não falha “sem se notar”). É **backup + restauro manual** por um administrador.
+
+### O que o sistema garante hoje (análise honesta)
+
+| Mecanismo | Implementação | Efeito no RPO |
+|-----------|---------------|---------------|
+| Backup **automático** | `DatabaseBackupHostedService` — 1× por dia, hora local (`Backups:HoraDiaria` / `MinutoDiario`, omissão **19:00**) | Perda máxima de dados ≈ **24 horas** entre dois backups automáticos consecutivos (se a API esteve ligada e o job correu) |
+| Backup **manual** | Definições → «Executar backup agora» (`POST /api/admin/backups/run`) | RPO **próximo de zero** até ao instante do backup (BD + `Uploads`) |
+| Antes de **limpar dados** | UI sugere recuperar último backup se existir `.bak` em disco | Evita apagar sem rede de segurança; não substitui backup recente |
+| **Retenção** | `Backups:RetencaoDias` (omissão **30** dias) | Permite escolher um ponto nos últimos 30 dias, não melhora o RPO do último backup |
+| **Off-site / cloud** | Não implementado | Se o disco do servidor falhar, perdem-se BD, `Uploads` **e** `.bak` no mesmo sítio |
+
+| Fase do restauro | Efeito no RTO (ordem de grandeza, BD de desenvolvimento / poucos GB) |
+|------------------|-----------------------------------------------------------------------------|
+| Administrador decide restaurar e inicia sessão Admin | Minutos (depende da pessoa) |
+| `RESTORE DATABASE` (SQL Server) | ~5–30 min (tamanho da BD, disco, LocalDB vs servidor) |
+| Extração do ZIP para `Uploads` | ~1–10 min (tamanho dos documentos) |
+| Utilizadores voltam a fazer login (tokens/sessões invalidados pelo estado da BD) | ~5 min |
+| **Total alvo (RTO)** | **~30–60 minutos** em ambiente de projeto; produção com BD grande pode ser **horas** |
+
+### Objetivos acordados para o Pirofafe (MVP / projeto)
+
+Valores **alvo** com o desenho atual — não SLA contratual.
+
+| Cenário | RPO alvo | RTO alvo | Como cumprir |
+|---------|----------|----------|--------------|
+| **Operação normal** (só backup automático) | ≤ **24 h** | ≤ **60 min** | Manter API ligada para o job diário; em falha, restaurar o `.bak` mais recente em Definições |
+| **Antes de limpar dados, migração ou demo crítica** | ≤ **5 min** | ≤ **60 min** | Backup **manual** imediato; confirmar entrada no histórico (BD + docs) |
+| **Após «Limpar tudo» (Development)** | Depende do último `.bak` em disco (pode ser de **antes** do reset) | ≤ **60 min** | Criar novo admin → Definições → **Restaurar** o backup desejado (não apagar `.bak` se precisar desse ponto) |
+
+**Janela de perda de dados (exemplo):** backup automático às 19:00. Falha às 18:00 do dia seguinte → no máximo perdem-se ~23 h de alterações desde o backup anterior. Falha às 19:01 → perda ≈ 24 h.
+
+### Cenários de falha (o que cobre / não cobre)
+
+| Cenário | Coberto? | Nota |
+|---------|----------|------|
+| Erro humano (apagar registo, limpar BD em dev) | ✅ Parcial | Restauro do último `.bak` + ZIP; backup manual prévio melhora RPO |
+| Corrupção da BD | ✅ Parcial | Restauro do último backup **anterior** à corrupção |
+| Disco do servidor / pasta `PirofafeData` perdido | ❌ | Backups no **mesmo** servidor; plano futuro: cópia **off-site** |
+| API desligada semanas (job diário não corre) | ❌ | RPO degradado — último `.bak` pode estar velho |
+| Necessidade de zero downtime | ❌ | `RESTORE` implica indisponibilidade durante o restauro |
+
+### Testes de restauro (processo recomendado)
+
+Backup sem teste de restauro é **não fiável**. Processo mínimo para o projeto:
+
+| Frequência | Quem | Passos |
+|------------|------|--------|
+| **Antes de apresentação / release** | Admin (dev) | 1) Criar dado de teste + PDF em `Uploads` → 2) Backup manual → 3) Alterar/apagar dado → 4) Restaurar o `.bak` → 5) Confirmar dado e PDF |
+| **Mensal** (se o sistema estiver em uso contínuo) | Admin | Repetir o mesmo em ambiente de teste ou após horário de baixo uso |
+| **Após mudança de versão** (migrações EF) | Dev | Restauro de um `.bak` pré-migração numa cópia da BD de teste |
+
+Registar data e resultado (ex.: linha na tabela abaixo ou issue «Restore test OK»).
+
+| Data | Versão / commit | Backup usado | BD + docs OK? | Observações |
+|------|-----------------|--------------|---------------|-------------|
+| 2026-05-25 | `9baf5b3` | `db-backup_FinalprojContext_20260525_015203.bak` (+ `_uploads.zip`) | **Sim** | Script `scripts/test-restore-backup-rpo.ps1`: cliente + PDF → backup manual → DELETE → restore → cliente e PDF `%PDF` OK (~12 s). |
+
+### Como melhorar RPO/RTO (evolução)
+
+| Medida | Impacto principal |
+|--------|-------------------|
+| Backup manual antes de operações críticas | RPO ↓ |
+| Aumentar frequência do job (ex. 12/12 h) — requer config/código | RPO ↓ |
+| Cópia off-site dos ficheiros em `Backups/` | Sobrevivência se disco morrer (não reduz RPO por si) |
+| Encriptação dos `.bak`/ZIP | Segurança, não RPO/RTO |
+| BD de teste só para `RESTORE` ensaios | RTO ↓ (equipa treinada) |
+
+### Frase para defesa do projeto
+
+> «Definimos RPO de até 24 horas com backup automático diário e RPO quase nulo com backup manual antes de operações críticas; o RTO alvo é cerca de uma hora para restauro completo por um administrador. O mecanismo cobre recuperação após erro operacional, não disaster recovery multi-sítio — com plano explícito de testes de restauro e evolução off-site.»
+
+---
 
 Configuração: secção **`Backups`** em `appsettings` ou variáveis `Backups__*`.
+
+| Chave | Nota |
+|-------|------|
+| `UsarCompressao` | `false` por omissão. **LocalDB / SQL Express** não suportam `COMPRESSION` no `BACKUP DATABASE` — ativar só em SQL Server Standard+ em produção. |
 
 **Produção:** considerar volume dedicado para `.bak` e cópias externas; monitorizar espaço em disco.
 

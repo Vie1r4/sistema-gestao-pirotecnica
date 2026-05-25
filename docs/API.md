@@ -123,7 +123,7 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/existem-utilizadores` | Bootstrap: `primeiroRegistoDisponivel` (público, rate limit bootstrap) |
+| GET | `/existem-utilizadores` | Bootstrap: `primeiroRegistoDisponivel`; se sem contas, `existemBackupsAnteriores` (boolean, sem contagem) |
 | POST | `/registar-primeiro-utilizador` | Regista o primeiro utilizador (Admin) |
 | POST | `/login` | Login; devolve JWT (refresh token em cookie HttpOnly) |
 | GET | `/me` | Dados do utilizador autenticado (`roles`, **`permissions`**) |
@@ -281,9 +281,12 @@ Atalhos nomeados (ex.: «Dúzia») com lista de produtos e quantidade **por unid
 | POST | `/utilizadores/{id}/confirm-email` | Marcar email como confirmado (admin) |
 | POST | `/utilizadores/{id}/send-password-reset` | Enviar link de redefinição de palavra-passe |
 | DELETE | `/utilizadores/{id}` | Eliminar |
-| GET | `/backups` | Lista ficheiros `.bak` na pasta de backups (nome, tamanho, data) |
-| POST | `/backups/run` | Executar backup manual da BD (Admin) |
-| POST | `/clear-all-data` | Limpar dados (cuidado; apenas em Development) |
+| GET | `/backups` | Lista backups + `resumo` (`semContasNaBd`, `backupsDeInstalacaoAnterior`) |
+| DELETE | `/backups/{nomeFicheiro}` | Apagar `.bak` e ZIP associado |
+| POST | `/backups/run` | Backup completo: `.bak` + ZIP de `Uploads` (Admin) |
+| GET | `/backups/{nomeFicheiro}/download` | Descarregar `.bak` ou `_uploads.zip` (Admin) |
+| POST | `/backups/restore` | Restaurar BD + documentos — body `{ "nomeFicheiro": "....bak" }` |
+| POST | `/clear-all-data` | Limpar BD, Uploads, contas e tokens; repor roles (apenas Development) |
 
 ### Home / Preferências — `/api/home`
 

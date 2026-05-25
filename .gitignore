@@ -40,6 +40,9 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+# Excepção: rota Next.js de auditoria admin (não é pasta de logs de runtime)
+!apps/web/app/admin/logs/
+!apps/web/app/admin/logs/**
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/

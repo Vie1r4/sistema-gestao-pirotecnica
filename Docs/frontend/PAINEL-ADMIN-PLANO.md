@@ -7,7 +7,7 @@
 | Tema | Decisão |
 |------|---------|
 | Âmbito do `/admin` | Só administrativo (contas, logs, sistema). Analytics operacionais ficam na home `/` para Admin/Gestor. |
-| Backups (download/restauro) | Fase posterior — revês o sistema antes. |
+| Backups (download/restauro) | ✅ Implementado (B15–B16); job diário em `DatabaseBackupHostedService`. |
 | Fase 1 vs 2 | **Primeiro** redesign visual (A). **Depois** funcionalidades (B) — priorizas tu o backlog abaixo. |
 
 **Código:** `apps/web/app/admin/` · **API:** [API.md](../API.md) (`/api/admin`) · **Estado atual:** [PAINEL-ADMIN.md](PAINEL-ADMIN.md)
@@ -84,7 +84,7 @@ flowchart LR
 
 ---
 
-### 1.4 Logs (`/admin/logs`)
+### 1.4 Logs (`/admin/logs`) — ✅
 
 | # | Tarefa | Detalhe |
 |---|--------|---------|
@@ -93,13 +93,15 @@ flowchart LR
 | 1.4.3 | Paginação | Barra fixa no fundo em desktop; tamanho de página visível. |
 | 1.4.4 | JSON | Bloco expandível com syntax legível (já existe — polish). |
 
+Implementação: [`apps/web/app/admin/logs/page.tsx`](../../apps/web/app/admin/logs/page.tsx), [`logs/AdminLogsFilters.tsx`](../../apps/web/app/admin/logs/AdminLogsFilters.tsx) (reactivo, debounce, chips activos, presets de período), [`logs/_components/LogsList.tsx`](../../apps/web/app/admin/logs/_components/LogsList.tsx).
+
 ---
 
 ### 1.5 Definições (`/admin/definicoes`)
 
 | # | Tarefa | Detalhe |
 |---|--------|---------|
-| 1.5.1 | Backups | Card único: executar + histórico (comportamento igual; só UI). Sem download/restauro. |
+| 1.5.1 | Backups | Card único: executar + histórico; download `.bak`/ZIP, restauro e apagar ficheiro. |
 | 1.5.2 | Limpeza de dados | Secção `danger zone` visual (borda vermelha, texto de aviso); manter dois botões mas com **rótulos e descrições** que expliquem Admin API vs Home API. |
 | 1.5.3 | Sobre o painel | Atualizar lista de capacidades após Fase 1 (sem prometer features do backlog). |
 
@@ -161,9 +163,9 @@ flowchart LR
 | **B12** | Indicador bootstrap “primeiro registo disponível” | `GET /api/auth/existem-utilizadores` | Não | ✅ Feito |
 | **B13** | Health / estado da API no painel | `GET /api/admin/health` + badge dashboard / card definições | **Sim** | ✅ Feito |
 | **B14** | Gestão fina de `permissions` (além das 4 roles) | Hoje só roles no Identity | **Sim** (grande) | ⏸️ Fora de âmbito MVP |
-| **B15** | Backups: download ficheiro `.bak` | Segurança, path, auth | **Sim** | ⏸️ Fase posterior |
-| **B16** | Backups: restaurar / apagar ficheiro | Muito sensível | **Sim** | ⏸️ Fase posterior |
-| **B17** | Agendamento de backups automáticos | Config + job | **Sim** | ⏸️ Fase posterior |
+| **B15** | Backups: download ficheiro `.bak` | Segurança, path, auth | **Sim** | ✅ Feito |
+| **B16** | Backups: restaurar / apagar ficheiro | Muito sensível | **Sim** | ✅ Feito |
+| **B17** | Agendamento de backups automáticos | Config + job (`Backups:HoraDiaria`) | **Sim** | ✅ Feito (hosted service) |
 | **B18** | Definições sistema (SMTP, nome app, manutenção) | Configuração centralizada | **Sim** | ⏸️ Fora de âmbito MVP |
 | **B19** | Testes E2E fluxos admin (utilizadores, logs, backup) | Playwright `admin.smoke.spec.ts` | Não | ✅ Feito |
 
@@ -185,8 +187,8 @@ flowchart LR
 |------|-----------|
 | Layout / nav | `apps/web/app/admin/layout.tsx` |
 | Dashboard | `apps/web/app/admin/page.tsx` |
-| Utilizadores | `apps/web/app/admin/utilizadores/page.tsx` |
-| Logs | `apps/web/app/admin/logs/page.tsx` |
+| Utilizadores | `apps/web/app/admin/utilizadores/page.tsx`, `_components/` |
+| Logs | `apps/web/app/admin/logs/page.tsx`, `logs/AdminLogsFilters.tsx`, `logs/_components/` |
 | Definições | `apps/web/app/admin/definicoes/page.tsx` |
 | Componentes | `apps/web/app/admin/_components/*` |
 | API client | `apps/web/app/lib/admin.ts` |
@@ -199,13 +201,13 @@ flowchart LR
 | Fase | Estado |
 |------|--------|
 | **Fase 1 — Estética (A)** | ✅ Completa (critérios de aceitação cumpridos) |
-| **Fase 2 — Backlog (B)** | ✅ Itens em âmbito implementados (B01–B13, B19) |
+| **Fase 2 — Backlog (B)** | ✅ Itens em âmbito implementados (B01–B13, B15–B17, B19) |
 | **Adiados** | B14 (permissions finas), B18 (config sistema centralizada) |
-| **Fase posterior** | B15–B17 (backups download/restauro/agendamento — conforme decisão no topo) |
+| **Fase 5 — Escala (v2)** | Paginação server-side de utilizadores; off-site backups — ver [OPERACOES.md](../OPERACOES.md) |
 
 ## Próximo passo (opcional)
 
-- Backups avançados (B15–B17) quando revires o sistema de backups.  
-- B14 / B18 se quiseres evoluir permissões ou configuração SMTP/app fora do código.
+- B14 / B18 se quiseres evoluir permissões ou configuração SMTP/app fora do código.  
+- Paginação de `GET /api/admin/utilizadores` quando o número de contas crescer.
 
 *Documento criado para acompanhar o redesign do painel Admin — maio 2026.*

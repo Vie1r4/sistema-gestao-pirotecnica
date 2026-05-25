@@ -66,6 +66,12 @@ export default function RegistarPrimeiroUtilizadorPage() {
         router.replace("/");
         return;
       }
+      if (res.status === 429) {
+        setMessage(
+          "Demasiados pedidos seguidos ao servidor. Aguarde um minuto e tente outra vez (não é um problema com a palavra-passe)."
+        );
+        return;
+      }
       setMessage(
         formatApiPasswordDetails(data) ??
           ((data.error ?? data.Error ?? "Ocorreu um erro. Tente novamente.") as string)

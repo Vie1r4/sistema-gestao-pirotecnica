@@ -5,18 +5,34 @@
 import { apiPath } from "./apiConfig";
 import { safeParseJson } from "./api";
 
-/** GET api/auth/existem-utilizadores — sem token; indica se o bootstrap do primeiro admin está disponível. */
-export async function fetchPrimeiroRegistoDisponivel(): Promise<boolean> {
+export type EstadoInstalacaoAuth = {
+  primeiroRegistoDisponivel: boolean;
+  existemBackupsAnteriores: boolean;
+};
+
+/** GET api/auth/existem-utilizadores — bootstrap + se há .bak de uma instalação anterior */
+export async function fetchEstadoInstalacaoAuth(): Promise<EstadoInstalacaoAuth> {
   const res = await fetch(apiPath("api/auth/existem-utilizadores"));
   if (!res.ok) throw new Error("http");
-  const data = (await res.json()) as {
-    primeiroRegistoDisponivel?: boolean;
-    /** @deprecated Resposta antiga; não revela enumeração. */
-    existem?: boolean;
+  const data = (await res.json()) as Record<string, unknown>;
+  const primeiro =
+    typeof data.primeiroRegistoDisponivel === "boolean"
+      ? data.primeiroRegistoDisponivel
+      : typeof data.existem === "boolean"
+        ? !data.existem
+        : false;
+  return {
+    primeiroRegistoDisponivel: primeiro,
+    existemBackupsAnteriores: Boolean(
+      data.existemBackupsAnteriores ?? data.ExistemBackupsAnteriores
+    ),
   };
-  if (typeof data.primeiroRegistoDisponivel === "boolean") return data.primeiroRegistoDisponivel;
-  if (typeof data.existem === "boolean") return !data.existem;
-  throw new Error("invalid");
+}
+
+/** GET api/auth/existem-utilizadores — sem token; indica se o bootstrap do primeiro admin está disponível. */
+export async function fetchPrimeiroRegistoDisponivel(): Promise<boolean> {
+  const estado = await fetchEstadoInstalacaoAuth();
+  return estado.primeiroRegistoDisponivel;
 }
 
 /** @deprecated Use fetchPrimeiroRegistoDisponivel — mantido para compatibilidade interna. */

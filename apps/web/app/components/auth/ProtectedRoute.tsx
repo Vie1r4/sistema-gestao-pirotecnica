@@ -6,6 +6,7 @@ import { ensureAccessToken, isAuthenticated } from "@/app/lib/auth";
 import { isRotaPublica, isRotaSemBootstrapAuth } from "@/app/lib/publicRoutes";
 import { UserProvider } from "@/app/context/UserContext";
 import RoutePermissionGuard from "./RoutePermissionGuard";
+import AuthLoadingShell from "./AuthLoadingShell";
 
 type ProtectedRouteProps = {
   children: React.ReactNode;
@@ -46,11 +47,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   }, [mounted, authReady, pathname, router]);
 
   if (!mounted || !authReady) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fafafa] dark:bg-[#0a0a0a]">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent" />
-      </div>
-    );
+    return <AuthLoadingShell />;
   }
 
   if (isRotaPublica(pathname)) {
@@ -62,11 +59,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (!isAuthenticated()) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fafafa] dark:bg-[#0a0a0a]">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent" />
-      </div>
-    );
+    return <AuthLoadingShell />;
   }
 
   return (

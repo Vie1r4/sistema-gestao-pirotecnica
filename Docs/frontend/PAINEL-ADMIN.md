@@ -28,13 +28,13 @@ Governança do sistema (contas, auditoria, backups, limpeza em testes). **Não**
 
 | `/admin` | Dashboard: KPIs horizontais no topo, **Totais de referência** (5 cartões individuais, mesmo layout), atalhos, feed de logs |
 
-| `/admin/utilizadores` | Tabela com pesquisa, filtros, **Novo utilizador** (modal), edição inline com roles, funcionário, email, confirmação e reset (`?edit={id}`, `?filtro=`) |
+| `/admin/utilizadores` | Tabela com pesquisa, filtros, **Novo utilizador** (modal), edição inline com roles, funcionário, email, confirmação e reset (`?edit={id}`, `?filtro=`). Componentes em `utilizadores/_components/` |
 
 | `/admin/utilizadores/[id]/editar` | Redireciona para `?edit=` na lista |
 
-| `/admin/logs` | Auditoria: filtros aplicados ao alterar (área, utilizador, ação com debounce, período e atalhos `ENCOMENDA`/`STOCK`/…), export CSV da página |
+| `/admin/logs` | Auditoria: filtros por **área** (`entidade`), **tipo** (`acao`), utilizador, datas, presets de período (Hoje/7d/30d); chips activos com remoção individual; debounce nos campos de texto; paginação; export CSV. Componentes: `logs/AdminLogsFilters.tsx`, `logs/_components/LogsList.tsx` |
 
-| `/admin/definicoes` | Estado do sistema (health), backup manual + histórico, zona de perigo (limpeza dev) |
+| `/admin/definicoes` | Health, **backup completo** (`.bak` + `_uploads.zip`), descarregar/restaurar/apagar, limpeza com opção de recuperar último backup. RPO/RTO e teste de restauro: [OPERACOES.md](../OPERACOES.md#testes-de-restauro-processo-recomendado) (`scripts/test-restore-backup-rpo.ps1`) |
 
 
 
@@ -70,7 +70,7 @@ Ver [API.md](../API.md) — secção `/api/admin`.
 
 
 
-Itens em âmbito **concluídos** (B01–B13, B19). Adiados: B14, B18; fase posterior: B15–B17. Ver [PAINEL-ADMIN-PLANO.md](PAINEL-ADMIN-PLANO.md).
+Itens em âmbito **concluídos** (B01–B13, B15–B17, B19). Adiados: B14, B18. Ver [PAINEL-ADMIN-PLANO.md](PAINEL-ADMIN-PLANO.md).
 
 Testes E2E: `apps/web/tests/e2e/admin.smoke.spec.ts`.
 

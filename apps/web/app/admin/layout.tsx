@@ -17,6 +17,7 @@ import { useUser } from "@/app/context/UserContext";
 import { AdminIcons } from "@/app/admin/_components/AdminIcons";
 
 import { adminTheme } from "@/app/admin/_components/adminTheme";
+import AuthLoadingShell from "@/app/components/auth/AuthLoadingShell";
 
 
 
@@ -238,15 +239,7 @@ export default function AdminLayout({
 
   if (userLoading || !token || !isAdmin) {
 
-    return (
-
-      <div className={`flex min-h-screen items-center justify-center ${adminTheme.pageBg}`}>
-
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent" />
-
-      </div>
-
-    );
+    return <AuthLoadingShell className={adminTheme.pageBg} />;
 
   }
 

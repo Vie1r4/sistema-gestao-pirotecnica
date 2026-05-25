@@ -16,7 +16,7 @@
 | [ROLES-E-PERMISSOES.md](ROLES-E-PERMISSOES.md) | Roles, políticas e `permissions` em `/api/auth/me` |
 | [SEGURANCA.md](SEGURANCA.md) | Sessão, CSP, armazenamento no browser |
 | [TESTES.md](TESTES.md) | Unitários, integração, Vitest, Playwright, CI |
-| [OPERACOES.md](OPERACOES.md) | Backups SQL, correlation id, logs |
+| [OPERACOES.md](OPERACOES.md) | Backups completos (BD + docs), **RPO/RTO**, testes de restauro, correlation id |
 | [frontend/PAINEL-ADMIN.md](frontend/PAINEL-ADMIN.md) | Rotas e funcionalidades do painel `/admin` |
 | [frontend/PAINEL-ADMIN-PLANO.md](frontend/PAINEL-ADMIN-PLANO.md) | Plano de redesign estético (Fase 1) e backlog funcional (Fase 2) |
 | [frontend/PAINEL-GESTOR.md](frontend/PAINEL-GESTOR.md) | Analytics do gestor na home (`/`) |

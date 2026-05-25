@@ -7,6 +7,7 @@ using Finalproj.Application.Features.Auth.Interfaces;
 using Finalproj.Application.Services;
 using Finalproj.Application.Services.Interfaces;
 using Finalproj.Infrastructure.Configuration;
+using Finalproj.Infrastructure.Services;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -33,6 +34,7 @@ namespace Finalproj.Controllers
         private readonly IPasswordValidationService _passwordValidation;
         private readonly BootstrapOptions _bootstrap;
         private readonly IWebHostEnvironment _env;
+        private readonly IDatabaseBackupService _databaseBackupService;
 
         public AuthController(
             UserManager<IdentityUser> userManager,
@@ -42,7 +44,8 @@ namespace Finalproj.Controllers
             IIdentityUserLookupService identityUsers,
             IPasswordValidationService passwordValidation,
             IOptions<BootstrapOptions> bootstrapOptions,
-            IWebHostEnvironment env)
+            IWebHostEnvironment env,
+            IDatabaseBackupService databaseBackupService)
         {
             _userManager = userManager;
             _configuration = configuration;
@@ -52,6 +55,7 @@ namespace Finalproj.Controllers
             _passwordValidation = passwordValidation;
             _bootstrap = bootstrapOptions.Value;
             _env = env;
+            _databaseBackupService = databaseBackupService;
         }
 
         private static string HashRefreshToken(string token)
@@ -104,14 +108,23 @@ namespace Finalproj.Controllers
         /// </summary>
         [HttpGet("existem-utilizadores")]
         [AllowAnonymous]
-        [EnableRateLimiting("bootstrap")]
+        [EnableRateLimiting("bootstrap-status")]
         public async Task<IActionResult> ExistemUtilizadores(CancellationToken cancellationToken = default)
         {
             if (!_bootstrap.AllowFirstUserRegistration)
                 return Ok(new { primeiroRegistoDisponivel = false });
 
             var existem = await _identityUsers.AnyUsersAsync(cancellationToken);
-            return Ok(new { primeiroRegistoDisponivel = !existem });
+            if (existem)
+                return Ok(new { primeiroRegistoDisponivel = false });
+
+            // Apenas boolean — não expor contagem de ficheiros a anónimos
+            var existemBackups = await _databaseBackupService.CountBackupsAsync(cancellationToken) > 0;
+            return Ok(new
+            {
+                primeiroRegistoDisponivel = true,
+                existemBackupsAnteriores = existemBackups
+            });
         }
 
         /// <summary>
@@ -119,7 +132,7 @@ namespace Finalproj.Controllers
         /// </summary>
         [HttpPost("registar-primeiro-utilizador")]
         [AllowAnonymous]
-        [EnableRateLimiting("bootstrap")]
+        [EnableRateLimiting("bootstrap-register")]
         public async Task<IActionResult> RegistarPrimeiroUtilizador([FromBody] RegistarPrimeiroRequest request, CancellationToken cancellationToken = default)
         {
             if (!_bootstrap.AllowFirstUserRegistration)

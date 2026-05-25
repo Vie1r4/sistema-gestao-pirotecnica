@@ -116,7 +116,8 @@ test.describe("Painel Admin (smoke)", () => {
   test("dashboard admin renderiza", async ({ page }) => {
     await page.goto("/admin");
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
-    await expect(page.getByText("API operacional")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Estado do sistema" }).first()).toBeVisible();
+    await expect(page.getByText("Operacional").first()).toBeVisible();
   });
 
   test("utilizadores e logs renderizam", async ({ page }) => {
@@ -126,7 +127,7 @@ test.describe("Painel Admin (smoke)", () => {
 
     await page.goto("/admin/logs");
     await expect(page.getByRole("heading", { name: "Logs do sistema" })).toBeVisible();
-    await expect(page.getByText("Entidade:")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Filtros/ })).toBeVisible();
   });
 
   test("definições com estado do sistema", async ({ page }) => {

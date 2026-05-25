@@ -15,7 +15,7 @@ const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300";
 const btnPrimary =
   "data-button w-full rounded-xl bg-[#f97316] px-5 py-3 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
 
-import { fetchPrimeiroRegistoDisponivel, postLogin } from "@/app/lib/authApi";
+import { fetchEstadoInstalacaoAuth, postLogin } from "@/app/lib/authApi";
 import { setToken } from "@/app/lib/auth";
 
 export default function LoginPage() {
@@ -28,10 +28,14 @@ export default function LoginPage() {
   const [estadoContas, setEstadoContas] = useState<
     "a carregar" | "semContas" | "comContas" | "erro"
   >("a carregar");
+  const [existemBackupsAnteriores, setExistemBackupsAnteriores] = useState(false);
 
   useEffect(() => {
-    fetchPrimeiroRegistoDisponivel()
-      .then((disponivel) => setEstadoContas(disponivel ? "semContas" : "comContas"))
+    fetchEstadoInstalacaoAuth()
+      .then((estado) => {
+        setEstadoContas(estado.primeiroRegistoDisponivel ? "semContas" : "comContas");
+        setExistemBackupsAnteriores(estado.existemBackupsAnteriores);
+      })
       .catch(() => setEstadoContas("erro"));
   }, []);
 
@@ -125,6 +129,12 @@ export default function LoginPage() {
               <p className="mt-1 text-amber-800 dark:text-amber-300">
                 Crie o primeiro utilizador para poder iniciar sessão.
               </p>
+              {existemBackupsAnteriores && (
+                <p className="mt-2 text-xs text-amber-700/90 dark:text-amber-400/90">
+                  Existem backups em disco de uma instalação anterior (após «Limpar tudo» os ficheiros .bak
+                  mantêm-se no servidor). Depois de criar a conta admin, restaure ou apague em Definições.
+                </p>
+              )}
               <button
                 type="button"
                 onClick={() => router.push("/registar-primeiro-utilizador")}
