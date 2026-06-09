@@ -59,11 +59,11 @@ export function resumoDadosParaAutofillLicenca(servico: ServicoDetalhe): { id: s
     itens.push({ id: "raio", label: "Raio público", valor: `${servico.raioPublico} m` });
   }
 
-  if (servico.responsavelTecnico?.nomeCompleto) {
+  if (servico.coordenadorPirotecnico?.nomeCompleto) {
     itens.push({
-      id: "resp",
-      label: "Responsável técnico",
-      valor: servico.responsavelTecnico.nomeCompleto,
+      id: "coord",
+      label: "Coordenador pirotécnico",
+      valor: servico.coordenadorPirotecnico.nomeCompleto,
     });
   }
 
@@ -127,8 +127,8 @@ export function buildObservacoesAutofillLicenca(servico: ServicoDetalhe, tipo: T
     linhas.push(`Raio público indicado: ${servico.raioPublico} m.`);
   }
 
-  if (servico.responsavelTecnico?.nomeCompleto) {
-    linhas.push(`Responsável técnico: ${servico.responsavelTecnico.nomeCompleto}`);
+  if (servico.coordenadorPirotecnico?.nomeCompleto) {
+    linhas.push(`Coordenador pirotécnico: ${servico.coordenadorPirotecnico.nomeCompleto}`);
   }
   const equipaNomes = servico.equipa
     .map((m) => m.funcionario?.nomeCompleto)

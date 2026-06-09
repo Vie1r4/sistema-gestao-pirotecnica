@@ -2,7 +2,7 @@ namespace Finalproj.Domain.Constants;
 
 /// <summary>
 /// Valores fixos do catálogo: classificação de risco, filtro técnico e calibre (estrutura em níveis).
-/// Dropdowns para MVC: Finalproj.Application.Common.Models.DropdownSelectLists.
+/// Dropdowns para API: Finalproj.Api.Models.DropdownSelectLists.
 /// </summary>
 public static class ConstantesCatalogo
 {

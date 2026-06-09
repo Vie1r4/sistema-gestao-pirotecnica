@@ -22,6 +22,7 @@ export type ProdutoApiPayload = {
   filtroTecnico?: string | null;
   calibre?: string | null;
   grupoCompatibilidade?: string | null;
+  categoria?: string | null;
 };
 
 type ListFilters = {
@@ -108,6 +109,7 @@ export async function postCreate(token: string, payload: ProdutoApiPayload): Pro
     FiltroTecnico: payload.filtroTecnico ?? null,
     Calibre: payload.calibre ?? null,
     GrupoCompatibilidade: payload.grupoCompatibilidade ?? null,
+    Categoria: payload.categoria ?? null,
   };
   const res = await fetch(apiPath("api/produtos"), {
     method: "POST",
@@ -143,6 +145,7 @@ export async function putEdit(token: string, id: number, payload: ProdutoApiPayl
     FiltroTecnico: payload.filtroTecnico ?? null,
     Calibre: payload.calibre ?? null,
     GrupoCompatibilidade: payload.grupoCompatibilidade ?? null,
+    Categoria: payload.categoria ?? null,
   };
   const res = await fetch(`${apiPath("api/produtos")}/${id}`, {
     method: "PUT",
@@ -177,6 +180,7 @@ export function mapApiToProduto(p: Record<string, unknown>): {
   filtroTecnico?: string;
   calibre?: string;
   grupoCompatibilidade?: string;
+  categoria?: string;
 } {
   const get = (k: string) => p[k] ?? p[k.charAt(0).toUpperCase() + k.slice(1)];
   return {
@@ -188,5 +192,6 @@ export function mapApiToProduto(p: Record<string, unknown>): {
     filtroTecnico: (get("filtroTecnico") ?? get("FiltroTecnico")) as string | undefined,
     calibre: (get("calibre") ?? get("Calibre")) as string | undefined,
     grupoCompatibilidade: (get("grupoCompatibilidade") ?? get("GrupoCompatibilidade")) as string | undefined,
+    categoria: (get("categoria") ?? get("Categoria")) as string | undefined,
   };
 }

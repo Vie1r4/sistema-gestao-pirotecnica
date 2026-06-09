@@ -15,6 +15,7 @@ public class ServicoService : IServicoService
     private readonly IServicoDocumentoExtraRepository _servicoDocumentoExtraRepository;
     private readonly IServicoEquipaRepository _servicoEquipaRepository;
     private readonly IServicoDistanciaSegurancaRepository _servicoDistanciaSegurancaRepository;
+    private readonly IServicoZonaLancamentoRepository _zonasRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IDocumentoStorageService _documentoStorage;
 
@@ -25,6 +26,7 @@ public class ServicoService : IServicoService
         IServicoDocumentoExtraRepository servicoDocumentoExtraRepository,
         IServicoEquipaRepository servicoEquipaRepository,
         IServicoDistanciaSegurancaRepository servicoDistanciaSegurancaRepository,
+        IServicoZonaLancamentoRepository zonasRepository,
         IUnitOfWork unitOfWork,
         IDocumentoStorageService documentoStorage)
     {
@@ -34,26 +36,48 @@ public class ServicoService : IServicoService
         _servicoDocumentoExtraRepository = servicoDocumentoExtraRepository;
         _servicoEquipaRepository = servicoEquipaRepository;
         _servicoDistanciaSegurancaRepository = servicoDistanciaSegurancaRepository;
+        _zonasRepository = zonasRepository;
         _unitOfWork = unitOfWork;
         _documentoStorage = documentoStorage;
     }
 
     /// <inheritdoc />
-    public async Task<(bool Valido, string? Erro)> ValidarResponsavelEEquipaAsync(int? responsavelTecnicoId, int[]? equipaIds, CancellationToken cancellationToken = default)
+    public async Task<(bool Valido, string? Erro)> ValidarEquipaServicoAsync(
+        int? coordenadorPirotecnicoId,
+        int[]? equipaIds,
+        IReadOnlyList<ServicoZonaLancamentoInputDto>? zonas,
+        CancellationToken cancellationToken = default)
     {
-        if (responsavelTecnicoId.HasValue)
+        if (coordenadorPirotecnicoId.HasValue)
         {
-            var resp = await _funcionarioRepository.GetByIdAsync(responsavelTecnicoId.Value, cancellationToken);
-            if (resp == null || string.IsNullOrWhiteSpace(resp.DocumentoADDRCaminho) || string.IsNullOrWhiteSpace(resp.LicencaOperadorCaminho))
-                return (false, "O responsável técnico tem de ser um funcionário com ADR e licença de operador.");
+            var coord = await _funcionarioRepository.GetByIdAsync(coordenadorPirotecnicoId.Value, cancellationToken);
+            if (coord == null || string.IsNullOrWhiteSpace(coord.LicencaOperadorCaminho))
+                return (false, "O coordenador pirotécnico tem de ser um funcionário com licença de operador.");
         }
-        if (equipaIds != null && equipaIds.Length > 0)
+
+        var equipaSet = new HashSet<int>(equipaIds ?? Array.Empty<int>());
+        foreach (var fid in equipaSet)
         {
-            var comLicenca = await ObterIdsFuncionariosComLicencaOperadorAsync(cancellationToken);
-            var invalidos = equipaIds.Where(fid => !comLicenca.Contains(fid)).ToList();
-            if (invalidos.Count > 0)
-                return (false, "Só podem fazer parte da equipa funcionários com licença de operador.");
+            var func = await _funcionarioRepository.GetByIdAsync(fid, cancellationToken);
+            if (func == null)
+                return (false, "A equipa contém um funcionário inválido ou inexistente.");
         }
+
+        if (zonas != null)
+        {
+            for (var i = 0; i < zonas.Count; i++)
+            {
+                var respId = zonas[i].ResponsavelPirotecnicoId;
+                if (!respId.HasValue)
+                    continue;
+                if (!equipaSet.Contains(respId.Value))
+                    return (false, $"O responsável pirotécnico da zona {(i + 1)} tem de ser um membro da equipa.");
+                var resp = await _funcionarioRepository.GetByIdAsync(respId.Value, cancellationToken);
+                if (resp == null)
+                    return (false, $"O responsável pirotécnico da zona {(i + 1)} não existe.");
+            }
+        }
+
         return (true, null);
     }
 
@@ -66,15 +90,14 @@ public class ServicoService : IServicoService
 
         var items = encomendas.Select(e => new { Id = e.Id, Texto = "#" + e.Id + " - " + e.Cliente.Nome + (e.DataConclusao.HasValue ? " (" + e.DataConclusao.Value.ToString("dd/MM/yyyy") + ")" : "") }).Cast<object>().ToList();
 
-        var responsaveis = await _funcionarioRepository.ListResponsaveisTecnicosOrdenadosAsync(cancellationToken);
-
-        var equipa = await _funcionarioRepository.ListEquipaComLicencaOperadorOrdenadosAsync(cancellationToken);
+        var todosFuncionarios = (await _funcionarioRepository.GetAllAsync(cancellationToken))
+            .OrderBy(f => f.NomeCompleto)
+            .ToList();
 
         return new DadosFormularioServicoResult
         {
             Encomendas = items,
-            ResponsaveisTecnicos = responsaveis.ToList(),
-            FuncionariosEquipa = equipa.ToList(),
+            Funcionarios = todosFuncionarios,
             TiposAcesso = ConstantesServico.TiposAcesso
         };
     }
@@ -91,18 +114,113 @@ public class ServicoService : IServicoService
         if (encomendaJaUsada)
             return (null, "Cada encomenda só pode ser utilizada num único serviço. Esta encomenda já está associada a outro serviço.");
 
-        var (valid, errorMsg) = await ValidarResponsavelEEquipaAsync(servico.ResponsavelTecnicoId, equipaIds, cancellationToken);
+        var (valid, errorMsg) = await ValidarEquipaServicoAsync(servico.CoordenadorPirotecnicoId, equipaIds, null, cancellationToken);
         if (!valid)
             return (null, errorMsg);
 
-        var equipaIdsComResponsavel = IncluirResponsavelNaEquipa(equipaIds, servico.ResponsavelTecnicoId);
+        servico.ResponsavelTecnicoId = null;
 
         await _servicoRepository.AddAsync(servico, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        await GravarEquipaAsync(servico.Id, equipaIdsComResponsavel, cancellationToken);
+        await GravarEquipaAsync(servico.Id, equipaIds, cancellationToken);
 
         return (servico, null);
+    }
+
+    /// <inheritdoc />
+    public async Task<(Servico? Servico, string? Erro)> CriarServicoComZonasAsync(ServicoSaveRequestDto dto, CancellationToken cancellationToken = default)
+    {
+        var erroValidacao = ValidarPedidoZonas(dto);
+        if (erroValidacao != null)
+            return (null, erroValidacao);
+
+        var itens = (await _encomendaRepository.GetByIdWithClienteItensProdutoNoTrackingAsync(dto.EncomendaId, cancellationToken))?.Itens
+            ?.ToList() ?? new List<EncomendaItem>();
+        var erroMaterial = ValidarMaterialZonas(dto.Zonas, itens);
+        if (erroMaterial != null)
+            return (null, erroMaterial);
+
+        var (validEquipa, erroEquipa) = await ValidarEquipaServicoAsync(dto.CoordenadorPirotecnicoId, dto.EquipaIds, dto.Zonas, cancellationToken);
+        if (!validEquipa)
+            return (null, erroEquipa);
+
+        var servico = MapearServicoDePedido(dto);
+        var encomenda = await _encomendaRepository.GetByIdWithClienteAsync(dto.EncomendaId, cancellationToken);
+        if (string.IsNullOrWhiteSpace(servico.NomeEvento) && !string.IsNullOrWhiteSpace(encomenda?.Nome))
+            servico.NomeEvento = encomenda.Nome.Trim();
+        servico.DataServico = DerivarDataServico(dto);
+
+        var (created, erro) = await CriarServicoAsync(servico, dto.EquipaIds, cancellationToken);
+        if (erro != null || created == null)
+            return (null, erro);
+
+        await GravarZonasAsync(created.Id, dto.Zonas, itens, cancellationToken);
+        return (created, null);
+    }
+
+    /// <inheritdoc />
+    public async Task<(Servico? Servico, string? Erro)> AtualizarServicoComZonasAsync(
+        int id,
+        ServicoSaveRequestDto dto,
+        IReadOnlyList<DocumentoGuardadoInput> documentosNovos,
+        IReadOnlyList<int>? removerDocumentoIds,
+        CancellationToken cancellationToken = default)
+    {
+        var erroValidacao = ValidarPedidoZonas(dto);
+        if (erroValidacao != null)
+            return (null, erroValidacao);
+
+        var itens = (await _encomendaRepository.GetByIdWithClienteItensProdutoNoTrackingAsync(dto.EncomendaId, cancellationToken))?.Itens
+            ?.ToList() ?? new List<EncomendaItem>();
+        var erroMaterial = ValidarMaterialZonas(dto.Zonas, itens);
+        if (erroMaterial != null)
+            return (null, erroMaterial);
+
+        var existente = await _servicoRepository.GetByIdWithZonasTrackedAsync(id, cancellationToken);
+        if (existente == null)
+            return (null, "Serviço não encontrado.");
+
+        AplicarCamposServico(existente, dto);
+        existente.DataServico = DerivarDataServico(dto);
+
+        var (valid, errorMsg) = await ValidarEquipaServicoAsync(dto.CoordenadorPirotecnicoId, dto.EquipaIds, dto.Zonas, cancellationToken);
+        if (!valid)
+            return (null, errorMsg);
+
+        var encomenda = await _encomendaRepository.GetByIdWithClienteAsync(dto.EncomendaId, cancellationToken);
+        if (encomenda != null)
+        {
+            existente.ClienteId = encomenda.ClienteId;
+            var encomendaJaUsada = await _servicoRepository.ExistsParaEncomendaAsync(dto.EncomendaId, id, cancellationToken);
+            if (encomendaJaUsada)
+                return (null, "Cada encomenda só pode ser utilizada num único serviço. Esta encomenda já está associada a outro serviço.");
+        }
+
+        if (removerDocumentoIds != null && removerDocumentoIds.Count > 0)
+        {
+            var aRemover = await _servicoDocumentoExtraRepository.ListByServicoAndIdsAsync(id, removerDocumentoIds, cancellationToken);
+            foreach (var d in aRemover)
+                _documentoStorage.ApagarFicheiroSeExistir(d.Caminho);
+            _servicoDocumentoExtraRepository.RemoveRange(aRemover);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        await _servicoRepository.UpdateAsync(existente, cancellationToken);
+        var equipaAtual = await _servicoEquipaRepository.ListByServicoIdAsync(id, cancellationToken);
+        _servicoEquipaRepository.RemoveRange(equipaAtual);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await GravarEquipaAsync(id, dto.EquipaIds, cancellationToken);
+
+        await _zonasRepository.ClearForServicoAsync(id, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await GravarZonasAsync(id, dto.Zonas, itens, cancellationToken);
+
+        if (documentosNovos != null && documentosNovos.Count > 0)
+            await AdicionarDocumentosExtrasAsync(id, documentosNovos, cancellationToken);
+
+        var updated = await _servicoRepository.FindTrackedByIdAsync(id, cancellationToken);
+        return (updated, null);
     }
 
     /// <inheritdoc />
@@ -119,6 +237,19 @@ public class ServicoService : IServicoService
     }
 
     /// <inheritdoc />
+    public async Task<string?> RemoverDocumentoExtraAsync(int servicoId, int documentoExtraId, CancellationToken cancellationToken = default)
+    {
+        var aRemover = await _servicoDocumentoExtraRepository.ListByServicoAndIdsAsync(servicoId, new[] { documentoExtraId }, cancellationToken);
+        var doc = aRemover.FirstOrDefault();
+        if (doc == null)
+            return "Documento não encontrado.";
+        _documentoStorage.ApagarFicheiroSeExistir(doc.Caminho);
+        _servicoDocumentoExtraRepository.RemoveRange(aRemover);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return null;
+    }
+
+    /// <inheritdoc />
     public async Task<(Servico? Servico, string? Erro)> AtualizarServicoAsync(int id, Servico servico, int[]? equipaIds, IReadOnlyList<DocumentoGuardadoInput> documentosNovos, IReadOnlyList<int>? removerDocumentoIds, CancellationToken cancellationToken = default)
     {
         var encomenda = await _encomendaRepository.GetByIdWithClienteAsync(servico.EncomendaId, cancellationToken);
@@ -130,11 +261,11 @@ public class ServicoService : IServicoService
                 return (null, "Cada encomenda só pode ser utilizada num único serviço. Esta encomenda já está associada a outro serviço.");
         }
 
-        var (valid, errorMsg) = await ValidarResponsavelEEquipaAsync(servico.ResponsavelTecnicoId, equipaIds, cancellationToken);
+        var (valid, errorMsg) = await ValidarEquipaServicoAsync(servico.CoordenadorPirotecnicoId, equipaIds, null, cancellationToken);
         if (!valid)
             return (null, errorMsg);
 
-        var equipaIdsComResponsavel = IncluirResponsavelNaEquipa(equipaIds, servico.ResponsavelTecnicoId);
+        servico.ResponsavelTecnicoId = null;
 
         if (removerDocumentoIds != null && removerDocumentoIds.Count > 0)
         {
@@ -151,7 +282,7 @@ public class ServicoService : IServicoService
         var equipaAtual = await _servicoEquipaRepository.ListByServicoIdAsync(id, cancellationToken);
         _servicoEquipaRepository.RemoveRange(equipaAtual);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        await GravarEquipaAsync(id, equipaIdsComResponsavel, cancellationToken);
+        await GravarEquipaAsync(id, equipaIds, cancellationToken);
 
         if (documentosNovos != null && documentosNovos.Count > 0)
         {
@@ -210,6 +341,23 @@ public class ServicoService : IServicoService
     }
 
     /// <inheritdoc />
+    public ResumoMaterialZonaViewModel CalcularResumoMaterialZona(int zonaId, string? designacao, int encomendaId, List<EncomendaItem> itens)
+    {
+        var baseResumo = CalcularResumoMaterial(encomendaId, itens);
+        return new ResumoMaterialZonaViewModel
+        {
+            ZonaId = zonaId,
+            Designacao = designacao,
+            NumeroProdutos = baseResumo.NumeroProdutos,
+            TotalUnidades = baseResumo.TotalUnidades,
+            MleTotalKg = baseResumo.MleTotalKg,
+            DivisaoDominante = baseResumo.DivisaoDominante,
+            CorDivisaoDominante = baseResumo.CorDivisaoDominante,
+            CategoriasPresentes = baseResumo.CategoriasPresentes
+        };
+    }
+
+    /// <inheritdoc />
     public async Task EnsureDistanciasSegurancaAsync(int servicoId, string? divisaoDominante, CancellationToken cancellationToken = default)
     {
         var existentes = await _servicoDistanciaSegurancaRepository.ListTiposByServicoIdAsync(servicoId, cancellationToken);
@@ -239,28 +387,166 @@ public class ServicoService : IServicoService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task<List<int>> ObterIdsFuncionariosComLicencaOperadorAsync(CancellationToken cancellationToken)
+    /// <inheritdoc />
+    public async Task EnsureDistanciasSegurancaZonasAsync(int servicoId, CancellationToken cancellationToken = default)
     {
-        var ids = await _funcionarioRepository.GetIdsComLicencaOperadorAsync(cancellationToken);
-        return ids.ToList();
+        var servico = await _servicoRepository.GetByIdFullGraphNoTrackingAsync(servicoId, cancellationToken);
+        if (servico?.ZonasLancamento == null || servico.ZonasLancamento.Count == 0)
+            return;
+
+        foreach (var zona in servico.ZonasLancamento)
+        {
+            var linhas = zona.Linhas?.ToList() ?? new List<ServicoZonaLinha>();
+            var produtos = linhas.Where(l => l.Produto != null).Select(l => l.Produto!).ToList();
+            var itensVirtuais = linhas.Select(l => new EncomendaItem
+            {
+                ProdutoId = l.ProdutoId,
+                QuantidadePedida = l.Quantidade,
+                Produto = l.Produto
+            }).ToList();
+            var divisao = CalcularResumoMaterial(servico.EncomendaId, itensVirtuais).DivisaoDominante;
+            await _zonasRepository.AddDistanciasPadraoAsync(zona.Id, divisao, cancellationToken);
+        }
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    private static int[] IncluirResponsavelNaEquipa(int[]? equipaIds, int? responsavelTecnicoId)
+    private static string? ValidarPedidoZonas(ServicoSaveRequestDto dto)
     {
-        if (!responsavelTecnicoId.HasValue) return equipaIds ?? Array.Empty<int>();
-        var set = new HashSet<int>(equipaIds ?? Array.Empty<int>());
-        set.Add(responsavelTecnicoId.Value);
-        return set.ToArray();
+        if (dto.Zonas == null || dto.Zonas.Count == 0)
+            return "O serviço deve ter pelo menos uma zona de lançamento.";
+        for (var i = 0; i < dto.Zonas.Count; i++)
+        {
+            var z = dto.Zonas[i];
+            if (z.Linhas == null || z.Linhas.Count == 0)
+                return $"A zona {(i + 1)} deve ter pelo menos uma linha de lançamento (data, hora e material).";
+            if (!z.CoordenadasLat.HasValue || !z.CoordenadasLng.HasValue)
+                return $"A zona «{z.Designacao ?? (i + 1).ToString()}» deve ter coordenadas no mapa.";
+            foreach (var linha in z.Linhas)
+            {
+                if (linha.HoraInicio.HasValue && linha.HoraFim.HasValue && linha.HoraFim <= linha.HoraInicio)
+                    return "A hora de fim deve ser posterior à hora de início em cada linha de lançamento.";
+            }
+        }
+        return null;
+    }
+
+    private static string? ValidarMaterialZonas(IReadOnlyList<ServicoZonaLancamentoInputDto> zonas, IReadOnlyList<EncomendaItem> itensEncomenda)
+    {
+        var pedidoPorProduto = itensEncomenda
+            .GroupBy(i => i.ProdutoId)
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.QuantidadePedida));
+        var produtosEncomenda = pedidoPorProduto.Keys.ToHashSet();
+
+        var alocado = new Dictionary<int, decimal>();
+        foreach (var linha in zonas.SelectMany(z => z.Linhas))
+        {
+            if (!produtosEncomenda.Contains(linha.ProdutoId))
+                return "Só pode alocar produtos que fazem parte da encomenda.";
+            alocado.TryGetValue(linha.ProdutoId, out var atual);
+            alocado[linha.ProdutoId] = atual + linha.Quantidade;
+        }
+
+        foreach (var (produtoId, qtd) in alocado)
+        {
+            if (!pedidoPorProduto.TryGetValue(produtoId, out var max) || qtd > max)
+                return "A quantidade alocada por zona excede a quantidade pedida na encomenda para um ou mais produtos.";
+        }
+        return null;
+    }
+
+    private static Servico MapearServicoDePedido(ServicoSaveRequestDto dto) =>
+        new()
+        {
+            EncomendaId = dto.EncomendaId,
+            NomeEvento = string.IsNullOrWhiteSpace(dto.NomeEvento) ? null : dto.NomeEvento.Trim(),
+            DataServico = dto.DataServico.Date,
+            Local = dto.Local?.Trim(),
+            MoradaCompleta = dto.MoradaCompleta?.Trim(),
+            Distrito = dto.Distrito?.Trim(),
+            Cidade = dto.Cidade?.Trim(),
+            Municipio = dto.Municipio?.Trim(),
+            PublicoPrivado = dto.PublicoPrivado?.Trim(),
+            ResponsavelTecnicoId = null,
+            CoordenadorPirotecnicoId = dto.CoordenadorPirotecnicoId,
+            Observacoes = dto.Observacoes?.Trim()
+        };
+
+    private static void AplicarCamposServico(Servico servico, ServicoSaveRequestDto dto)
+    {
+        servico.EncomendaId = dto.EncomendaId;
+        servico.NomeEvento = string.IsNullOrWhiteSpace(dto.NomeEvento) ? null : dto.NomeEvento.Trim();
+        servico.Local = dto.Local?.Trim();
+        servico.MoradaCompleta = dto.MoradaCompleta?.Trim();
+        servico.Distrito = dto.Distrito?.Trim();
+        servico.Cidade = dto.Cidade?.Trim();
+        servico.Municipio = dto.Municipio?.Trim();
+        servico.PublicoPrivado = dto.PublicoPrivado?.Trim();
+        servico.ResponsavelTecnicoId = null;
+        servico.CoordenadorPirotecnicoId = dto.CoordenadorPirotecnicoId;
+        servico.Observacoes = dto.Observacoes?.Trim();
+    }
+
+    private static DateTime DerivarDataServico(ServicoSaveRequestDto dto)
+    {
+        var datas = dto.Zonas
+            .SelectMany(z => z.Linhas)
+            .Select(l => l.Data.Date)
+            .ToList();
+        if (datas.Count > 0)
+            return datas.Min();
+        return dto.DataServico.Date;
+    }
+
+    private async Task GravarZonasAsync(int servicoId, IReadOnlyList<ServicoZonaLancamentoInputDto> zonasDto, IReadOnlyList<EncomendaItem> itensEncomenda, CancellationToken cancellationToken)
+    {
+        var produtosPorId = itensEncomenda
+            .Where(i => i.Produto != null)
+            .GroupBy(i => i.ProdutoId)
+            .ToDictionary(g => g.Key, g => g.First().Produto!);
+
+        foreach (var zDto in zonasDto)
+        {
+            var zona = new ServicoZonaLancamento
+            {
+                ServicoId = servicoId,
+                Designacao = zDto.Designacao?.Trim(),
+                CoordenadasLat = zDto.CoordenadasLat,
+                CoordenadasLng = zDto.CoordenadasLng,
+                RaioPublico = zDto.RaioPublico,
+                ResponsavelPirotecnicoId = zDto.ResponsavelPirotecnicoId,
+                Observacoes = zDto.Observacoes?.Trim()
+            };
+            foreach (var lDto in zDto.Linhas)
+            {
+                zona.Linhas.Add(new ServicoZonaLinha
+                {
+                    Data = lDto.Data.Date,
+                    HoraInicio = lDto.HoraInicio,
+                    HoraFim = lDto.HoraFim,
+                    ProdutoId = lDto.ProdutoId,
+                    Quantidade = lDto.Quantidade
+                });
+            }
+            await _zonasRepository.AddAsync(zona, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var itensVirtuais = zona.Linhas.Select(l =>
+            {
+                produtosPorId.TryGetValue(l.ProdutoId, out var p);
+                return new EncomendaItem { ProdutoId = l.ProdutoId, QuantidadePedida = l.Quantidade, Produto = p! };
+            }).ToList();
+            var resumo = CalcularResumoMaterial(servicoId, itensVirtuais);
+            await _zonasRepository.AddDistanciasPadraoAsync(zona.Id, resumo.DivisaoDominante, cancellationToken);
+        }
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     private async Task GravarEquipaAsync(int servicoId, int[]? equipaIds, CancellationToken cancellationToken = default)
     {
-        var comLicenca = await ObterIdsFuncionariosComLicencaOperadorAsync(cancellationToken);
         if (equipaIds == null || equipaIds.Length == 0) return;
         foreach (var fid in equipaIds.Distinct())
         {
-            if (comLicenca.Contains(fid))
-                await _servicoEquipaRepository.AddAsync(new ServicoEquipa { ServicoId = servicoId, FuncionarioId = fid }, cancellationToken);
+            await _servicoEquipaRepository.AddAsync(new ServicoEquipa { ServicoId = servicoId, FuncionarioId = fid }, cancellationToken);
         }
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }

@@ -26,6 +26,10 @@ export const FILTROS_TECNICOS: { value: string; text: string }[] = [
   { value: "GerbsVulcoes", text: "Gerbs / Vulcões" },
 ];
 
+/** Categoria pirotécnica (F1–F4, FP) para declaração PSP. */
+export const CATEGORIAS_PIROTECNICAS = ["F1", "F2", "F3", "F4", "FP"] as const;
+export type CategoriaPirotecnica = (typeof CATEGORIAS_PIROTECNICAS)[number];
+
 export const CALIBRES: { value: string; text: string }[] = [
   { value: "MuitoPequeno", text: "< 20 mm" },
   { value: "BateriasPadrao", text: "20–30 mm" },
@@ -43,11 +47,27 @@ export type Produto = {
   filtroTecnico?: string;
   calibre?: string;
   grupoCompatibilidade?: string;
+  /** Categoria pirotécnica (F1–F4, FP) para documentação regulatória. */
+  categoria?: string;
 };
 
 /** Valida NEM por unidade: número positivo (mínimo 0.0001) */
 export function validarNemPorUnidade(val: number): boolean {
   return typeof val === "number" && !Number.isNaN(val) && val >= 0.0001;
+}
+
+/** Campos de catálogo obrigatórios ao criar/editar produto. Devolve mensagem de erro ou null se válido. */
+export function validarCamposCatalogoProduto(campos: {
+  categoria?: string;
+  grupoCompatibilidade?: string;
+  filtroTecnico?: string;
+  calibre?: string;
+}): string | null {
+  if (!campos.categoria?.trim()) return "A categoria pirotécnica é obrigatória.";
+  if (!campos.grupoCompatibilidade?.trim()) return "O grupo de compatibilidade é obrigatório.";
+  if (!campos.filtroTecnico?.trim()) return "O filtro técnico é obrigatório.";
+  if (!campos.calibre?.trim()) return "O calibre é obrigatório.";
+  return null;
 }
 
 export function textoClassificacao(valor: string): string {

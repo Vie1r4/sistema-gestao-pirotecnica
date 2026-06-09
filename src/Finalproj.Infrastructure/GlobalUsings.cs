@@ -1,6 +1,7 @@
 global using Finalproj.Domain.Constants;
 global using Finalproj.Domain.Entities;
 global using Finalproj.Domain.Enums;
+global using Finalproj.Domain.Interfaces.Repositories;
 global using Microsoft.Extensions.Configuration;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Hosting;

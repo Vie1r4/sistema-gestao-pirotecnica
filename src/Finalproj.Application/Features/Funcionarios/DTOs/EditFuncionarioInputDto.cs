@@ -1,17 +1,17 @@
+using Finalproj.Application.Common.Models;
 using Finalproj.Application.DTOs;
 
 namespace Finalproj.Application.Features.Funcionarios.DTOs;
 
 /// <summary>
-/// DTO para o PUT Edit de funcionário (agrupa funcionário, ficheiros e opções de conta).
-/// Usado com [FromForm] para multipart/form-data ou form-urlencoded.
+/// Comando para editar funcionário (dados, ficheiros e opções de conta).
 /// </summary>
 public class EditFuncionarioInputDto
 {
     public Funcionario Funcionario { get; set; } = new();
-    public IFormFile? CartaoCidadaoFicheiro { get; set; }
-    public IFormFile? DocumentoADDRFicheiro { get; set; }
-    public IFormFile? LicencaOperadorFicheiro { get; set; }
+    public UploadedFileContent? CartaoCidadaoFicheiro { get; set; }
+    public UploadedFileContent? DocumentoADDRFicheiro { get; set; }
+    public UploadedFileContent? LicencaOperadorFicheiro { get; set; }
     public List<DocumentoExtraInput>? DocumentosExtras { get; set; }
     public List<int>? RemoverDocumentoExtraIds { get; set; }
     public bool RemoverOutrosAntigo { get; set; }

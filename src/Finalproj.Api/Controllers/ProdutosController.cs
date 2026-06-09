@@ -1,5 +1,5 @@
 using Finalproj.Authorization;
-using Finalproj.Application.Common.Models;
+using Finalproj.Api.Models;
 using Finalproj.Application.Features.Produtos.DTOs;
 using Finalproj.Application.Features.Produtos.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -127,19 +127,19 @@ namespace Finalproj.Controllers
 
         [HttpPut("{id:int}")]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirProdutos)]
-        public async Task<IActionResult> Edit(int id, [FromBody] Produto produto, CancellationToken cancellationToken = default)
+        public async Task<IActionResult> Edit(int id, [FromBody] UpdateProdutoRequestDto request, CancellationToken cancellationToken = default)
         {
-            if (id != produto.Id) return NotFound();
+            if (id != request.Id) return NotFound();
             if (ModelState.IsValid)
             {
-                var updated = await _produtos.UpdateAsync(id, produto, cancellationToken);
+                var updated = await _produtos.UpdateAsync(id, request, cancellationToken);
                 if (updated == null)
                     return NotFound();
                 return Ok(new { produto = ProdutoResponseDtoMapping.Map(updated) });
             }
             return BadRequest(new
             {
-                produto = ProdutoResponseDtoMapping.Map(produto),
+                produto = UpdateProdutoRequestDtoMapping.ToResponseDto(request),
                 familiaRisco = DropdownSelectLists.FamiliasParaDropdown(),
                 grupoCompatibilidade = DropdownSelectLists.GruposParaDropdown(),
                 filtroTecnico = DropdownSelectLists.FiltrosTecnicosParaDropdown(),

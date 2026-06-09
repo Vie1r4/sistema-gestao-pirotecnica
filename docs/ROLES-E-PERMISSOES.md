@@ -38,10 +38,13 @@ Seed: `SeedRoles` no arranque da API.
 | `PodeVerArmazemStock` | Admin, Gestor, Comercial, Armazém |
 | `PodeGerirArmazem` | Admin, Gestor |
 | `PodeGerirFuncionarios` | Admin, Gestor |
+| `PodeGerirDocumentacaoRegulatoria` | Admin, Gestor (geração/download declaração PSP **PedidoGerado**; outros perfis recebem **404**) |
 
 **GET sensíveis:** funcionários, clientes e encomendas exigem as políticas de gestão respetivas. **Paióis:** também `PaiolAcesso` por role.
 
 Usar `[Authorize(Policy = "...")]` nos controllers; validação **sempre** no servidor.
+
+Ver também [documentacao-regulatoria/README.md](documentacao-regulatoria/README.md).
 
 ---
 
@@ -49,7 +52,7 @@ Usar `[Authorize(Policy = "...")]` nos controllers; validação **sempre** no se
 
 Lista `permissions` derivada das roles (`ObterPermissoes`), por exemplo:
 
-`admin`, `clientes.gerir`, `produtos.ver`, `produtos.gerir`, `encomendas.gerir`, `servicos.gerir`, `armazem.stock`, `armazem.gerir`, `funcionarios.gerir`.
+`admin`, `clientes.gerir`, `produtos.ver`, `produtos.gerir`, `encomendas.gerir`, `servicos.gerir`, `servicos.apagar`, `armazem.stock`, `armazem.gerir`, `funcionarios.gerir`, **`documentacao.gerir`** (Admin e Gestor — declaração PSP).
 
 O frontend (`Navbar`, rotas) usa estas strings; a API é a fonte de verdade.
 

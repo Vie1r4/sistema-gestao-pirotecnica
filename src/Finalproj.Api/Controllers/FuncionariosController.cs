@@ -1,7 +1,7 @@
 using System.Text;
 using Finalproj.Authorization;
-using Finalproj.Application.Common.Models;
-using Finalproj.Application.Common.Validators;
+using Finalproj.Api.Models;
+using Finalproj.Api.Validators;
 using Finalproj.Application.Features.Funcionarios.DTOs;
 using Finalproj.Application.Features.Funcionarios.Interfaces;
 using Finalproj.Application.Features.Home.Interfaces;
@@ -295,6 +295,7 @@ namespace Finalproj.Controllers
             existing.Telefone = funcionario.Telefone;
             existing.Morada = funcionario.Morada;
             existing.NumeroSegurancaSocial = funcionario.NumeroSegurancaSocial;
+            existing.NumeroCredencial = funcionario.NumeroCredencial;
             existing.IBAN = funcionario.IBAN;
             existing.Cargo = NormalizarCargo(funcionario.Cargo);
             existing.Notas = funcionario.Notas;
@@ -523,14 +524,11 @@ namespace Finalproj.Controllers
             string? caminhoRelativo = await _funcionarios.GetDocumentoPathAsync(id, tipo, extraId, cancellationToken);
             if (string.IsNullOrEmpty(caminhoRelativo))
                 return NotFound();
-            return ServirFicheiro(caminhoRelativo);
+            return await ServirFicheiro(caminhoRelativo, cancellationToken);
         }
 
-        private IActionResult ServirFicheiro(string caminhoRelativo)
-        {
-            var caminhoFisico = _documentoStorage.ResolverCaminhoFisicoParaLeitura(caminhoRelativo);
-            return DocumentoFileResult.FromPath(this, caminhoFisico, caminhoRelativo) ?? NotFound();
-        }
+        private async Task<IActionResult> ServirFicheiro(string caminhoRelativo, CancellationToken cancellationToken = default) =>
+            await DocumentoFileResult.FromPathAsync(this, _documentoStorage, caminhoRelativo, attachment: false, cancellationToken) ?? NotFound();
 
         private async Task EnviarEmailContaCriadaAsync(
             string email,

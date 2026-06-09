@@ -51,6 +51,12 @@ export default function NovoClientePage() {
   const [extraFiles, setExtraFiles] = useState<(File | null)[]>([]);
   const token = getToken();
   const submittingRef = useRef(false);
+  const [submitLocked, setSubmitLocked] = useState(false);
+
+  const releaseSubmitLock = () => {
+    submittingRef.current = false;
+    setSubmitLocked(false);
+  };
 
   const createMutation = useMutation({
     mutationFn: (fd: FormData) => createClienteApi(token!, fd),
@@ -62,8 +68,8 @@ export default function NovoClientePage() {
     onError: (err) => {
       setMessage({ type: "error", text: err instanceof Error ? err.message : "Erro ao criar cliente." });
     },
-    onSettled: () => {
-      submittingRef.current = false;
+    onSettled: (_data, error) => {
+      if (error) releaseSubmitLock();
     },
   });
 
@@ -97,32 +103,40 @@ export default function NovoClientePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submittingRef.current || createMutation.isPending) return;
+    if (submittingRef.current || submitLocked || createMutation.isPending) return;
+
+    submittingRef.current = true;
+    setSubmitLocked(true);
     setMessage(null);
+
     if (!form.nome.trim()) {
       setMessage({ type: "error", text: "O nome é obrigatório." });
+      releaseSubmitLock();
       return;
     }
     if (form.nome.length > 200) {
       setMessage({ type: "error", text: "O nome não pode exceder 200 caracteres." });
+      releaseSubmitLock();
       return;
     }
     if (form.nif && !validarNif(form.nif)) {
       setMessage({ type: "error", text: "O NIF deve ter exatamente 9 dígitos." });
+      releaseSubmitLock();
       return;
     }
     if (!token) {
+      releaseSubmitLock();
       router.replace("/login");
       return;
     }
     const fd = new FormData();
     fd.append("Cliente.Nome", form.nome.trim());
     fd.append("Cliente.TipoCliente", form.tipoCliente);
-    if (form.nif.trim()) fd.append("Cliente.NIF", form.nif.trim());
-    if (form.email.trim()) fd.append("Cliente.Email", form.email.trim());
-    if (form.telefone.trim()) fd.append("Cliente.Telefone", form.telefone.trim());
-    if (form.morada.trim()) fd.append("Cliente.Morada", form.morada.trim());
-    if (form.notas.trim()) fd.append("Cliente.Notas", form.notas.trim());
+    fd.append("Cliente.NIF", form.nif.trim());
+    fd.append("Cliente.Email", form.email.trim());
+    fd.append("Cliente.Telefone", form.telefone.trim());
+    fd.append("Cliente.Morada", form.morada.trim());
+    fd.append("Cliente.Notas", form.notas.trim());
     extras.forEach((ex, i) => {
       const file = extraFiles[i];
       if (file) {
@@ -130,7 +144,6 @@ export default function NovoClientePage() {
         fd.append(`DocumentosExtras[${i}].Ficheiro`, file);
       }
     });
-    submittingRef.current = true;
     createMutation.mutate(fd);
   };
 
@@ -337,11 +350,11 @@ export default function NovoClientePage() {
             <div className="flex flex-wrap gap-3">
               <button
                 type="submit"
-                disabled={createMutation.isPending}
+                disabled={submitLocked || createMutation.isPending}
                 className={btnPrimary}
-                aria-busy={createMutation.isPending}
+                aria-busy={submitLocked || createMutation.isPending}
               >
-                {createMutation.isPending ? "A guardar…" : "Guardar cliente"}
+                {submitLocked || createMutation.isPending ? "A guardar…" : "Guardar cliente"}
               </button>
               <Link href="/clientes" className={btnSecondary}>
                 Cancelar

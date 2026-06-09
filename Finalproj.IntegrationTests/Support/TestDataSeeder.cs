@@ -20,7 +20,10 @@ public static class TestDataSeeder
                 Nome = "Produto Teste",
                 NEMPorUnidade = 1m,
                 FamiliaRisco = "1.1G",
-                GrupoCompatibilidade = "G"
+                FiltroTecnico = TestProdutoDefaults.FiltroTecnico,
+                Calibre = TestProdutoDefaults.Calibre,
+                Categoria = TestProdutoDefaults.Categoria,
+                GrupoCompatibilidade = TestProdutoDefaults.GrupoCompatibilidade
             });
             await context.SaveChangesAsync();
         }

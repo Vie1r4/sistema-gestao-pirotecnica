@@ -10,7 +10,7 @@ namespace Finalproj.Tests.Domain;
 public class StockDisponivelServiceTests
 {
     private static StockDisponivelService CreateService(FinalprojContext ctx) =>
-        new(new EntradaPaiolRepository(ctx), new SaidaPaiolRepository(ctx), new ReservaRepository(ctx));
+        new(new EntradaPaiolRepository(ctx), new ReservaRepository(ctx));
 
     [Fact]
     public async Task ObterStockDisponivelPorProdutoAsync_SemDados_DevolveDicionarioVazioOuZeros()
@@ -193,6 +193,10 @@ public class StockDisponivelServiceTests
             Nome = "Produto T",
             NEMPorUnidade = 1m,
             FamiliaRisco = "1.3G",
+            FiltroTecnico = TestProdutoDefaults.FiltroTecnico,
+            Calibre = TestProdutoDefaults.Calibre,
+            Categoria = TestProdutoDefaults.Categoria,
+            GrupoCompatibilidade = TestProdutoDefaults.GrupoCompatibilidade,
         };
         ctx.Produtos.Add(p);
         var paiol = new Paiol

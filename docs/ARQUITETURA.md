@@ -17,12 +17,12 @@ Sistema de gestão pirotécnica: paióis e stock (MLE/NEM, FIFO), catálogo de p
 
 | Projeto | Conteúdo |
 |---------|----------|
-| `Finalproj.Api` | Controllers, `Program.cs`, middleware, `proxy` não (CSP é no Next) |
-| `Finalproj.Application` | Serviços de aplicação, DTOs, validadores FluentValidation |
-| `Finalproj.Domain` | Entidades, constantes (`ConstantesRoles`, etc.) |
+| `Finalproj.Api` | Controllers, `Program.cs`, middleware, model binders HTTP (`UploadedFileContent`), dropdowns |
+| `Finalproj.Application` | Serviços de aplicação, DTOs, validadores FluentValidation — **sem** `Microsoft.AspNetCore.*` |
+| `Finalproj.Domain` | Entidades, constantes, read models (`ReadModels/`); contratos em `Interfaces/` (`IUnitOfWork`, `IGestorAnalyticsRepository`) e `Interfaces/Repositories/` (`Finalproj.Domain.Interfaces.Repositories`) |
 | `Finalproj.Infrastructure` | EF `FinalprojContext`, email, `ArquivosRaizService`, `DocumentoStorageService`, backups, `LogSistemaService` |
 
-Serviços de negócio relevantes: `EncomendaService` (preparação FIFO), `StockDisponivelService`, `ServicoService`, `DocumentoStorageService` (uploads em `PirofafeData/Uploads` via `IArquivosRaizService`; validação extensão + magic bytes).
+Serviços de negócio relevantes: `EncomendaService` (preparação FIFO), `StockDisponivelService`, `ServicoService`, `DocumentoStorageService` (uploads em `PirofafeData/Uploads` via `IArquivosRaizService`; validação extensão + magic bytes). Uploads na Application usam `UploadedFileContent` (bytes + nome); a API converte `IFormFile` na fronteira (`FormFileMapper` / model binder).
 
 ---
 
@@ -40,10 +40,10 @@ Serviços de negócio relevantes: `EncomendaService` (preparação FIFO), `Stock
 - **Paiol** + acessos por role, entradas/saídas, documentos.
 - **Produto** — NEM, classificação, compatibilidade.
 - **Encomenda** — estados (Pendente → Aceite → Em preparação → Concluída / Rejeitada), itens, **reservas**.
-- **Servico** — equipa, licenças, distâncias, documentos; `EncomendaId` único.
+- **Servico** — equipa, licenças, distâncias, documentos; `EncomendaId` único; **zonas de lançamento** (`ServicoZonaLancamento` com linhas de material/horário e distâncias por zona); campos para PSP (`NomeEvento`, `CoordenadorPirotecnico`, CRED no funcionário, `Categoria` no produto, `Nome` na encomenda).
 - **Cliente**, **Funcionario**, **RefreshToken**, **LogSistema**.
 
-Regras centrais: stock disponível = entradas − saídas − reservas; preparação só em encomenda Aceite, saídas FIFO.
+Regras centrais: stock disponível = saldo por lote não esgotado (SQL) − saídas avulsas − reservas; preparação só em encomenda Aceite, saídas FIFO por data de fabrico e data de entrada. Entradas no paiol passam por `MotorValidacaoPaiol` (licença, grupos ADR 7.2.5, lotação); cobertura HTTP em `Finalproj.IntegrationTests/Paiols/EntradaPaiolCompatibilidadeTests.cs`. Serviço exige repartição do material da encomenda por zonas (validação FluentValidation + `ServicoService`); geração de declaração PSP via `GeradorDeclaracaoPspService` (ver `Docs/documentacao-regulatoria/`).
 
 ---
 
@@ -81,8 +81,23 @@ Paginação habitual: `pagina`, `itensPorPagina`; resposta com `totalRegistos`.
 
 ---
 
+## Stock FIFO — implementação e dívida técnica
+
+**Implementado (2026):** `StockDisponivelService` usa `SumSaldoDisponivelPorProdutoAsync` (saldo por lote não esgotado − saídas avulsas − reservas). `EncomendaService.RegistarPreparacaoAsync` usa `ListComSaldoParaPreparacaoAsync`, que devolve read models `EntradaPaiolSaldoPreparacao` (`src/Finalproj.Domain/ReadModels/`) ordenados FIFO (`DataFabrico ?? DataEntrada`, depois `DataEntrada`). Agregação e filtro `saldo > 0` no EF/SQL Server; testes de domínio em `StockDisponivelServiceTests` e `EncomendaServiceTests`.
+
+**Dívida técnica conhecida (não bloqueia merge, bloqueia produção em escala/concorrência):**
+
+| Gap | Descrição | Endurecimento sugerido |
+|-----|-----------|------------------------|
+| **Índices FIFO** | `EntradasPaiol` só tem índices em `PaiolId` e `ProdutoId`; ordenação composta por data pode forçar sort costoso em volume. | Migration com índice composto (ex. `PaiolId`, `ProdutoId`, `DataFabrico`, `DataEntrada`); validar plano com `.ToQueryString()` / `EXPLAIN` em SQL Server. |
+| **Concorrência na preparação** | `RegistarPreparacaoAsync` lê saldos (`AsNoTracking`) e grava saídas sem transacção serializável, lock pessimista ou `RowVersion`. Dois operadores podem over-alocar o mesmo lote. | Transacção + `UPDLOCK`/`HOLDLOCK` nas entradas afectadas, ou validação atómica pós-gravação. |
+| **Saídas avulsas vs FIFO por lote** | Saídas com `EntradaPaiolId == null` reduzem stock global (`StockDisponivelService`) mas **não** reduzem saldo por lote em `ListComSaldoParaPreparacaoAsync`. Soma dos lotes pode exceder stock global após saídas manuais. | Pro-rata de avulsas nos lotes, proibir saída avulsa quando há stock lotado, ou validar `SUM(lotes) − avulsas ≥ quantidade` antes de alocar. |
+| **Testes vs SQL real** | Suite unitária usa EF In-Memory; não valida tradução T-SQL (`COALESCE`, subqueries correlacionadas). | Teste de integração opcional contra SQL Server LocalDB para queries de stock/FIFO. |
+
+---
+
 ## Convenções
 
 - Decimais invariantes no binding (`DecimalInvariantModelBinder`).
-- Documentos em `PirofafeData/Uploads` (portátil, relativo ao `ContentRootPath`); paths na BD permanecem relativos; leitura com fallback opcional em `wwwroot` (legado). Path traversal validado em `ArquivosRaizService` / `DocumentoStorageService`.
+- Documentos em `PirofafeData/Uploads` (portátil, relativo ao `ContentRootPath`); paths na BD permanecem relativos. `wwwroot` da API contém apenas `favicon.ico`; `DadosLocais:UsarFallbackWwwroot` está **desactivado** (sem leitura legada em `wwwroot/Documentos`). Path traversal validado em `ArquivosRaizService` / `DocumentoStorageService`.
 - Erros `/api/*` em JSON (401/403/404/500); 500 inclui `correlationId` quando aplicável.

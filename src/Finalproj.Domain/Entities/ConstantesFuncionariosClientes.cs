@@ -2,7 +2,7 @@ namespace Finalproj.Domain.Constants;
 
 /// <summary>
 /// Valores fixos para formulários de funcionários e clientes.
-/// Listas para MVC: Finalproj.Application.Common.Models.DropdownSelectLists.
+/// Listas para dropdowns na API: Finalproj.Api.Models.DropdownSelectLists.
 /// </summary>
 public static class ConstantesFuncionariosClientes
 {

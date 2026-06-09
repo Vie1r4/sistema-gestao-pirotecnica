@@ -1,6 +1,6 @@
 using Finalproj.Domain.Entities;
-using Finalproj.Domain.Interfaces;
 using Finalproj.Domain.Constants;
+using Finalproj.Domain.ReadModels;
 using Finalproj.Infrastructure.Persistence.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -144,6 +144,7 @@ public sealed class EncomendaRepository(FinalprojContext context) : IEncomendaRe
     public Task<Encomenda?> GetByIdWithItensAndProdutosTrackedAsync(int id, CancellationToken cancellationToken = default) =>
         _context.Encomendas
             .Include(e => e.Itens).ThenInclude(i => i.Produto)
+            .Include(e => e.CoordenadorPirotecnico)
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
     public Task<Encomenda?> GetByIdWithClienteAsync(int id, CancellationToken cancellationToken = default) =>
@@ -211,6 +212,7 @@ public sealed class EncomendaRepository(FinalprojContext context) : IEncomendaRe
         _context.Encomendas.AsNoTracking()
             .Include(e => e.Cliente)
             .Include(e => e.Itens).ThenInclude(i => i.Produto)
+            .Include(e => e.CoordenadorPirotecnico)
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
     public async Task<Encomenda?> FindTrackedByIdAsync(int id, CancellationToken cancellationToken = default) =>
@@ -520,10 +522,20 @@ public sealed class ServicoRepository(FinalprojContext context) : IServicoReposi
             .Include(s => s.Cliente)
             .Include(s => s.Encomenda).ThenInclude(e => e.Cliente)
             .Include(s => s.ResponsavelTecnico)
+            .Include(s => s.CoordenadorPirotecnico)
             .Include(s => s.Equipa).ThenInclude(e => e.Funcionario)
             .Include(s => s.DocumentosExtras)
             .Include(s => s.Licencas)
             .Include(s => s.DistanciasSeguranca)
+            .Include(s => s.ZonasLancamento).ThenInclude(z => z.ResponsavelPirotecnico)
+            .Include(s => s.ZonasLancamento).ThenInclude(z => z.Linhas).ThenInclude(l => l.Produto)
+            .Include(s => s.ZonasLancamento).ThenInclude(z => z.DistanciasSeguranca)
+            .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+
+    public Task<Servico?> GetByIdWithZonasTrackedAsync(int id, CancellationToken cancellationToken = default) =>
+        _context.Servicos
+            .Include(s => s.ZonasLancamento).ThenInclude(z => z.Linhas)
+            .Include(s => s.ZonasLancamento).ThenInclude(z => z.DistanciasSeguranca)
             .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 
     public Task<bool> ExistsAsync(int id, CancellationToken cancellationToken = default) =>
@@ -578,6 +590,66 @@ public sealed class EntradaPaiolRepository(FinalprojContext context) : IEntradaP
             .Select(g => new { ProdutoId = g.Key, Total = g.Sum(e => e.Quantidade) })
             .ToListAsync(cancellationToken);
         return rows.ToDictionary(x => x.ProdutoId, x => x.Total);
+    }
+
+    public async Task<Dictionary<int, decimal>> SumSaldoDisponivelPorProdutoAsync(CancellationToken cancellationToken = default)
+    {
+        var saldoPorEntrada = await _context.EntradasPaiol.AsNoTracking()
+            .Select(e => new
+            {
+                e.ProdutoId,
+                Saldo = e.Quantidade - (_context.SaidasPaiol
+                    .Where(s => s.EntradaPaiolId == e.Id)
+                    .Sum(s => (decimal?)s.Quantidade) ?? 0m)
+            })
+            .Where(x => x.Saldo > 0)
+            .GroupBy(x => x.ProdutoId)
+            .Select(g => new { ProdutoId = g.Key, Total = g.Sum(x => x.Saldo) })
+            .ToListAsync(cancellationToken);
+
+        var saidasSemLote = await _context.SaidasPaiol.AsNoTracking()
+            .Where(s => s.EntradaPaiolId == null)
+            .GroupBy(s => s.ProdutoId)
+            .Select(g => new { ProdutoId = g.Key, Total = g.Sum(s => s.Quantidade) })
+            .ToListAsync(cancellationToken);
+
+        var resultado = saldoPorEntrada.ToDictionary(x => x.ProdutoId, x => x.Total);
+        foreach (var s in saidasSemLote)
+            resultado[s.ProdutoId] = resultado.GetValueOrDefault(s.ProdutoId) - s.Total;
+
+        return resultado;
+    }
+
+    public async Task<IReadOnlyList<EntradaPaiolSaldoPreparacao>> ListComSaldoParaPreparacaoAsync(
+        IReadOnlyList<int> paiolIds,
+        IReadOnlyCollection<int>? produtoIds = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (paiolIds.Count == 0)
+            return [];
+
+        var query = _context.EntradasPaiol.AsNoTracking().Where(e => paiolIds.Contains(e.PaiolId));
+        if (produtoIds is { Count: > 0 })
+            query = query.Where(e => produtoIds.Contains(e.ProdutoId));
+
+        return await query
+            .Select(e => new EntradaPaiolSaldoPreparacao
+            {
+                Id = e.Id,
+                PaiolId = e.PaiolId,
+                ProdutoId = e.ProdutoId,
+                QuantidadeRestante = e.Quantidade - (_context.SaidasPaiol
+                    .Where(s => s.EntradaPaiolId == e.Id)
+                    .Sum(s => (decimal?)s.Quantidade) ?? 0m),
+                DataEntrada = e.DataEntrada,
+                DataFabrico = e.DataFabrico,
+                NumeroLote = e.NumeroLote,
+                PaiolNome = e.Paiol.Nome
+            })
+            .Where(x => x.QuantidadeRestante > 0)
+            .OrderBy(x => x.DataFabrico ?? x.DataEntrada)
+            .ThenBy(x => x.DataEntrada)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<EntradaPaiol>> ListRecentWithPaiolProdutoAsync(int take, CancellationToken cancellationToken = default) =>
@@ -913,6 +985,49 @@ public sealed class ServicoDistanciaSegurancaRepository(FinalprojContext context
             .Where(d => d.ServicoId == servicoId)
             .OrderBy(d => d.TipoReferencia)
             .ToListAsync(cancellationToken);
+}
+
+public sealed class ServicoZonaLancamentoRepository(FinalprojContext context) : IServicoZonaLancamentoRepository
+{
+    private readonly FinalprojContext _context = context;
+
+    public Task AddAsync(ServicoZonaLancamento entity, CancellationToken cancellationToken = default) =>
+        _context.ServicoZonasLancamento.AddAsync(entity, cancellationToken).AsTask();
+
+    public async Task ClearForServicoAsync(int servicoId, CancellationToken cancellationToken = default)
+    {
+        var zonas = await _context.ServicoZonasLancamento.Where(z => z.ServicoId == servicoId).ToListAsync(cancellationToken);
+        _context.ServicoZonasLancamento.RemoveRange(zonas);
+    }
+
+    public async Task AddDistanciasPadraoAsync(int zonaId, string? divisaoDominante, CancellationToken cancellationToken = default)
+    {
+        var existentes = await _context.ServicoZonaDistanciasSeguranca.AsNoTracking()
+            .Where(d => d.ZonaId == zonaId)
+            .Select(d => d.TipoReferencia)
+            .ToListAsync(cancellationToken);
+        var tipos = Enum.GetValues<TipoReferenciaDistancia>().Where(t => t != TipoReferenciaDistancia.OUTRO).ToList();
+        foreach (var tipo in tipos.Where(t => !existentes.Contains(t)))
+        {
+            int min = tipo == TipoReferenciaDistancia.HABITACAO
+                ? ConstantesDistanciaSeguranca.HabitacaoMinimaMetros(divisaoDominante)
+                : tipo switch
+                {
+                    TipoReferenciaDistancia.ESTRADA_NACIONAL => ConstantesDistanciaSeguranca.EstradaNacional,
+                    TipoReferenciaDistancia.AUTOESTRADA => ConstantesDistanciaSeguranca.Autoestrada,
+                    TipoReferenciaDistancia.LINHA_ALTA_TENSAO => ConstantesDistanciaSeguranca.LinhaAltaTensao,
+                    TipoReferenciaDistancia.FLORESTA => ConstantesDistanciaSeguranca.Floresta,
+                    _ => 50
+                };
+            await _context.ServicoZonaDistanciasSeguranca.AddAsync(new ServicoZonaDistanciaSeguranca
+            {
+                ZonaId = zonaId,
+                TipoReferencia = tipo,
+                DescricaoReferencia = ConstantesDistanciaSeguranca.Nome(tipo),
+                DistanciaMinima_m = min
+            }, cancellationToken);
+        }
+    }
 }
 
 public sealed class PaiolAcessoRepository(FinalprojContext context) : IPaiolAcessoRepository

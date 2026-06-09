@@ -124,9 +124,21 @@ public sealed class PaiolApplicationService(
     {
         if (id != paiol.Id || !await paiois.ExistsAsync(id, cancellationToken))
             return null;
+        var existente = await paiois.FindTrackedByIdAsync(id, cancellationToken);
+        if (existente == null)
+            return null;
+        existente.Nome = paiol.Nome;
+        existente.Localizacao = paiol.Localizacao;
+        existente.CoordenadasLat = paiol.CoordenadasLat;
+        existente.CoordenadasLng = paiol.CoordenadasLng;
+        existente.LimiteMLE = paiol.LimiteMLE;
+        existente.PerfilRisco = paiol.PerfilRisco;
+        existente.Estado = paiol.Estado;
+        existente.DataValidadeLicenca = paiol.DataValidadeLicenca;
+        existente.NumeroLicenca = paiol.NumeroLicenca;
+        // DivisaoDominante é calculada pelo stock — nunca sobrescrever com o payload do formulário.
         if (removerDocumentoIds?.Count > 0)
             documentos.RemoveRange(await documentos.ListByPaiolAndIdsAsync(id, removerDocumentoIds, cancellationToken));
-        await paiois.UpdateAsync(paiol, cancellationToken);
         await RecriarAcessosAsync(id, cargosAcesso, cancellationToken);
         foreach (var doc in documentosExtras ?? Enumerable.Empty<PaiolDocumentoExtra>())
         {
@@ -134,7 +146,7 @@ public sealed class PaiolApplicationService(
             await documentos.AddAsync(doc, cancellationToken);
         }
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        return paiol;
+        return existente;
     }
 
     public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)

@@ -22,8 +22,6 @@ import {
   YAxis,
 } from "recharts";
 import { fetchVolume, type VolumePeriodo } from "@/app/lib/gestorAnalytics";
-import { buildDemoVolume } from "@/app/lib/gestorAnalyticsDemo";
-import { useGestorDemo } from "./GestorDemoProvider";
 import AnalyticsCard, { AnalyticsSkeleton } from "./AnalyticsCard";
 import { buildVolumeXAxisConfig } from "./volumeChartAxis";
 import {
@@ -158,7 +156,6 @@ export default function VolumeChart({
   const emPainel = layout === "panel" || compact;
   const gradientId = useId().replace(/:/g, "");
   const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { demoMode } = useGestorDemo();
 
   const [periodId, setPeriodId] = useState<PeriodoVolumeId>(PERIODO_INICIAL.id);
   const [agrupamentoAtual, setAgrupamentoAtual] = useState<AgrupamentoVolume>(
@@ -226,12 +223,10 @@ export default function VolumeChart({
     queryKey: ["gestor-analytics", "volume", agrupamentoAtual, periodo.dias],
     queryFn: () => fetchVolume(token, agrupamentoAtual, periodo.dias),
     staleTime: 60_000,
-    enabled: !!token && !demoMode,
+    enabled: !!token,
   });
 
-  const apiPeriodos: VolumePeriodo[] | undefined = demoMode
-    ? buildDemoVolume(agrupamentoAtual, periodo.dias).periodos
-    : real?.periodos;
+  const apiPeriodos: VolumePeriodo[] | undefined = real?.periodos;
 
   const { points: chartData, range } = useMemo(
     () => prepareVolumeChartData(apiPeriodos, periodo.dias, agrupamentoAtual),
@@ -279,7 +274,7 @@ export default function VolumeChart({
 
   const showDots = chartData.filter((d) => d.total > 0).length <= 21;
   const showMa = agrupamentoAtual === "dia" && periodo.dias >= 14;
-  const accent = demoMode ? "#fb923c" : "#f97316";
+  const accent = "#f97316";
   const unidade =
     agrupamentoAtual === "dia"
       ? "dia"
@@ -311,7 +306,6 @@ export default function VolumeChart({
           key={p.id}
           type="button"
           title={PERIODO_LABEL_LONGO[p.id]}
-          disabled={demoMode}
           onClick={() => selectPeriodo(p.id)}
           className={`rounded-lg px-2 py-1 text-xs font-semibold transition-all sm:px-2.5 sm:py-1.5 ${
             periodId === p.id
@@ -334,7 +328,7 @@ export default function VolumeChart({
           : `${xAxis.intervaloLegivel} · ${LABEL_AGRUPAMENTO[agrupamentoAtual]} · Ctrl+scroll: ${periodosValidos.join(" → ")}`
       }
       compact={emPainel}
-      className={`h-full min-w-0 ${demoMode ? "border-dashed border-[#f97316]/40" : ""}`}
+      className="h-full min-w-0"
       action={emPainel ? undefined : periodoToolbar}
     >
       <div
@@ -352,14 +346,14 @@ export default function VolumeChart({
           </div>
         )}
 
-        {!demoMode && isLoading ? (
+        {isLoading ? (
           <AnalyticsSkeleton height={emPainel ? chartHeight + 88 : 320} />
-        ) : !demoMode && isError ? (
+        ) : isError ? (
           <p className="py-12 text-center text-sm text-[#78716c]">Sem dados suficientes.</p>
         ) : chartData.length === 0 ? (
           <p className="py-12 text-center text-sm text-[#78716c]">Sem dados suficientes.</p>
         ) : (
-          <div className={demoMode ? "opacity-90" : ""}>
+          <div>
           {stats && (
             <div
               className={`mb-4 grid grid-cols-3 gap-2 transition-opacity duration-200 ${
@@ -491,7 +485,7 @@ export default function VolumeChart({
                               props.cx == null ||
                               props.cy == null
                             ) {
-                              return null;
+                              return <g key={`dot-empty-${props.index}`} />;
                             }
                             return (
                               <circle

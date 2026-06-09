@@ -167,6 +167,9 @@ namespace Finalproj.Migrations
                     b.Property<int>("ClienteId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("CoordenadorPirotecnicoId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("DataAceite")
                         .HasColumnType("datetime2");
 
@@ -199,6 +202,10 @@ namespace Finalproj.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<string>("Nome")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("Observacoes")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
@@ -206,6 +213,8 @@ namespace Finalproj.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ClienteId");
+
+                    b.HasIndex("CoordenadorPirotecnicoId");
 
                     b.ToTable("Encomendas");
                 });
@@ -332,6 +341,10 @@ namespace Finalproj.Migrations
                     b.Property<string>("Notas")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("NumeroCredencial")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("NumeroSegurancaSocial")
                         .HasMaxLength(12)
@@ -561,8 +574,14 @@ namespace Finalproj.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Calibre")
+                        .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Categoria")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<DateTime?>("DataRegisto")
                         .HasColumnType("datetime2");
@@ -573,10 +592,12 @@ namespace Finalproj.Migrations
                         .HasColumnType("nvarchar(10)");
 
                     b.Property<string>("FiltroTecnico")
+                        .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
                     b.Property<string>("GrupoCompatibilidade")
+                        .IsRequired()
                         .HasMaxLength(5)
                         .HasColumnType("nvarchar(5)");
 
@@ -725,6 +746,9 @@ namespace Finalproj.Migrations
                         .HasPrecision(18, 9)
                         .HasColumnType("decimal(18,9)");
 
+                    b.Property<int?>("CoordenadorPirotecnicoId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("DataServico")
                         .HasColumnType("datetime2");
 
@@ -747,6 +771,10 @@ namespace Finalproj.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("NomeEvento")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("Observacoes")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
@@ -764,6 +792,8 @@ namespace Finalproj.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ClienteId");
+
+                    b.HasIndex("CoordenadorPirotecnicoId");
 
                     b.HasIndex("EncomendaId")
                         .IsUnique();
@@ -904,6 +934,119 @@ namespace Finalproj.Migrations
                     b.HasIndex("ServicoId");
 
                     b.ToTable("ServicoLicencas");
+                });
+
+            modelBuilder.Entity("Finalproj.Domain.Entities.ServicoZonaDistanciaSeguranca", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DescricaoReferencia")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("DistanciaMedida_m")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DistanciaMinima_m")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Observacoes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("TipoReferencia")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ZonaId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ZonaId");
+
+                    b.ToTable("ServicoZonaDistanciasSeguranca");
+                });
+
+            modelBuilder.Entity("Finalproj.Domain.Entities.ServicoZonaLancamento", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("CoordenadasLat")
+                        .HasPrecision(18, 9)
+                        .HasColumnType("decimal(18,9)");
+
+                    b.Property<decimal?>("CoordenadasLng")
+                        .HasPrecision(18, 9)
+                        .HasColumnType("decimal(18,9)");
+
+                    b.Property<string>("Designacao")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Observacoes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("RaioPublico")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ResponsavelPirotecnicoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ServicoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResponsavelPirotecnicoId");
+
+                    b.HasIndex("ServicoId");
+
+                    b.ToTable("ServicoZonasLancamento");
+                });
+
+            modelBuilder.Entity("Finalproj.Domain.Entities.ServicoZonaLinha", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("Data")
+                        .HasColumnType("datetime2");
+
+                    b.Property<TimeSpan?>("HoraFim")
+                        .HasColumnType("time");
+
+                    b.Property<TimeSpan?>("HoraInicio")
+                        .HasColumnType("time");
+
+                    b.Property<int>("ProdutoId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Quantidade")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("ZonaId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProdutoId");
+
+                    b.HasIndex("ZonaId");
+
+                    b.ToTable("ServicoZonaLinhas");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -1142,7 +1285,14 @@ namespace Finalproj.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Finalproj.Domain.Entities.Funcionario", "CoordenadorPirotecnico")
+                        .WithMany()
+                        .HasForeignKey("CoordenadorPirotecnicoId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Cliente");
+
+                    b.Navigation("CoordenadorPirotecnico");
                 });
 
             modelBuilder.Entity("Finalproj.Domain.Entities.EncomendaItem", b =>
@@ -1269,6 +1419,11 @@ namespace Finalproj.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Finalproj.Domain.Entities.Funcionario", "CoordenadorPirotecnico")
+                        .WithMany()
+                        .HasForeignKey("CoordenadorPirotecnicoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Finalproj.Domain.Entities.Encomenda", "Encomenda")
                         .WithMany("Servicos")
                         .HasForeignKey("EncomendaId")
@@ -1281,6 +1436,8 @@ namespace Finalproj.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Cliente");
+
+                    b.Navigation("CoordenadorPirotecnico");
 
                     b.Navigation("Encomenda");
 
@@ -1337,6 +1494,54 @@ namespace Finalproj.Migrations
                         .IsRequired();
 
                     b.Navigation("Servico");
+                });
+
+            modelBuilder.Entity("Finalproj.Domain.Entities.ServicoZonaDistanciaSeguranca", b =>
+                {
+                    b.HasOne("Finalproj.Domain.Entities.ServicoZonaLancamento", "Zona")
+                        .WithMany("DistanciasSeguranca")
+                        .HasForeignKey("ZonaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Zona");
+                });
+
+            modelBuilder.Entity("Finalproj.Domain.Entities.ServicoZonaLancamento", b =>
+                {
+                    b.HasOne("Finalproj.Domain.Entities.Funcionario", "ResponsavelPirotecnico")
+                        .WithMany()
+                        .HasForeignKey("ResponsavelPirotecnicoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Finalproj.Domain.Entities.Servico", "Servico")
+                        .WithMany("ZonasLancamento")
+                        .HasForeignKey("ServicoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ResponsavelPirotecnico");
+
+                    b.Navigation("Servico");
+                });
+
+            modelBuilder.Entity("Finalproj.Domain.Entities.ServicoZonaLinha", b =>
+                {
+                    b.HasOne("Finalproj.Domain.Entities.Produto", "Produto")
+                        .WithMany()
+                        .HasForeignKey("ProdutoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Finalproj.Domain.Entities.ServicoZonaLancamento", "Zona")
+                        .WithMany("Linhas")
+                        .HasForeignKey("ZonaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Produto");
+
+                    b.Navigation("Zona");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -1426,6 +1631,15 @@ namespace Finalproj.Migrations
                     b.Navigation("Equipa");
 
                     b.Navigation("Licencas");
+
+                    b.Navigation("ZonasLancamento");
+                });
+
+            modelBuilder.Entity("Finalproj.Domain.Entities.ServicoZonaLancamento", b =>
+                {
+                    b.Navigation("DistanciasSeguranca");
+
+                    b.Navigation("Linhas");
                 });
 #pragma warning restore 612, 618
         }

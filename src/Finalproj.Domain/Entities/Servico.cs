@@ -14,6 +14,10 @@ public class Servico
     public int ClienteId { get; set; }
     public Cliente Cliente { get; set; } = null!;
 
+    [StringLength(200)]
+    [Display(Name = "Nome do evento")]
+    public string? NomeEvento { get; set; }
+
     [Required(ErrorMessage = "A data do serviço é obrigatória.")]
     [Display(Name = "Data do serviço")]
     [DataType(DataType.Date)]
@@ -51,6 +55,10 @@ public class Servico
     public int? ResponsavelTecnicoId { get; set; }
     public Funcionario? ResponsavelTecnico { get; set; }
 
+    [Display(Name = "Coordenador pirotécnico")]
+    public int? CoordenadorPirotecnicoId { get; set; }
+    public Funcionario? CoordenadorPirotecnico { get; set; }
+
     [StringLength(2000)]
     [Display(Name = "Observações")]
     public string? Observacoes { get; set; }
@@ -59,4 +67,5 @@ public class Servico
     public ICollection<ServicoDocumentoExtra> DocumentosExtras { get; set; } = new List<ServicoDocumentoExtra>();
     public ICollection<ServicoLicenca> Licencas { get; set; } = new List<ServicoLicenca>();
     public ICollection<ServicoDistanciaSeguranca> DistanciasSeguranca { get; set; } = new List<ServicoDistanciaSeguranca>();
+    public ICollection<ServicoZonaLancamento> ZonasLancamento { get; set; } = new List<ServicoZonaLancamento>();
 }

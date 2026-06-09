@@ -14,6 +14,9 @@ public class EditEncomendaDto
     [StringLength(2000)]
     public string? Observacoes { get; set; }
 
+    /// <summary>Coordenador pirotécnico (funcionário) para a declaração PSP; opcional.</summary>
+    public int? CoordenadorPirotecnicoId { get; set; }
+
     public List<EditEncomendaItemDto> Itens { get; set; } = new();
 }
 

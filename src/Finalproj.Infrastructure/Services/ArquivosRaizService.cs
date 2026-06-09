@@ -1,6 +1,7 @@
 using Finalproj.Application.Services;
 using Finalproj.Infrastructure.Configuration;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Finalproj.Infrastructure.Services;
@@ -9,21 +10,52 @@ public sealed class ArquivosRaizService : IArquivosRaizService
 {
     private readonly IWebHostEnvironment _env;
     private readonly DadosLocaisOptions _options;
+    private readonly ILogger<ArquivosRaizService> _logger;
     private readonly string _dadosRoot;
 
-    public ArquivosRaizService(IWebHostEnvironment env, IOptions<DadosLocaisOptions> options)
+    public ArquivosRaizService(
+        IWebHostEnvironment env,
+        IOptions<DadosLocaisOptions> options,
+        ILogger<ArquivosRaizService> logger)
     {
         _env = env;
         _options = options.Value;
-        var anchor = string.IsNullOrWhiteSpace(_options.CaminhoRaizDados)
-            ? env.ContentRootPath
-            : _options.CaminhoRaizDados.Trim();
+        _logger = logger;
 
-        _dadosRoot = Path.Combine(anchor, _options.NomePastaDados);
+        var caminhoConfigurado = _options.CaminhoRaizDados?.Trim();
+        var usaCaminhoAbsoluto = !string.IsNullOrWhiteSpace(caminhoConfigurado);
+        var anchor = usaCaminhoAbsoluto ? caminhoConfigurado! : env.ContentRootPath;
+
+        // Caminho absoluto evita ambiguidades ao mudar a app de máquina/disco.
+        if (usaCaminhoAbsoluto && !Path.IsPathRooted(anchor))
+        {
+            throw new InvalidOperationException(
+                $"DadosLocais:CaminhoRaizDados ('{anchor}') tem de ser um caminho absoluto " +
+                "(ex.: D:\\Pirofafe_Dados_Empresa).");
+        }
+
+        _dadosRoot = Path.GetFullPath(Path.Combine(anchor, _options.NomePastaDados));
         UploadsRoot = Path.Combine(_dadosRoot, _options.SubPastaDocumentos);
         BackupsRoot = Path.Combine(_dadosRoot, _options.SubPastaBackups);
 
-        GarantirPastasExistem();
+        try
+        {
+            GarantirPastasExistem();
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException(
+                $"Não foi possível criar/aceder à pasta de dados '{_dadosRoot}'. " +
+                "Verifique DadosLocais:CaminhoRaizDados e as permissões da conta da aplicação.",
+                ex);
+        }
+
+        _logger.LogInformation(
+            "Pastas de dados resolvidas. Raiz={DadosRoot}; Uploads={UploadsRoot}; Backups={BackupsRoot}; Origem={Origem}.",
+            _dadosRoot,
+            UploadsRoot,
+            BackupsRoot,
+            usaCaminhoAbsoluto ? "DadosLocais:CaminhoRaizDados" : "ContentRootPath");
     }
 
     public string UploadsRoot { get; }

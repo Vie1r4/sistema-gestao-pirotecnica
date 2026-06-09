@@ -12,7 +12,9 @@ public class ProdutoResponseDto
     public string? Unidade { get; set; }
     public string? FiltroTecnico { get; set; }
     public string? Calibre { get; set; }
+    public string? Categoria { get; set; }
     public string? GrupoCompatibilidade { get; set; }
+    public DateTime? DataRegisto { get; set; }
 }
 
 public static class ProdutoResponseDtoMapping
@@ -28,7 +30,9 @@ public static class ProdutoResponseDtoMapping
             Unidade = p.Unidade,
             FiltroTecnico = p.FiltroTecnico,
             Calibre = p.Calibre,
-            GrupoCompatibilidade = p.GrupoCompatibilidade
+            Categoria = p.Categoria,
+            GrupoCompatibilidade = p.GrupoCompatibilidade,
+            DataRegisto = p.DataRegisto,
         };
     }
 }

@@ -1,6 +1,6 @@
 using Finalproj.Authorization;
-using Finalproj.Application.Common.Models;
-using Finalproj.Application.Common.Validators;
+using Finalproj.Api.Models;
+using Finalproj.Api.Validators;
 using Finalproj.Application.DTOs;
 using Finalproj.Application.Features.Paiols.DTOs;
 using Finalproj.Application.Features.Paiols.Interfaces;
@@ -335,15 +335,12 @@ namespace Finalproj.Controllers
             var caminho = await _paiois.GetDocumentoExtraPathForPaiolAsync(id, extraId, cancellationToken);
             if (caminho == null)
                 return NotFound();
-            return ServirFicheiro(caminho);
+            return await ServirFicheiro(caminho, cancellationToken);
         }
 
         // Envia ficheiro do disco com Content-Type e nome para inline
-        private IActionResult ServirFicheiro(string caminhoRelativo)
-        {
-            var caminhoFisico = _documentoStorage.ResolverCaminhoFisicoParaLeitura(caminhoRelativo);
-            return DocumentoFileResult.FromPath(this, caminhoFisico, caminhoRelativo) ?? NotFound();
-        }
+        private async Task<IActionResult> ServirFicheiro(string caminhoRelativo, CancellationToken cancellationToken = default) =>
+            await DocumentoFileResult.FromPathAsync(this, _documentoStorage, caminhoRelativo, attachment: false, cancellationToken) ?? NotFound();
 
     }
 }

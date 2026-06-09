@@ -14,6 +14,8 @@ public class FuncionarioResponseDto
     public string? Morada { get; set; }
     public string? Cargo { get; set; }
     public string? Notas { get; set; }
+    /// <summary>N.º de credencial pirotécnica (CRED) para declarações PSP.</summary>
+    public string? NumeroCredencial { get; set; }
     public string? UserId { get; set; }
     public DateTime? DataRegisto { get; set; }
 
@@ -58,6 +60,7 @@ public static class FuncionarioResponseDtoMapping
             Morada = f.Morada,
             Cargo = f.Cargo,
             Notas = f.Notas,
+            NumeroCredencial = f.NumeroCredencial,
             ContaAssociada = !string.IsNullOrEmpty(f.UserId),
             ContaEmailConfirmada = contaEmailConfirmada,
             UserId = includeSensitive ? f.UserId : null,

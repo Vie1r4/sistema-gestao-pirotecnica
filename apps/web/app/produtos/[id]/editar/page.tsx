@@ -10,11 +10,13 @@ import { getToken } from "@/app/lib/auth";
 import { useToastStore } from "@/app/stores/useToastStore";
 import {
   CLASSIFICACOES_RISCO,
+  CATEGORIAS_PIROTECNICAS,
   GRUPOS_COMPATIBILIDADE,
   FILTROS_TECNICOS,
   CALIBRES,
   textoClassificacao,
   validarNemPorUnidade,
+  validarCamposCatalogoProduto,
 } from "@/app/lib/produtos";
 import { fetchEdit, putEdit, mapApiToProduto } from "@/app/lib/produtosApi";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
@@ -38,9 +40,10 @@ type PutEditPayload = {
   nemPorUnidade: number;
   familiaRisco: string;
   unidade?: string;
-  grupoCompatibilidade?: string;
-  filtroTecnico?: string;
-  calibre?: string;
+  grupoCompatibilidade: string;
+  filtroTecnico: string;
+  calibre: string;
+  categoria: string;
 };
 
 export default function EditarProdutoPage() {
@@ -59,6 +62,7 @@ export default function EditarProdutoPage() {
     grupoCompatibilidade: "",
     filtroTecnico: "",
     calibre: "",
+    categoria: "",
   });
 
   const {
@@ -96,6 +100,7 @@ export default function EditarProdutoPage() {
       grupoCompatibilidade: produto.grupoCompatibilidade ?? "",
       filtroTecnico: produto.filtroTecnico ?? "",
       calibre: produto.calibre ?? "",
+      categoria: produto.categoria ?? "",
     });
   }, [produto]);
 
@@ -140,15 +145,21 @@ export default function EditarProdutoPage() {
       setMessage({ type: "error", text: "O NEM por unidade deve ser um valor positivo (mínimo 0,0001)." });
       return;
     }
+    const erroCatalogo = validarCamposCatalogoProduto(form);
+    if (erroCatalogo) {
+      setMessage({ type: "error", text: erroCatalogo });
+      return;
+    }
     submittingRef.current = true;
     mutation.mutate({
       nome: form.nome.trim(),
       nemPorUnidade: nem,
       familiaRisco: form.familiaRisco,
       unidade: form.referencia.trim() || undefined,
-      grupoCompatibilidade: form.grupoCompatibilidade.trim() || undefined,
-      filtroTecnico: form.filtroTecnico.trim() || undefined,
-      calibre: form.calibre.trim() || undefined,
+      grupoCompatibilidade: form.grupoCompatibilidade.trim(),
+      filtroTecnico: form.filtroTecnico.trim(),
+      calibre: form.calibre.trim(),
+      categoria: form.categoria.trim(),
     });
   };
 
@@ -243,6 +254,24 @@ export default function EditarProdutoPage() {
                   </select>
                 </div>
                 <div>
+                  <label htmlFor="categoria" className={labelClass}>Categoria pirotécnica *</label>
+                  <select
+                    id="categoria"
+                    required
+                    value={form.categoria}
+                    onChange={(e) => setForm((f) => ({ ...f, categoria: e.target.value }))}
+                    className={inputClass}
+                  >
+                    <option value="">— Selecionar —</option>
+                    {CATEGORIAS_PIROTECNICAS.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    F1–F4 ou FP — usado na declaração PSP.
+                  </p>
+                </div>
+                <div>
                   <label htmlFor="referencia" className={labelClass}>Referência</label>
                   <input
                     id="referencia"
@@ -255,14 +284,15 @@ export default function EditarProdutoPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="grupoCompatibilidade" className={labelClass}>Grupo de compatibilidade</label>
+                  <label htmlFor="grupoCompatibilidade" className={labelClass}>Grupo de compatibilidade *</label>
                   <select
                     id="grupoCompatibilidade"
+                    required
                     value={form.grupoCompatibilidade}
                     onChange={(e) => setForm((f) => ({ ...f, grupoCompatibilidade: e.target.value }))}
                     className={inputClass}
                   >
-                    <option value="">— Opcional —</option>
+                    <option value="">— Selecionar —</option>
                     {GRUPOS_COMPATIBILIDADE.map((g) => (
                       <option key={g.value} value={g.value}>{g.text}</option>
                     ))}
@@ -270,28 +300,30 @@ export default function EditarProdutoPage() {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="filtroTecnico" className={labelClass}>Filtro técnico</label>
+                    <label htmlFor="filtroTecnico" className={labelClass}>Filtro técnico *</label>
                     <select
                       id="filtroTecnico"
+                      required
                       value={form.filtroTecnico}
                       onChange={(e) => setForm((f) => ({ ...f, filtroTecnico: e.target.value }))}
                       className={inputClass}
                     >
-                      <option value="">— Opcional —</option>
+                      <option value="">— Selecionar —</option>
                       {FILTROS_TECNICOS.map((f) => (
                         <option key={f.value} value={f.value}>{f.text}</option>
                       ))}
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="calibre" className={labelClass}>Calibre</label>
+                    <label htmlFor="calibre" className={labelClass}>Calibre *</label>
                     <select
                       id="calibre"
+                      required
                       value={form.calibre}
                       onChange={(e) => setForm((f) => ({ ...f, calibre: e.target.value }))}
                       className={inputClass}
                     >
-                      <option value="">— Opcional —</option>
+                      <option value="">— Selecionar —</option>
                       {CALIBRES.map((c) => (
                         <option key={c.value} value={c.value}>{c.text}</option>
                       ))}

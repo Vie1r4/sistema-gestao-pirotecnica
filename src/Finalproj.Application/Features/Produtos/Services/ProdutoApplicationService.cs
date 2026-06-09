@@ -1,5 +1,5 @@
+using Finalproj.Application.Features.Produtos.DTOs;
 using Finalproj.Application.Features.Produtos.Interfaces;
-using Finalproj.Domain.Entities;
 using Finalproj.Domain.Interfaces;
 
 namespace Finalproj.Application.Features.Produtos.Services;
@@ -20,13 +20,23 @@ public sealed class ProdutoApplicationService(IProdutoRepository produtos, IUnit
         return produto;
     }
 
-    public async Task<Produto?> UpdateAsync(int id, Produto produto, CancellationToken cancellationToken = default)
+    public async Task<Produto?> UpdateAsync(int id, UpdateProdutoRequestDto request, CancellationToken cancellationToken = default)
     {
-        if (id != produto.Id || !await produtos.ExistsAsync(id, cancellationToken))
+        if (id != request.Id || !await produtos.ExistsAsync(id, cancellationToken))
             return null;
-        await produtos.UpdateAsync(produto, cancellationToken);
+        var existente = await produtos.FindTrackedByIdAsync(id, cancellationToken);
+        if (existente == null)
+            return null;
+        existente.Nome = request.Nome;
+        existente.NEMPorUnidade = request.NEMPorUnidade;
+        existente.FamiliaRisco = request.FamiliaRisco;
+        existente.Unidade = request.Unidade;
+        existente.FiltroTecnico = request.FiltroTecnico;
+        existente.Calibre = request.Calibre;
+        existente.Categoria = request.Categoria;
+        existente.GrupoCompatibilidade = request.GrupoCompatibilidade;
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        return produto;
+        return existente;
     }
 
     public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)

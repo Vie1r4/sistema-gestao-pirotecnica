@@ -6,6 +6,7 @@ describe("mapApiItemToFuncionarioDetalhe", () => {
     const f = mapApiItemToFuncionarioDetalhe({
       id: 42,
       nomeCompleto: "Ana Silva",
+      numeroCredencial: "3412",
       email: "ana@teste.pt",
       cargo: "Gestor",
       hasCartaoCidadao: true,
@@ -15,6 +16,7 @@ describe("mapApiItemToFuncionarioDetalhe", () => {
     });
     expect(f.id).toBe("42");
     expect(f.nomeCompleto).toBe("Ana Silva");
+    expect(f.numeroCredencial).toBe("3412");
     expect(f.email).toBe("ana@teste.pt");
     expect(f.cargo).toBe("Gestor");
     expect(f.contaAssociada).toBe(true);

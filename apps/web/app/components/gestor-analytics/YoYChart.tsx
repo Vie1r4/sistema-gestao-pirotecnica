@@ -26,9 +26,7 @@ import {
   type ComparacaoAnualResponse,
   type FiltroOpcao,
 } from "@/app/lib/gestorAnalytics";
-import { buildDemoComparacaoAnual, demoYoY } from "@/app/lib/gestorAnalyticsDemo";
 import { fetchList as fetchProdutosList } from "@/app/lib/produtosApi";
-import { useGestorDemo } from "./GestorDemoProvider";
 import AnalyticsCard, { AnalyticsSkeleton } from "./AnalyticsCard";
 import {
   buildYoYChartRows,
@@ -194,8 +192,6 @@ export default function YoYChart({
   const wheelCleanupRef = useRef<(() => void) | null>(null);
   const pointerInsideZoneRef = useRef(false);
   const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { demoMode } = useGestorDemo();
-
   const [periodId, setPeriodId] = useState<PeriodoYoYId>(PERIODO_INICIAL.id);
   const [chartOpaque, setChartOpaque] = useState(true);
   const [materialId, setMaterialId] = useState("");
@@ -306,7 +302,7 @@ export default function YoYChart({
       }),
     staleTime: 30_000,
     refetchOnWindowFocus: true,
-    enabled: !!token && !demoMode,
+    enabled: !!token,
   });
 
   const { data: produtosCatalogo } = useQuery({
@@ -321,7 +317,7 @@ export default function YoYChart({
         .filter((p) => p.id > 0 && p.nome) as FiltroOpcao[];
     },
     ...FILTRO_QUERY_OPTS,
-    enabled: !!token && !demoMode,
+    enabled: !!token,
   });
 
   const { data: clientesCatalogo } = useQuery({
@@ -336,25 +332,17 @@ export default function YoYChart({
         .filter((c) => c.id > 0 && c.nome) as FiltroOpcao[];
     },
     ...FILTRO_QUERY_OPTS,
-    enabled: !!token && !demoMode,
+    enabled: !!token,
   });
 
-  const data = useMemo((): ComparacaoAnualResponse | undefined => {
-    if (demoMode) {
-      return buildDemoComparacaoAnual(periodId, {
-        produtoId,
-        clienteId: clienteIdNum,
-      });
-    }
-    return real;
-  }, [demoMode, real, periodId, produtoId, clienteIdNum]);
+  const data = useMemo((): ComparacaoAnualResponse | undefined => real, [real]);
 
   const chartData = useMemo(
     () => buildYoYChartRows(data, periodId),
     [data, periodId]
   );
 
-  const chartBusy = !demoMode && (isLoading || (isFetching && !real));
+  const chartBusy = isLoading || (isFetching && !real);
 
   const rotuloPorIndice = useMemo(
     () => new Map(chartData.map((r) => [r.indice, r.rotulo])),
@@ -384,14 +372,12 @@ export default function YoYChart({
   );
 
   const materiaisOpcoes = useMemo((): FiltroOpcao[] => {
-    if (demoMode) return demoYoY.materiais;
     return mergeFiltroOpcoes(data?.materiais, produtosCatalogo);
-  }, [demoMode, data?.materiais, produtosCatalogo]);
+  }, [data?.materiais, produtosCatalogo]);
 
   const clientesOpcoes = useMemo((): FiltroOpcao[] => {
-    if (demoMode) return demoYoY.clientes;
     return mergeFiltroOpcoes(data?.clientes, clientesCatalogo);
-  }, [demoMode, data?.clientes, clientesCatalogo]);
+  }, [data?.clientes, clientesCatalogo]);
 
   const filtroMaterial = materiaisOpcoes.find((m) => String(m.id) === materialId);
   const filtroCliente = clientesOpcoes.find((c) => String(c.id) === clienteId);
@@ -419,7 +405,6 @@ export default function YoYChart({
       title="Este ano vs ano passado"
       subtitle={subtitulo}
       compact={compact}
-      className={demoMode ? "border-dashed border-[#f97316]/40" : ""}
     >
       <div className="-mt-1 mb-3 space-y-2.5 border-b border-[#e7e5e4]/80 pb-3 dark:border-[#2a2a2a]">
         {(filtroMaterial || filtroCliente) && (
@@ -448,7 +433,6 @@ export default function YoYChart({
                 key={p.id}
                 type="button"
                 title={PERIODO_LABEL_LONGO[p.id]}
-                disabled={demoMode}
                 onClick={() => applyPeriodo(p.id, true)}
                 className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all sm:px-3 ${
                   periodId === p.id
@@ -501,12 +485,12 @@ export default function YoYChart({
       </div>
       {chartBusy ? (
         <AnalyticsSkeleton height={chartHeight + 48} />
-      ) : !demoMode && isError ? (
+      ) : isError ? (
         <p className="py-12 text-center text-sm text-[#78716c]">Sem dados.</p>
       ) : (
         <div
           ref={bindChartZoneRef}
-          className={`overscroll-contain rounded-xl border border-[#e7e5e4]/50 bg-[#fafaf9]/30 p-1 pt-2 dark:border-[#2a2a2a] dark:bg-[#111]/20 ${demoMode ? "opacity-90" : ""}`}
+          className="overscroll-contain rounded-xl border border-[#e7e5e4]/50 bg-[#fafaf9]/30 p-1 pt-2 dark:border-[#2a2a2a] dark:bg-[#111]/20"
           style={{ touchAction: "pan-x pan-y" }}
           title="Ctrl + roda: 7d ↔ 3a (sem zoom da página)"
         >

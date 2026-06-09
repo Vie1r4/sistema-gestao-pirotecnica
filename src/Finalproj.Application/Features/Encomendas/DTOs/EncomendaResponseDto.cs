@@ -1,4 +1,5 @@
 using Finalproj.Application.Features.Clientes.DTOs;
+using Finalproj.Application.Features.Funcionarios.DTOs;
 using Finalproj.Application.Features.Produtos.DTOs;
 
 namespace Finalproj.Application.Features.Encomendas.DTOs;
@@ -10,6 +11,7 @@ public class EncomendaListResponseDto
 {
     public int Id { get; set; }
     public int ClienteId { get; set; }
+    public string? Nome { get; set; }
     public string Estado { get; set; } = string.Empty;
     public DateTime DataCriacao { get; set; }
     public DateTime? DataEntrega { get; set; }
@@ -33,12 +35,15 @@ public class EncomendaDetailResponseDto
 {
     public int Id { get; set; }
     public int ClienteId { get; set; }
+    public string? Nome { get; set; }
     public string Estado { get; set; } = string.Empty;
     public DateTime DataCriacao { get; set; }
     public DateTime? DataEntrega { get; set; }
     public DateTime? DataConclusao { get; set; }
     public string? Observacoes { get; set; }
     public string? MotivoRejeicao { get; set; }
+    public int? CoordenadorPirotecnicoId { get; set; }
+    public FuncionarioResponseDto? CoordenadorPirotecnico { get; set; }
     public ClienteResponseDto? Cliente { get; set; }
     public List<EncomendaItemResponseDto> Itens { get; set; } = new();
 }
@@ -74,6 +79,7 @@ public static class EncomendaResponseDtoMapping
         {
             Id = e.Id,
             ClienteId = e.ClienteId,
+            Nome = e.Nome,
             Estado = e.Estado,
             DataCriacao = e.DataCriacao,
             DataEntrega = e.DataEntrega,
@@ -90,12 +96,17 @@ public static class EncomendaResponseDtoMapping
         {
             Id = e.Id,
             ClienteId = e.ClienteId,
+            Nome = e.Nome,
             Estado = e.Estado,
             DataCriacao = e.DataCriacao,
             DataEntrega = e.DataEntrega,
             DataConclusao = e.DataConclusao,
             Observacoes = e.Observacoes,
             MotivoRejeicao = e.MotivoRejeicao,
+            CoordenadorPirotecnicoId = e.CoordenadorPirotecnicoId,
+            CoordenadorPirotecnico = e.CoordenadorPirotecnico != null
+                ? FuncionarioResponseDtoMapping.Map(e.CoordenadorPirotecnico, includeSensitive: false)
+                : null,
             Cliente = e.Cliente != null ? ClienteResponseDtoMapping.Map(e.Cliente, false) : null,
             Itens = (e.Itens ?? new List<EncomendaItem>())
                 .Select(i => new EncomendaItemResponseDto

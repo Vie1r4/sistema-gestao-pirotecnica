@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Finalproj.Application.Common.Models;
+using Finalproj.Api.Models;
 using Finalproj.Application.DTOs;
 using Finalproj.Application.Features.Home.DTOs;
 using Finalproj.Application.Features.Home.Interfaces;

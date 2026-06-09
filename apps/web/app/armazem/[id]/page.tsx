@@ -372,8 +372,6 @@ export default function PaiolDetalhePage() {
                         const extraId = parseInt(doc.id, 10);
                         if (token && !Number.isNaN(numId) && !Number.isNaN(extraId)) {
                           openDocumento(token, numId, extraId).catch(() => alert("Não foi possível abrir o documento."));
-                        } else {
-                          alert("Em modo demonstração os ficheiros não estão disponíveis para abrir.");
                         }
                       }}
                       className="text-sm text-[#f97316] transition-[color] duration-200 hover:underline"

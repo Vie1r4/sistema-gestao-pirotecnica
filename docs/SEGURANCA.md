@@ -68,7 +68,7 @@ Backend (`Program.cs`) e frontend (`next.config.ts`): `X-Frame-Options`, `X-Cont
 
 ## Uploads
 
-`DocumentoStorageService` + `ArquivosRaizService`: validação de **extensão**, **tamanho** e **conteúdo (magic bytes)** antes de gravar; ficheiros em `PirofafeData/Uploads` (configurável em `DadosLocais`); `Path.GetFullPath` com verificação de prefixo antes de ler/apagar (anti path-traversal). Ficheiros antigos em `wwwroot` só são lidos se `DadosLocais:UsarFallbackWwwroot` for `true`.
+`DocumentoStorageService` + `ArquivosRaizService`: validação de **extensão**, **tamanho** e **conteúdo (magic bytes)** antes de gravar; ficheiros em `PirofafeData/Uploads` (configurável em `DadosLocais`); `Path.GetFullPath` com verificação de prefixo antes de ler/apagar (anti path-traversal). Leitura legada em `wwwroot/Documentos` **desactivada** (`UsarFallbackWwwroot: false`).
 
 | Tipo | Extensões | Assinatura (início do ficheiro) |
 |------|-----------|----------------------------------|
@@ -77,3 +77,5 @@ Backend (`Program.cs`) e frontend (`next.config.ts`): `X-Frame-Options`, `X-Cont
 | PNG | `.png` | `89 50 4E 47 0D 0A 1A 0A` |
 
 Implementação: `UploadFileContentRules` (regras) + `IUploadFileContentValidator` / `UploadFileContentValidator`; chamado automaticamente em `GuardarFicheiroAsync` e `GuardarFicheiroNoCaminhoRelativoAsync`. A extensão tem de coincidir com o tipo detetado (ex.: `.pdf` com cabeçalho JPEG é rejeitado).
+
+**Cifragem em repouso (opcional):** secção `CifragemEmRepouso` em `appsettings` — quando `Ativa=true`, novos ficheiros em `PirofafeData/Uploads` e backups (`.bak`, `_uploads.zip`) são gravados com AES-256-GCM (cabeçalho `PIRFENC1`). Ficheiros legados em plain text continuam legíveis. Chave: 32 bytes em Base64 (`ChaveBase64`); **nunca** versionar a chave no Git — usar variável de ambiente ou secret manager em produção. Download/restauro decifra automaticamente.

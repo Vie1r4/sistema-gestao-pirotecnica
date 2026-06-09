@@ -49,4 +49,7 @@ public static class ConstantesEncomenda
             _ => null
         };
     }
+
+    /// <summary>Código de erro quando o coordenador associado não tem n.º CRED na ficha.</summary>
+    public const string CodigoCoordenadorSemCred = "ENCOMENDA_COORDENADOR_SEM_CRED";
 }

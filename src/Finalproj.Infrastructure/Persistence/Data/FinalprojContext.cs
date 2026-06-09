@@ -33,6 +33,9 @@ public class FinalprojContext : IdentityDbContext<Microsoft.AspNetCore.Identity.
         public DbSet<ServicoEquipa> ServicoEquipas => Set<ServicoEquipa>();
         public DbSet<ServicoLicenca> ServicoLicencas => Set<ServicoLicenca>();
         public DbSet<ServicoDistanciaSeguranca> ServicoDistanciasSeguranca => Set<ServicoDistanciaSeguranca>();
+        public DbSet<ServicoZonaLancamento> ServicoZonasLancamento => Set<ServicoZonaLancamento>();
+        public DbSet<ServicoZonaLinha> ServicoZonaLinhas => Set<ServicoZonaLinha>();
+        public DbSet<ServicoZonaDistanciaSeguranca> ServicoZonaDistanciasSeguranca => Set<ServicoZonaDistanciaSeguranca>();
         public DbSet<LogSistema> LogSistema => Set<LogSistema>();
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
@@ -122,6 +125,12 @@ public class FinalprojContext : IdentityDbContext<Microsoft.AspNetCore.Identity.
                 .HasForeignKey(e => e.ClienteId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            modelBuilder.Entity<Encomenda>()
+                .HasOne(e => e.CoordenadorPirotecnico)
+                .WithMany()
+                .HasForeignKey(e => e.CoordenadorPirotecnicoId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             modelBuilder.Entity<EncomendaItem>()
                 .HasOne(i => i.Encomenda)
                 .WithMany(e => e.Itens)
@@ -169,6 +178,12 @@ public class FinalprojContext : IdentityDbContext<Microsoft.AspNetCore.Identity.
                 .HasForeignKey(s => s.ResponsavelTecnicoId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            modelBuilder.Entity<Servico>()
+                .HasOne(s => s.CoordenadorPirotecnico)
+                .WithMany()
+                .HasForeignKey(s => s.CoordenadorPirotecnicoId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             modelBuilder.Entity<ServicoDocumentoExtra>()
                 .HasOne(d => d.Servico)
                 .WithMany(s => s.DocumentosExtras)
@@ -201,6 +216,47 @@ public class FinalprojContext : IdentityDbContext<Microsoft.AspNetCore.Identity.
                 .HasOne(d => d.Servico)
                 .WithMany(s => s.DistanciasSeguranca)
                 .HasForeignKey(d => d.ServicoId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ServicoZonaLancamento>()
+                .HasOne(z => z.Servico)
+                .WithMany(s => s.ZonasLancamento)
+                .HasForeignKey(z => z.ServicoId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ServicoZonaLancamento>()
+                .HasOne(z => z.ResponsavelPirotecnico)
+                .WithMany()
+                .HasForeignKey(z => z.ResponsavelPirotecnicoId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ServicoZonaLancamento>()
+                .Property(z => z.CoordenadasLat)
+                .HasPrecision(18, 9);
+            modelBuilder.Entity<ServicoZonaLancamento>()
+                .Property(z => z.CoordenadasLng)
+                .HasPrecision(18, 9);
+
+            modelBuilder.Entity<ServicoZonaLinha>()
+                .HasOne(l => l.Zona)
+                .WithMany(z => z.Linhas)
+                .HasForeignKey(l => l.ZonaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ServicoZonaLinha>()
+                .HasOne(l => l.Produto)
+                .WithMany()
+                .HasForeignKey(l => l.ProdutoId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ServicoZonaLinha>()
+                .Property(l => l.Quantidade)
+                .HasPrecision(18, 4);
+
+            modelBuilder.Entity<ServicoZonaDistanciaSeguranca>()
+                .HasOne(d => d.Zona)
+                .WithMany(z => z.DistanciasSeguranca)
+                .HasForeignKey(d => d.ZonaId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Paiol>()

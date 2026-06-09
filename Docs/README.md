@@ -20,6 +20,8 @@
 | [frontend/PAINEL-ADMIN.md](frontend/PAINEL-ADMIN.md) | Rotas e funcionalidades do painel `/admin` |
 | [frontend/PAINEL-ADMIN-PLANO.md](frontend/PAINEL-ADMIN-PLANO.md) | Plano de redesign estético (Fase 1) e backlog funcional (Fase 2) |
 | [frontend/PAINEL-GESTOR.md](frontend/PAINEL-GESTOR.md) | Analytics do gestor na home (`/`) |
+| [documentacao-regulatoria/README.md](documentacao-regulatoria/README.md) | Declaração PSP: fluxo, acesso, auditoria |
+| [documentacao-regulatoria/MAPEAMENTO-CAMPOS-PSP.md](documentacao-regulatoria/MAPEAMENTO-CAMPOS-PSP.md) | Campos do documento ↔ dados PIROFAFE |
 
 **Swagger** (só Development): `https://localhost:7225/swagger`
 
@@ -31,9 +33,9 @@
 Finalproj/
 ├── src/Finalproj.{Api,Application,Domain,Infrastructure}/
 ├── apps/web/                    # Next.js 16
-├── Finalproj.Tests/             # 15 testes domínio
-├── Finalproj.IntegrationTests/  # 69 testes HTTP
-└── Docs/                        # esta pasta (7 ficheiros + este índice)
+├── Finalproj.Tests/             # testes unitários
+├── Finalproj.IntegrationTests/  # testes HTTP
+└── Docs/                        # esta pasta + documentacao-regulatoria/
 ```
 
 ---

@@ -10,6 +10,7 @@ namespace Finalproj.Application.Features.Servicos.Services;
 
 public sealed class ServicosApiApplicationService(
     IServicoRepository servicos,
+    IEncomendaRepository encomendas,
     IEncomendaItemRepository encomendaItens,
     ISaidaPaiolRepository saidas,
     IServicoService servicoService,
@@ -18,6 +19,31 @@ public sealed class ServicosApiApplicationService(
     IServicoDistanciaSegurancaRepository distancias,
     IUnitOfWork unitOfWork) : IServicosApiApplicationService
 {
+    public async Task<object> GetCreateDataAsync(int? encomendaId, CancellationToken cancellationToken = default)
+    {
+        var dados = await servicoService.ObterDadosFormularioAsync(null, encomendaId, cancellationToken);
+        var funcionariosDto = dados.Funcionarios.Select(f => FuncionarioResponseDtoMapping.Map(f, false)).ToList();
+        var itensEncomenda = encomendaId is > 0
+            ? (await encomendaItens.ListByEncomendaIdWithProdutoNoTrackingAsync(encomendaId.Value, cancellationToken))
+                .Select(EncomendaResponseDtoMapping.MapItem)
+                .ToList()
+            : new List<EncomendaItemResponseDto>();
+        string? nomeEventoSugerido = null;
+        if (encomendaId is > 0)
+        {
+            var enc = await encomendas.GetByIdWithClienteAsync(encomendaId.Value, cancellationToken);
+            nomeEventoSugerido = enc?.Nome;
+        }
+        return new
+        {
+            encomendas = dados.Encomendas,
+            funcionarios = funcionariosDto,
+            tiposAcesso = dados.TiposAcesso,
+            itensEncomenda,
+            servico = new { DataServico = DateTime.Today, EncomendaId = encomendaId ?? 0, NomeEventoSugerido = nomeEventoSugerido }
+        };
+    }
+
     public async Task<object> ListAsync(int? clienteId, DateTime? dataDesde, DateTime? dataAte, int pagina, int itensPorPagina, CancellationToken cancellationToken = default)
     {
         var fim = dataAte?.Date.AddDays(1);
@@ -50,22 +76,43 @@ public sealed class ServicosApiApplicationService(
             ? (await encomendaItens.ListByEncomendaIdWithProdutoNoTrackingAsync(servico.EncomendaId, cancellationToken)).ToList()
             : new List<EncomendaItem>();
         var resumoMaterial = servico.EncomendaId > 0 ? servicoService.CalcularResumoMaterial(servico.EncomendaId, itens) : null;
-        await servicoService.EnsureDistanciasSegurancaAsync(servico.Id, resumoMaterial?.DivisaoDominante, cancellationToken);
+        await servicoService.EnsureDistanciasSegurancaZonasAsync(servico.Id, cancellationToken);
+        servico = await servicos.GetByIdFullGraphNoTrackingAsync(id, cancellationToken) ?? servico;
         var distanciasSeguranca = await distancias.ListByServicoIdOrderedNoTrackingAsync(servico.Id, cancellationToken);
         PaiolResponseDto? paiolParaRotaDto = null;
         double? distanciaPaiolKm = null;
-        if (servico.EncomendaId > 0 && servico.CoordenadasLat.HasValue && servico.CoordenadasLng.HasValue)
+        var zonaRota = servico.ZonasLancamento?.FirstOrDefault(z => z.CoordenadasLat.HasValue && z.CoordenadasLng.HasValue);
+        var latRota = zonaRota?.CoordenadasLat ?? servico.CoordenadasLat;
+        var lngRota = zonaRota?.CoordenadasLng ?? servico.CoordenadasLng;
+        if (servico.EncomendaId > 0 && latRota.HasValue && lngRota.HasValue)
         {
             var saida = await saidas.FindUltimaSaidaParaRotaAsync(servico.EncomendaId, cancellationToken);
             if (saida?.Paiol != null)
             {
                 paiolParaRotaDto = PaiolResponseDtoMapping.Map(saida.Paiol);
-                distanciaPaiolKm = (double)GeoHelper.CalcularDistanciaKm(saida.Paiol.CoordenadasLat!.Value, saida.Paiol.CoordenadasLng!.Value, servico.CoordenadasLat!.Value, servico.CoordenadasLng!.Value);
+                distanciaPaiolKm = (double)GeoHelper.CalcularDistanciaKm(saida.Paiol.CoordenadasLat!.Value, saida.Paiol.CoordenadasLng!.Value, latRota!.Value, lngRota!.Value);
             }
         }
         var obrigatorios = ConstantesServicoLicenca.TiposObrigatoriosPara(servico.PublicoPrivado).ToList();
         var linhas = BuildLicencasEvento(servico.Licencas?.ToList() ?? [], obrigatorios);
         var servicoDto = ServicoResponseDtoMapping.Map(servico, distanciasSeguranca);
+        foreach (var zDto in servicoDto.ZonasLancamento)
+        {
+            var zEnt = servico.ZonasLancamento?.FirstOrDefault(z => z.Id == zDto.Id);
+            if (zEnt?.Linhas == null || zEnt.Linhas.Count == 0)
+                continue;
+            var itensVirtuais = zEnt.Linhas.Select(l => new EncomendaItem
+            {
+                ProdutoId = l.ProdutoId,
+                QuantidadePedida = l.Quantidade,
+                Produto = l.Produto
+            }).ToList();
+            zDto.ResumoMaterial = servicoService.CalcularResumoMaterialZona(
+                zDto.Id,
+                zDto.Designacao,
+                servico.EncomendaId,
+                itensVirtuais);
+        }
         return new
         {
             servico = servicoDto,
@@ -86,14 +133,17 @@ public sealed class ServicosApiApplicationService(
         if (servico == null)
             return null;
         var dados = await servicoService.ObterDadosFormularioAsync(id, servico.EncomendaId, cancellationToken);
+        var itens = servico.EncomendaId > 0
+            ? (await encomendaItens.ListByEncomendaIdWithProdutoNoTrackingAsync(servico.EncomendaId, cancellationToken)).ToList()
+            : new List<EncomendaItem>();
         return new
         {
             servico = ServicoResponseDtoMapping.Map(servico),
             encomendas = dados.Encomendas,
-            responsaveisTecnicos = dados.ResponsaveisTecnicos.Select(f => FuncionarioResponseDtoMapping.Map(f, false)).ToList(),
-            funcionariosEquipa = dados.FuncionariosEquipa.Select(f => FuncionarioResponseDtoMapping.Map(f, false)).ToList(),
+            funcionarios = dados.Funcionarios.Select(f => FuncionarioResponseDtoMapping.Map(f, false)).ToList(),
             tiposAcesso = dados.TiposAcesso,
-            equipaIds = servico.Equipa.Select(e => e.FuncionarioId).ToList()
+            equipaIds = servico.Equipa.Select(e => e.FuncionarioId).ToList(),
+            itensEncomenda = itens.Select(EncomendaResponseDtoMapping.MapItem).ToList()
         };
     }
 

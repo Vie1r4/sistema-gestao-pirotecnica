@@ -137,6 +137,10 @@ export default function ProdutoDetalhePage() {
                 <dd className="mt-1 text-gray-600 dark:text-gray-400">{produto.nemPorUnidade}</dd>
               </div>
               <div>
+                <dt className={labelClass}>Categoria pirotécnica</dt>
+                <dd className="mt-1 text-gray-600 dark:text-gray-400">{produto.categoria?.trim() || "—"}</dd>
+              </div>
+              <div>
                 <dt className={labelClass}>Classificação de risco</dt>
                 <dd className="mt-1 text-gray-600 dark:text-gray-400">{textoClassificacao(produto.familiaRisco)}</dd>
               </div>

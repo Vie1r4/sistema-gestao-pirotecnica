@@ -91,6 +91,7 @@ export type Servico = {
   id: string;
   encomendaId: string;
   clienteId: string;
+  nomeEvento?: string;
   dataServico: string; // ISO date
   local?: string;
   moradaCompleta?: string;
@@ -102,6 +103,7 @@ export type Servico = {
   raioPublico?: number;
   publicoPrivado?: PublicoPrivado;
   responsavelTecnicoId?: string;
+  coordenadorPirotecnicoId?: string;
   observacoes?: string;
 };
 
@@ -151,6 +153,118 @@ export type ServicoDocumentoExtra = {
   caminho?: string;
 };
 
+export type ServicoZonaLinha = {
+  id: string;
+  zonaId: string;
+  data: string;
+  horaInicio?: string;
+  horaFim?: string;
+  produtoId: string;
+  produtoNome?: string;
+  produtoCalibre?: string;
+  produtoCategoria?: string;
+  quantidade: number;
+};
+
+export type ServicoZonaDistanciaSeguranca = {
+  id: string;
+  zonaId: string;
+  tipoReferencia?: TipoReferenciaDistancia;
+  descricaoReferencia?: string;
+  distanciaMinima_m: number;
+  distanciaMedida_m?: number;
+  observacoes?: string;
+  cumpre?: boolean;
+};
+
+export type ServicoZonaLancamento = {
+  id: string;
+  servicoId: string;
+  designacao?: string;
+  coordenadasLat?: number;
+  coordenadasLng?: number;
+  raioPublico?: number;
+  responsavelPirotecnicoId?: string;
+  responsavelPirotecnico?: Funcionario | null;
+  observacoes?: string;
+  linhas: ServicoZonaLinha[];
+  distanciasSeguranca: ServicoZonaDistanciaSeguranca[];
+  resumoMaterial?: ResumoMaterialZonaViewModel | null;
+};
+
+function mapResumoMaterialZona(raw: unknown): ResumoMaterialZonaViewModel | null {
+  if (!raw || typeof raw !== "object") return null;
+  const rm = raw as Record<string, unknown>;
+  return {
+    zonaId: mapId(rm.zonaId ?? rm.ZonaId),
+    designacao: (rm.designacao ?? rm.Designacao) as string | undefined,
+    numeroProdutos: Number(rm.numeroProdutos ?? rm.NumeroProdutos ?? 0),
+    totalUnidades: Number(rm.totalUnidades ?? rm.TotalUnidades ?? 0),
+    mleTotalKg: Number(rm.mleTotalKg ?? rm.MleTotalKg ?? 0),
+    divisaoDominante: (rm.divisaoDominante ?? rm.DivisaoDominante) as string | undefined,
+    corDivisaoDominante: (rm.corDivisaoDominante ?? rm.CorDivisaoDominante) as string | undefined,
+    categoriasPresentes: String(rm.categoriasPresentes ?? rm.CategoriasPresentes ?? ""),
+  };
+}
+
+function mapApiZonasLancamento(raw: unknown, servicoId: string): ServicoZonaLancamento[] {
+  const arr = Array.isArray(raw) ? (raw as Array<Record<string, unknown>>) : [];
+  return arr.map((z) => {
+    const zid = mapId(z.id ?? z.Id);
+    const resp = (z.responsavelPirotecnico ?? z.ResponsavelPirotecnico) as Record<string, unknown> | undefined;
+    const linhasRaw = (z.linhas ?? z.Linhas) as Array<Record<string, unknown>> | undefined;
+    const distRaw = (z.distanciasSeguranca ?? z.DistanciasSeguranca) as Array<Record<string, unknown>> | undefined;
+    return {
+      id: zid,
+      servicoId,
+      designacao: (z.designacao ?? z.Designacao) as string | undefined,
+      coordenadasLat:
+        (z.coordenadasLat ?? z.CoordenadasLat) != null ? Number(z.coordenadasLat ?? z.CoordenadasLat) : undefined,
+      coordenadasLng:
+        (z.coordenadasLng ?? z.CoordenadasLng) != null ? Number(z.coordenadasLng ?? z.CoordenadasLng) : undefined,
+      raioPublico: (z.raioPublico ?? z.RaioPublico) != null ? Number(z.raioPublico ?? z.RaioPublico) : undefined,
+      responsavelPirotecnicoId:
+        (z.responsavelPirotecnicoId ?? z.ResponsavelPirotecnicoId) != null
+          ? mapId(z.responsavelPirotecnicoId ?? z.ResponsavelPirotecnicoId)
+          : undefined,
+      responsavelPirotecnico: resp
+        ? ({
+            id: mapId(resp.id ?? resp.Id),
+            nomeCompleto: String(resp.nomeCompleto ?? resp.NomeCompleto ?? ""),
+            numeroCredencial: (resp.numeroCredencial ?? resp.NumeroCredencial) as string | undefined,
+          } as Funcionario)
+        : null,
+      observacoes: (z.observacoes ?? z.Observacoes) as string | undefined,
+      linhas: (linhasRaw ?? []).map((l) => ({
+        id: mapId(l.id ?? l.Id),
+        zonaId: zid,
+        data: String(l.data ?? l.Data ?? "").slice(0, 10),
+        horaInicio: (l.horaInicio ?? l.HoraInicio) as string | undefined,
+        horaFim: (l.horaFim ?? l.HoraFim) as string | undefined,
+        produtoId: mapId(l.produtoId ?? l.ProdutoId),
+        produtoNome: (l.produtoNome ?? l.ProdutoNome) as string | undefined,
+        produtoCalibre: (l.produtoCalibre ?? l.ProdutoCalibre) as string | undefined,
+        produtoCategoria: (l.produtoCategoria ?? l.ProdutoCategoria) as string | undefined,
+        quantidade: Number(l.quantidade ?? l.Quantidade ?? 0),
+      })),
+      distanciasSeguranca: (distRaw ?? []).map((d) => ({
+        id: mapId(d.id ?? d.Id),
+        zonaId: zid,
+        tipoReferencia: (d.tipoReferencia ?? d.TipoReferencia) as TipoReferenciaDistancia,
+        descricaoReferencia: String(d.descricaoReferencia ?? d.DescricaoReferencia ?? ""),
+        distanciaMinima_m: Number(d.distanciaMinima_m ?? d.DistanciaMinima_m ?? 0),
+        distanciaMedida_m:
+          (d.distanciaMedida_m ?? d.DistanciaMedida_m) != null
+            ? Number(d.distanciaMedida_m ?? d.DistanciaMedida_m)
+            : undefined,
+        observacoes: (d.observacoes ?? d.Observacoes) as string | undefined,
+        cumpre: (d.cumpre ?? d.Cumpre) != null ? Boolean(d.cumpre ?? d.Cumpre) : undefined,
+      })),
+      resumoMaterial: mapResumoMaterialZona(z.resumoMaterial ?? z.ResumoMaterial),
+    };
+  });
+}
+
 // ViewModels para a UI
 export type ResumoMaterialServicoViewModel = {
   encomendaId: string;
@@ -162,6 +276,17 @@ export type ResumoMaterialServicoViewModel = {
   corDivisaoDominante?: string;
   categoriasPresentes: string;
   temItens: boolean;
+};
+
+export type ResumoMaterialZonaViewModel = {
+  zonaId: string;
+  designacao?: string;
+  numeroProdutos: number;
+  totalUnidades: number;
+  mleTotalKg: number;
+  divisaoDominante?: string;
+  corDivisaoDominante?: string;
+  categoriasPresentes: string;
 };
 
 export type LicencaServicoLinhaViewModel = {
@@ -186,11 +311,12 @@ function mapId(v: unknown): string {
 }
 
 /** Mapeia um item da lista da API para o tipo do frontend (id como string). */
-function mapApiServicoToList(s: Record<string, unknown>): Servico & { cliente?: Cliente | null; encomenda?: Encomenda | null; responsavelTecnico?: Funcionario | null } {
+function mapApiServicoToList(s: Record<string, unknown>): Servico & { cliente?: Cliente | null; encomenda?: Encomenda | null; responsavelTecnico?: Funcionario | null; coordenadorPirotecnico?: Funcionario | null } {
   const id = mapId(s.id ?? s.Id);
   const cliente = (s.cliente ?? s.Cliente) as Record<string, unknown> | undefined;
   const encomenda = (s.encomenda ?? s.Encomenda) as Record<string, unknown> | undefined;
   const resp = (s.responsavelTecnico ?? s.ResponsavelTecnico) as Record<string, unknown> | undefined;
+  const coord = (s.coordenadorPirotecnico ?? s.CoordenadorPirotecnico) as Record<string, unknown> | undefined;
   return {
     id,
     encomendaId: mapId(s.encomendaId ?? s.EncomendaId),
@@ -211,10 +337,24 @@ function mapApiServicoToList(s: Record<string, unknown>): Servico & { cliente?: 
         : resp != null
           ? mapId(resp.id ?? resp.Id)
           : undefined,
+    coordenadorPirotecnicoId:
+      s.coordenadorPirotecnicoId != null || s.CoordenadorPirotecnicoId != null
+        ? mapId(s.coordenadorPirotecnicoId ?? s.CoordenadorPirotecnicoId)
+        : coord != null
+          ? mapId(coord.id ?? coord.Id)
+          : undefined,
     observacoes: (s.observacoes ?? s.Observacoes) as string | undefined,
+    nomeEvento: (s.nomeEvento ?? s.NomeEvento) as string | undefined,
     cliente: cliente ? { id: mapId(cliente.id ?? cliente.Id), nome: String(cliente.nome ?? cliente.Nome ?? "") } as Cliente : null,
     encomenda: encomenda ? { id: mapId(encomenda.id ?? encomenda.Id), estado: (encomenda.estado ?? encomenda.Estado) as string } as Encomenda : null,
     responsavelTecnico: resp ? { id: mapId(resp.id ?? resp.Id), nomeCompleto: String(resp.nomeCompleto ?? resp.NomeCompleto ?? "") } as Funcionario : null,
+    coordenadorPirotecnico: coord
+      ? ({
+          id: mapId(coord.id ?? coord.Id),
+          nomeCompleto: String(coord.nomeCompleto ?? coord.NomeCompleto ?? ""),
+          numeroCredencial: (coord.numeroCredencial ?? coord.NumeroCredencial) as string | undefined,
+        } as Funcionario)
+      : null,
   };
 }
 
@@ -225,7 +365,7 @@ export async function fetchServicosFromApi(
   pagina: number,
   itensPorPagina: number
 ): Promise<{
-  lista: (Servico & { cliente?: Cliente | null; encomenda?: Encomenda | null; responsavelTecnico?: Funcionario | null })[];
+  lista: (Servico & { cliente?: Cliente | null; encomenda?: Encomenda | null; responsavelTecnico?: Funcionario | null; coordenadorPirotecnico?: Funcionario | null })[];
   total: number;
   clientes: Array<{ id: number; nome: string }>;
 }> {
@@ -267,6 +407,7 @@ function mapApiDetalheToServicoDetalhe(data: {
   const cliente = (s.cliente ?? s.Cliente) as Record<string, unknown> | undefined;
   const encomenda = (s.encomenda ?? s.Encomenda) as Record<string, unknown> | undefined;
   const resp = (s.responsavelTecnico ?? s.ResponsavelTecnico) as Record<string, unknown> | undefined;
+  const coord = (s.coordenadorPirotecnico ?? s.CoordenadorPirotecnico) as Record<string, unknown> | undefined;
   const equipa = (s.equipa ?? s.Equipa) as Array<Record<string, unknown>> | undefined;
   const documentosExtras = (s.documentosExtras ?? s.DocumentosExtras) as Array<Record<string, unknown>> | undefined;
   const licencas = (s.licencas ?? s.Licencas) as Array<Record<string, unknown>> | undefined;
@@ -343,6 +484,13 @@ function mapApiDetalheToServicoDetalhe(data: {
     cliente: cliente ? { id: mapId(cliente.id ?? cliente.Id), nome: String(cliente.nome ?? cliente.Nome ?? "") } as Cliente : null,
     encomenda: encomenda ? { id: mapId(encomenda.id ?? encomenda.Id), estado: (encomenda.estado ?? encomenda.Estado) as string } as Encomenda : null,
     responsavelTecnico: resp ? { id: mapId(resp.id ?? resp.Id), nomeCompleto: String(resp.nomeCompleto ?? resp.NomeCompleto ?? "") } as Funcionario : null,
+    coordenadorPirotecnico: coord
+      ? ({
+          id: mapId(coord.id ?? coord.Id),
+          nomeCompleto: String(coord.nomeCompleto ?? coord.NomeCompleto ?? ""),
+          numeroCredencial: (coord.numeroCredencial ?? coord.NumeroCredencial) as string | undefined,
+        } as Funcionario)
+      : null,
     // API GET detalhe devolve Equipa como lista de FuncionarioResponseDto (id, nomeCompleto no topo),
     // não como { funcionarioId, funcionario }.
     equipa: (equipa ?? []).map((e: Record<string, unknown>) => {
@@ -412,6 +560,7 @@ function mapApiDetalheToServicoDetalhe(data: {
     licencasEvento,
     licencasObrigatoriasTotal: data.licencasObrigatoriasTotal ?? 0,
     licencasObrigatoriasEntregues: data.licencasObrigatoriasEntregues ?? 0,
+    zonasLancamento: mapApiZonasLancamento(s.zonasLancamento ?? s.ZonasLancamento, id),
   };
 }
 
@@ -423,6 +572,7 @@ export type ServicoDetalhe = Servico & {
   cliente: Cliente | null;
   encomenda: Encomenda | null;
   responsavelTecnico: Funcionario | null;
+  coordenadorPirotecnico?: Funcionario | null;
   equipa: (ServicoEquipa & { funcionario: Funcionario | null })[];
   documentosExtras: ServicoDocumentoExtra[];
   licencas: ServicoLicenca[];
@@ -432,4 +582,5 @@ export type ServicoDetalhe = Servico & {
   licencasEvento: LicencaServicoLinhaViewModel[];
   licencasObrigatoriasTotal: number;
   licencasObrigatoriasEntregues: number;
+  zonasLancamento: ServicoZonaLancamento[];
 };

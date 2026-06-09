@@ -1,8 +1,8 @@
-using Finalproj.Application.Common.Models;
+using Finalproj.Api.Models;
+using Finalproj.Api.Validators;
 using Finalproj.Application.Features.Clientes.DTOs;
 using Finalproj.Application.Features.Clientes.Interfaces;
 using Finalproj.Application.Services;
-using Finalproj.Application.Common.Validators;
 using Finalproj.Helpers;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -206,14 +206,11 @@ namespace Finalproj.Controllers
             var caminho = await _clientes.GetDocumentoExtraPathForClienteAsync(id, extraId, cancellationToken);
             if (caminho == null)
                 return NotFound();
-            return ServirFicheiro(caminho);
+            return await ServirFicheiro(caminho, cancellationToken);
         }
 
-        private IActionResult ServirFicheiro(string caminhoRelativo)
-        {
-            var caminhoFisico = _documentoStorage.ResolverCaminhoFisicoParaLeitura(caminhoRelativo);
-            return DocumentoFileResult.FromPath(this, caminhoFisico, caminhoRelativo) ?? NotFound();
-        }
+        private async Task<IActionResult> ServirFicheiro(string caminhoRelativo, CancellationToken cancellationToken = default) =>
+            await DocumentoFileResult.FromPathAsync(this, _documentoStorage, caminhoRelativo, attachment: false, cancellationToken) ?? NotFound();
 
     }
 }

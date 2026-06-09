@@ -9,6 +9,7 @@ public class ServicoEncomendaResumoDto
 {
     public int Id { get; set; }
     public int ClienteId { get; set; }
+    public string? Nome { get; set; }
     public string Estado { get; set; } = string.Empty;
     public DateTime DataCriacao { get; set; }
     public DateTime? DataEntrega { get; set; }
@@ -35,6 +36,7 @@ public class ServicoResponseDto
     public int Id { get; set; }
     public int EncomendaId { get; set; }
     public int ClienteId { get; set; }
+    public string? NomeEvento { get; set; }
     public DateTime DataServico { get; set; }
     public string? Local { get; set; }
     public string? MoradaCompleta { get; set; }
@@ -46,11 +48,14 @@ public class ServicoResponseDto
     public int? RaioPublico { get; set; }
     public string? PublicoPrivado { get; set; }
     public int? ResponsavelTecnicoId { get; set; }
+    public int? CoordenadorPirotecnicoId { get; set; }
     public string? Observacoes { get; set; }
 
     public ClienteResponseDto? Cliente { get; set; }
     public ServicoEncomendaResumoDto? Encomenda { get; set; }
     public FuncionarioResponseDto? ResponsavelTecnico { get; set; }
+    public FuncionarioResponseDto? CoordenadorPirotecnico { get; set; }
+    public List<ServicoZonaLancamentoResponseDto> ZonasLancamento { get; set; } = new();
     public List<ServicoDocumentoExtraDto> DocumentosExtras { get; set; } = new();
     public List<ServicoLicencaDto> Licencas { get; set; } = new();
     public List<FuncionarioResponseDto> Equipa { get; set; } = new();
@@ -66,6 +71,7 @@ public static class ServicoResponseDtoMapping
         {
             Id = e.Id,
             ClienteId = e.ClienteId,
+            Nome = e.Nome,
             Estado = e.Estado,
             DataCriacao = e.DataCriacao,
             DataEntrega = e.DataEntrega,
@@ -73,6 +79,54 @@ public static class ServicoResponseDtoMapping
             Cliente = e.Cliente != null ? new EncomendaClienteResumoDto { Id = e.Cliente.Id, Nome = e.Cliente.Nome } : null
         };
     }
+
+    public static ServicoZonaDistanciaSegurancaResponseDto MapZonaDistancia(ServicoZonaDistanciaSeguranca d) =>
+        new()
+        {
+            Id = d.Id,
+            ZonaId = d.ZonaId,
+            TipoReferencia = d.TipoReferencia,
+            DescricaoReferencia = d.DescricaoReferencia,
+            DistanciaMinima_m = d.DistanciaMinima_m,
+            DistanciaMedida_m = d.DistanciaMedida_m,
+            Observacoes = d.Observacoes,
+            Cumpre = d.Cumpre
+        };
+
+    public static ServicoZonaLinhaResponseDto MapZonaLinha(ServicoZonaLinha l) =>
+        new()
+        {
+            Id = l.Id,
+            ZonaId = l.ZonaId,
+            Data = l.Data,
+            HoraInicio = l.HoraInicio,
+            HoraFim = l.HoraFim,
+            ProdutoId = l.ProdutoId,
+            ProdutoNome = l.Produto?.Nome,
+            ProdutoCalibre = l.Produto?.Calibre,
+            ProdutoCategoria = l.Produto?.Categoria,
+            Quantidade = l.Quantidade
+        };
+
+    public static ServicoZonaLancamentoResponseDto MapZona(ServicoZonaLancamento z) =>
+        new()
+        {
+            Id = z.Id,
+            ServicoId = z.ServicoId,
+            Designacao = z.Designacao,
+            CoordenadasLat = z.CoordenadasLat,
+            CoordenadasLng = z.CoordenadasLng,
+            RaioPublico = z.RaioPublico,
+            ResponsavelPirotecnicoId = z.ResponsavelPirotecnicoId,
+            ResponsavelPirotecnico = z.ResponsavelPirotecnico != null
+                ? FuncionarioResponseDtoMapping.Map(z.ResponsavelPirotecnico, includeSensitive: false)
+                : null,
+            Observacoes = z.Observacoes,
+            Linhas = (z.Linhas ?? new List<ServicoZonaLinha>()).Select(MapZonaLinha).ToList(),
+            DistanciasSeguranca = (z.DistanciasSeguranca ?? new List<ServicoZonaDistanciaSeguranca>())
+                .Select(MapZonaDistancia)
+                .ToList()
+        };
 
     public static ServicoDistanciaSegurancaResponseDto MapDistancia(ServicoDistanciaSeguranca d) =>
         new()
@@ -96,6 +150,7 @@ public static class ServicoResponseDtoMapping
             Id = s.Id,
             EncomendaId = s.EncomendaId,
             ClienteId = s.ClienteId,
+            NomeEvento = s.NomeEvento,
             DataServico = s.DataServico,
             Local = s.Local,
             MoradaCompleta = s.MoradaCompleta,
@@ -107,10 +162,15 @@ public static class ServicoResponseDtoMapping
             RaioPublico = s.RaioPublico,
             PublicoPrivado = s.PublicoPrivado,
             ResponsavelTecnicoId = s.ResponsavelTecnicoId,
+            CoordenadorPirotecnicoId = s.CoordenadorPirotecnicoId,
             Observacoes = s.Observacoes,
             Cliente = s.Cliente != null ? ClienteResponseDtoMapping.Map(s.Cliente, includeSensitive: false) : null,
             Encomenda = MapEncomenda(s.Encomenda),
             ResponsavelTecnico = s.ResponsavelTecnico != null ? FuncionarioResponseDtoMapping.Map(s.ResponsavelTecnico, includeSensitive: false) : null,
+            CoordenadorPirotecnico = s.CoordenadorPirotecnico != null
+                ? FuncionarioResponseDtoMapping.Map(s.CoordenadorPirotecnico, includeSensitive: false)
+                : null,
+            ZonasLancamento = (s.ZonasLancamento ?? new List<ServicoZonaLancamento>()).Select(MapZona).ToList(),
             DocumentosExtras = (s.DocumentosExtras ?? new List<ServicoDocumentoExtra>())
                 .Select(d => new ServicoDocumentoExtraDto { Id = d.Id, Nome = d.Nome })
                 .ToList(),

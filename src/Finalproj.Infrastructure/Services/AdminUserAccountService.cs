@@ -5,7 +5,6 @@ using Finalproj.Application.Features.Home.Interfaces;
 using Finalproj.Application.Services;
 using Finalproj.Application.Services.Interfaces;
 using Finalproj.Domain.Constants;
-using Finalproj.Domain.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;

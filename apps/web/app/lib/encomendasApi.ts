@@ -262,13 +262,14 @@ export async function postRemoverItem(
 /** POST api/encomendas/submeter — cria encomenda a partir do rascunho */
 export async function postSubmeter(
   token: string,
-  body: { clienteId: number; dataEntrega?: string | null; observacoes?: string | null }
+  body: { clienteId: number; nome?: string | null; dataEntrega?: string | null; observacoes?: string | null }
 ): Promise<{ encomenda: { id: number; [k: string]: unknown }; encomendaCriada: boolean }> {
   const res = await fetch(`${apiPath("api/encomendas")}/submeter`, {
     method: "POST",
     headers: jsonHeaders(token),
     body: JSON.stringify({
       clienteId: body.clienteId,
+      nome: body.nome?.trim() || null,
       dataEntrega: body.dataEntrega || null,
       observacoes: body.observacoes || null,
     }),
@@ -427,12 +428,14 @@ export async function putEncomenda(
   body: {
     dataEntrega?: string | null;
     observacoes?: string | null;
+    coordenadorPirotecnicoId?: number | null;
     itens: Array<{ produtoId: number; quantidade: number }>;
   }
 ): Promise<{ encomenda: Record<string, unknown>; encomendaEditada: boolean }> {
   const payload = {
     dataEntrega: body.dataEntrega?.trim() ? body.dataEntrega.trim().slice(0, 10) : null,
     observacoes: body.observacoes?.trim()?.slice(0, 2000) ?? null,
+    coordenadorPirotecnicoId: body.coordenadorPirotecnicoId ?? null,
     itens: body.itens.map((i) => ({ produtoId: i.produtoId, quantidade: Number(i.quantidade) })),
   };
   const res = await fetch(`${apiPath("api/encomendas")}/${id}`, {

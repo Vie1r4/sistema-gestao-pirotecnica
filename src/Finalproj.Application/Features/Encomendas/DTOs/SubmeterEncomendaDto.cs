@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Finalproj.Application.Features.Encomendas.DTOs;
 
 /// <summary>
@@ -6,6 +8,8 @@ namespace Finalproj.Application.Features.Encomendas.DTOs;
 public class SubmeterEncomendaDto
 {
     public int ClienteId { get; set; }
+    [StringLength(200)]
+    public string? Nome { get; set; }
     public DateTime? DataEntrega { get; set; }
     public string? Observacoes { get; set; }
 }

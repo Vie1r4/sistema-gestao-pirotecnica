@@ -3,7 +3,6 @@
 /**
  * Mapa Leaflet reutilizável.
  * Suporta: um marcador (lat/lng), vários marcadores (markers), ou modo clique para escolher coordenadas (onMapClick).
- * Sem atribuição no canto; botão de ecrã inteiro no canto.
  */
 import { useEffect, useRef, useMemo, useState, useCallback } from "react";
 import L from "leaflet";
@@ -55,6 +54,12 @@ function heightCanvasClass(height: string, isFullscreen: boolean): string {
   return "mapa-leaflet-canvas mapa-leaflet-canvas--h-300";
 }
 
+function limparContainerLeaflet(el: HTMLDivElement | null) {
+  if (!el) return;
+  delete (el as HTMLDivElement & { _leaflet_id?: number })._leaflet_id;
+  el.replaceChildren();
+}
+
 export default function MapaLeaflet({
   center = CENTRO_PT,
   zoom = ZOOM_DEFAULT,
@@ -72,7 +77,10 @@ export default function MapaLeaflet({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const circleRef = useRef<L.Circle | null>(null);
+  const onMapClickRef = useRef(onMapClick);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  onMapClickRef.current = onMapClick;
 
   const toggleFullscreen = useCallback(() => {
     const wrapper = wrapperRef.current;
@@ -112,7 +120,10 @@ export default function MapaLeaflet({
   useEffect(() => {
     if (typeof window === "undefined" || !containerRef.current) return;
 
-    const map = L.map(containerRef.current, {
+    const container = containerRef.current;
+    limparContainerLeaflet(container);
+
+    const map = L.map(container, {
       center,
       zoom,
       scrollWheelZoom: true,
@@ -121,14 +132,21 @@ export default function MapaLeaflet({
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {}).addTo(map);
 
-    if (onMapClick) {
-      map.on("click", (e: L.LeafletMouseEvent) => {
-        onMapClick(e.latlng.lat, e.latlng.lng);
-      });
-    }
+    const clickHandler = (e: L.LeafletMouseEvent) => {
+      onMapClickRef.current?.(e.latlng.lat, e.latlng.lng);
+    };
+    map.on("click", clickHandler);
 
     mapRef.current = map;
+
+    const resize = () => map.invalidateSize();
+    const t1 = window.setTimeout(resize, 0);
+    const t2 = window.setTimeout(resize, 250);
+
     return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      map.off("click", clickHandler);
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
       if (circleRef.current) {
@@ -137,9 +155,9 @@ export default function MapaLeaflet({
       }
       map.remove();
       mapRef.current = null;
+      limparContainerLeaflet(container);
     };
-    // Mapa Leaflet: criar uma vez; recentrar/atualizar marcadores noutros efeitos.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- center/zoom/onMapClick aplicados noutros efeitos
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mapa criado uma vez por instância
   }, []);
 
   useEffect(() => {
@@ -172,6 +190,14 @@ export default function MapaLeaflet({
       }).addTo(mapRef.current);
     }
   }, [lat, lng, raioMetros]);
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    const map = mapRef.current;
+    const targetZoom = Math.max(map.getZoom(), 15);
+    map.setView([lat, lng], targetZoom, { animate: true });
+  }, [lat, lng]);
 
   const wrapClass = isFullscreen
     ? `mapa-leaflet-wrap mapa-leaflet-wrap--fullscreen relative ${className}`

@@ -21,7 +21,7 @@ type ListItem = {
   publicoPrivado?: string;
   cliente?: { id: string; nome: string } | null;
   encomenda?: { id: string; estado?: string } | null;
-  responsavelTecnico?: { id: string; nomeCompleto: string } | null;
+  coordenadorPirotecnico?: { id: string; nomeCompleto: string } | null;
 };
 
 type ServicosApiData = {
@@ -257,7 +257,7 @@ function ServicosContent() {
                           <th className="whitespace-nowrap pb-2 pr-4 font-semibold text-[#444] dark:text-gray-300">Data serviço</th>
                           <th className="whitespace-nowrap pb-2 pr-4 font-semibold text-[#444] dark:text-gray-300">Local</th>
                           <th className="whitespace-nowrap pb-2 pr-4 font-semibold text-[#444] dark:text-gray-300">Público/Privado</th>
-                          <th className="whitespace-nowrap pb-2 pr-4 font-semibold text-[#444] dark:text-gray-300">Responsável técnico</th>
+                          <th className="whitespace-nowrap pb-2 pr-4 font-semibold text-[#444] dark:text-gray-300">Coordenador pirotécnico</th>
                           <th className="whitespace-nowrap pb-2 pr-4 font-semibold text-[#444] dark:text-gray-300">Detalhes</th>
                         </tr>
                       </thead>
@@ -277,7 +277,7 @@ function ServicosContent() {
                             </td>
                             <td className="py-2 pr-4 text-[#57534e] dark:text-gray-400">{s.publicoPrivado ?? "—"}</td>
                             <td className="py-2 pr-4 text-[#57534e] dark:text-gray-400">
-                              {s.responsavelTecnico?.nomeCompleto ?? "—"}
+                              {s.coordenadorPirotecnico?.nomeCompleto ?? "—"}
                             </td>
                             <td className="py-2 pr-4">
                               <Link href={`/servicos/${s.id}`} className="text-[#f97316] hover:underline">

@@ -14,6 +14,43 @@ export type ServicosListFilters = {
   dataAte?: string;
 };
 
+export type ServicoZonaLinhaInput = {
+  id?: number;
+  data: string;
+  horaInicio?: string;
+  horaFim?: string;
+  produtoId: number;
+  quantidade: number;
+};
+
+export type ServicoZonaLancamentoInput = {
+  id?: number;
+  designacao?: string;
+  coordenadasLat: number;
+  coordenadasLng: number;
+  raioPublico?: number;
+  responsavelPirotecnicoId?: number;
+  observacoes?: string;
+  linhas: ServicoZonaLinhaInput[];
+};
+
+export type ServicoSaveRequest = {
+  id?: number;
+  encomendaId: number;
+  nomeEvento?: string;
+  dataServico: string;
+  local?: string;
+  moradaCompleta?: string;
+  distrito?: string;
+  cidade?: string;
+  municipio?: string;
+  publicoPrivado?: string;
+  coordenadorPirotecnicoId?: number;
+  observacoes?: string;
+  equipaIds?: number[];
+  zonas: ServicoZonaLancamentoInput[];
+};
+
 /** GET api/servicos — lista com filtros e paginação */
 export async function fetchServicos(
   token: string,
@@ -41,43 +78,80 @@ export async function fetchServicos(
   return res.json();
 }
 
-/** GET api/servicos/create — dados para formulário criar (encomendas, responsáveis, equipa, tipos) */
+/** GET api/servicos/create — dados para formulário criar (encomendas, funcionários, tipos) */
 export async function fetchServicosCreate(
   token: string,
   encomendaId?: number
 ): Promise<{
   encomendas: Array<{ id: number; texto: string }>;
-  responsaveisTecnicos: Array<Record<string, unknown>>;
-  funcionariosEquipa: Array<Record<string, unknown>>;
+  funcionarios: Array<Record<string, unknown>>;
   tiposAcesso: string[];
-  servico: { dataServico: string; encomendaId: number };
+  itensEncomenda: Array<Record<string, unknown>>;
+  servico: { dataServico: string; encomendaId: number; nomeEventoSugerido?: string | null };
 }> {
   const q = encomendaId != null ? `?encomendaId=${encomendaId}` : "";
   const res = await fetch(`${apiPath("api/servicos")}/create${q}`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error(res.status === 401 ? "Não autenticado" : `Erro ${res.status}`);
   const data = await res.json();
+  const funcionarios =
+    data.funcionarios ??
+    data.Funcionarios ??
+    data.responsaveisTecnicos ??
+    data.ResponsaveisTecnicos ??
+    data.funcionariosEquipa ??
+    data.FuncionariosEquipa ??
+    [];
   return {
     encomendas: (data.encomendas ?? []).map((e: { id?: number; texto?: string; Id?: number; Texto?: string }) => ({
       id: e.id ?? e.Id ?? 0,
       texto: e.texto ?? e.Texto ?? "",
     })),
-    responsaveisTecnicos: data.responsaveisTecnicos ?? data.ResponsaveisTecnicos ?? [],
-    funcionariosEquipa: data.funcionariosEquipa ?? data.FuncionariosEquipa ?? [],
+    funcionarios,
     tiposAcesso: data.tiposAcesso ?? data.TiposAcesso ?? ["Público", "Privado"],
-    servico: data.servico ?? data.Servico ?? { dataServico: new Date().toISOString().slice(0, 10), encomendaId: 0 },
+    itensEncomenda: data.itensEncomenda ?? data.ItensEncomenda ?? [],
+    servico: (() => {
+      const raw = data.servico ?? data.Servico ?? {};
+      const s = raw as Record<string, unknown>;
+      return {
+        dataServico: String(s.dataServico ?? s.DataServico ?? new Date().toISOString().slice(0, 10)).slice(0, 10),
+        encomendaId: Number(s.encomendaId ?? s.EncomendaId ?? 0),
+        nomeEventoSugerido: (s.nomeEventoSugerido ?? s.NomeEventoSugerido) as string | null | undefined,
+      };
+    })(),
   };
 }
 
-/** POST api/servicos — criar serviço (FormData) */
-export async function postServico(token: string, formData: FormData): Promise<{ servico: Record<string, unknown> }> {
+function jsonHeaders(token: string): HeadersInit {
+  return { "Content-Type": "application/json", ...authHeaders(token) };
+}
+
+function extractApiError(data: Record<string, unknown>, status: number): string {
+  const err = data.error ?? data.Error;
+  if (typeof err === "string" && err.trim()) return err;
+
+  const title = data.title ?? data.Title;
+  const errors = (data.errors ?? data.Errors) as Record<string, string[]> | undefined;
+  if (errors && typeof errors === "object") {
+    for (const msgs of Object.values(errors)) {
+      const first = Array.isArray(msgs) ? msgs.find((m) => typeof m === "string" && m.trim()) : undefined;
+      if (first) return first;
+    }
+  }
+
+  if (typeof title === "string" && title.trim()) return title;
+  return `Erro ${status}`;
+}
+
+/** POST api/servicos — criar serviço (JSON com zonas de lançamento) */
+export async function postServico(token: string, body: ServicoSaveRequest): Promise<{ servico: Record<string, unknown> }> {
   const res = await fetch(apiPath("api/servicos"), {
     method: "POST",
-    headers: authHeaders(token),
-    body: formData,
+    headers: jsonHeaders(token),
+    body: JSON.stringify(body),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : `Erro ${res.status}`);
-  return data;
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) throw new Error(extractApiError(data, res.status));
+  return data as { servico: Record<string, unknown> };
 }
 
 /** GET api/servicos/{id} — detalhe completo (servico, resumoMaterial, itensEncomenda, distanciasSeguranca, licencasEvento, etc.) */
@@ -112,10 +186,10 @@ export async function fetchServicosEdit(
 ): Promise<{
   servico: Record<string, unknown>;
   encomendas: Array<{ id: number; texto: string }>;
-  responsaveisTecnicos: Array<Record<string, unknown>>;
-  funcionariosEquipa: Array<Record<string, unknown>>;
+  funcionarios: Array<Record<string, unknown>>;
   tiposAcesso: string[];
   equipaIds: number[];
+  itensEncomenda: Array<Record<string, unknown>>;
 }> {
   const numId = typeof id === "string" ? parseInt(id, 10) : id;
   if (Number.isNaN(numId)) throw new Error("Id de serviço inválido");
@@ -125,35 +199,112 @@ export async function fetchServicosEdit(
     throw new Error(`Erro ${res.status}`);
   }
   const data = await res.json();
+  const funcionarios =
+    data.funcionarios ??
+    data.Funcionarios ??
+    data.responsaveisTecnicos ??
+    data.ResponsaveisTecnicos ??
+    data.funcionariosEquipa ??
+    data.FuncionariosEquipa ??
+    [];
   return {
     servico: data.servico ?? data.Servico ?? {},
     encomendas: (data.encomendas ?? []).map((e: { id?: number; texto?: string; Id?: number; Texto?: string }) => ({
       id: e.id ?? e.Id ?? 0,
       texto: e.texto ?? e.Texto ?? "",
     })),
-    responsaveisTecnicos: data.responsaveisTecnicos ?? data.ResponsaveisTecnicos ?? [],
-    funcionariosEquipa: data.funcionariosEquipa ?? data.FuncionariosEquipa ?? [],
+    funcionarios,
     tiposAcesso: data.tiposAcesso ?? data.TiposAcesso ?? ["Público", "Privado"],
     equipaIds: data.equipaIds ?? data.EquipaIds ?? [],
+    itensEncomenda: data.itensEncomenda ?? data.ItensEncomenda ?? [],
   };
 }
 
-/** PUT api/servicos/{id} — atualizar serviço (FormData) */
+/** PUT api/servicos/{id} — atualizar serviço (JSON com zonas) */
 export async function putServico(
   token: string,
   id: number | string,
-  formData: FormData
+  body: ServicoSaveRequest
 ): Promise<{ servico: Record<string, unknown> }> {
   const numId = typeof id === "string" ? parseInt(id, 10) : id;
   if (Number.isNaN(numId)) throw new Error("Id de serviço inválido");
   const res = await fetch(`${apiPath("api/servicos")}/${numId}`, {
     method: "PUT",
+    headers: jsonHeaders(token),
+    body: JSON.stringify({ ...body, id: numId }),
+  });
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) throw new Error(extractApiError(data, res.status));
+  return data as { servico: Record<string, unknown> };
+}
+
+/** POST api/servicos/{id}/documentos-extras — anexar documento */
+export async function postDocumentoExtra(
+  token: string,
+  id: number | string,
+  nome: string,
+  ficheiro: File
+): Promise<{ servico: Record<string, unknown> }> {
+  const numId = typeof id === "string" ? parseInt(id, 10) : id;
+  const fd = new FormData();
+  fd.append("nome", nome);
+  fd.append("ficheiro", ficheiro);
+  const res = await fetch(`${apiPath("api/servicos")}/${numId}/documentos-extras`, {
+    method: "POST",
     headers: authHeaders(token),
-    body: formData,
+    body: fd,
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : `Erro ${res.status}`);
   return data;
+}
+
+/** DELETE api/servicos/{id}/documentos-extras/{extraId} */
+export async function deleteDocumentoExtra(token: string, id: number | string, extraId: number | string): Promise<void> {
+  const numId = typeof id === "string" ? parseInt(id, 10) : id;
+  const eId = typeof extraId === "string" ? parseInt(extraId, 10) : extraId;
+  const res = await fetch(`${apiPath("api/servicos")}/${numId}/documentos-extras/${eId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!res.ok && res.status !== 204) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(typeof data.error === "string" ? data.error : `Erro ${res.status}`);
+  }
+}
+
+/** Uma zona com todo o material da encomenda (compatibilidade formulário simples). */
+export function buildZonaUnicaFromItens(
+  itens: Array<{ produtoId?: number; ProdutoId?: number; quantidadePedida?: number; QuantidadePedida?: number }>,
+  opts: {
+    dataServico: string;
+    designacao?: string;
+    coordenadasLat: number;
+    coordenadasLng: number;
+    raioPublico?: number;
+    responsavelPirotecnicoId?: number;
+  }
+): ServicoZonaLancamentoInput {
+  const linhas = itens
+    .map((i) => {
+      const produtoId = i.produtoId ?? i.ProdutoId ?? 0;
+      const q = i.quantidadePedida ?? i.QuantidadePedida ?? 0;
+      if (!produtoId || q <= 0) return null;
+      return {
+        data: opts.dataServico,
+        produtoId,
+        quantidade: Number(q),
+      };
+    })
+    .filter((l): l is ServicoZonaLinhaInput => l != null);
+  return {
+    designacao: opts.designacao ?? "Zona principal",
+    coordenadasLat: opts.coordenadasLat,
+    coordenadasLng: opts.coordenadasLng,
+    raioPublico: opts.raioPublico,
+    responsavelPirotecnicoId: opts.responsavelPirotecnicoId,
+    linhas,
+  };
 }
 
 /** GET api/servicos/{id}/delete — dados para confirmação de eliminação */
@@ -196,17 +347,67 @@ export function licencaFicheiroUrl(id: number | string, licencaId: number | stri
   return `${apiPath("api/servicos")}/${n}/licenca/${l}/ficheiro`;
 }
 
-/** Baixar ficheiro com token e abrir em nova janela (blob URL) */
+/** Transfere ficheiro com token (descarrega para o disco). */
 export async function downloadComToken(
   token: string,
-  url: string
+  url: string,
+  options?: { fileName?: string; mimeType?: string }
 ): Promise<void> {
   const res = await fetch(url, { headers: authHeaders(token) });
   if (!res.ok) throw new Error(`Erro ${res.status}`);
-  const blob = await res.blob();
+
+  let fileName = options?.fileName;
+  const disposition = res.headers.get("Content-Disposition");
+  if (!fileName && disposition) {
+    const utf8 = /filename\*=UTF-8''([^;\s]+)/i.exec(disposition);
+    const quoted = /filename="([^"]+)"/i.exec(disposition);
+    if (utf8?.[1]) fileName = decodeURIComponent(utf8[1]);
+    else if (quoted?.[1]) fileName = quoted[1];
+  }
+  fileName ??= "documento";
+
+  const mime =
+    options?.mimeType ??
+    res.headers.get("Content-Type")?.split(";")[0]?.trim() ??
+    "application/octet-stream";
+  const blob = new Blob([await res.arrayBuffer()], { type: mime });
   const blobUrl = URL.createObjectURL(blob);
-  window.open(blobUrl, "_blank");
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = fileName;
+  link.rel = "noopener";
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+}
+
+/** Abre ficheiro com token numa nova janela (visualização no browser). */
+export async function abrirFicheiroComToken(
+  token: string,
+  url: string,
+  targetWindow?: Window | null,
+  options?: { mimeType?: string }
+): Promise<void> {
+  const res = await fetch(url, { headers: authHeaders(token) });
+  if (!res.ok) throw new Error(`Erro ${res.status}`);
+
+  const mime =
+    options?.mimeType ??
+    res.headers.get("Content-Type")?.split(";")[0]?.trim() ??
+    "application/octet-stream";
+  const blob = new Blob([await res.arrayBuffer()], { type: mime });
+  const blobUrl = URL.createObjectURL(blob);
+
+  if (targetWindow && !targetWindow.closed) {
+    targetWindow.location.href = blobUrl;
+  } else {
+    const opened = window.open(blobUrl, "_blank", "noopener,noreferrer");
+    if (!opened) window.location.assign(blobUrl);
+  }
+
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 120_000);
 }
 
 /** GET api/servicos/{id}/upload-licenca?tipo=0&licencaId=1&origem=0|1 — dados para formulário licença */
@@ -240,6 +441,26 @@ export async function fetchUploadLicenca(
     tipoNome: data.tipoNome ?? data.TipoNome ?? "",
     origemRegisto: data.origemRegisto ?? data.OrigemRegisto,
     licenca: data.licenca ?? data.Licenca ?? {},
+  };
+}
+
+/** POST api/servicos/{id}/licenca/gerar — gera declaração PSP (Admin/Gestor) */
+export async function postGerarDeclaracaoPsp(
+  token: string,
+  id: number | string
+): Promise<{ licencaId: number; nomeFicheiro: string; servico?: Record<string, unknown> }> {
+  const numId = typeof id === "string" ? parseInt(id, 10) : id;
+  const res = await fetch(`${apiPath("api/servicos")}/${numId}/licenca/gerar`, {
+    method: "POST",
+    headers: authHeaders(token),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 404) throw new Error("NOT_FOUND");
+  if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : `Erro ${res.status}`);
+  return {
+    licencaId: data.licencaId ?? data.LicencaId,
+    nomeFicheiro: data.nomeFicheiro ?? data.NomeFicheiro ?? "declaracao_psp.pdf",
+    servico: data.servico ?? data.Servico,
   };
 }
 

@@ -11,9 +11,7 @@ import {
   type ConsumoClienteResponse,
   type FiltroOpcao,
 } from "@/app/lib/gestorAnalytics";
-import { buildDemoConsumoCliente } from "@/app/lib/gestorAnalyticsDemo";
 import { fetchList as fetchProdutosList } from "@/app/lib/produtosApi";
-import { useGestorDemo } from "./GestorDemoProvider";
 import AnalyticsCard, { AnalyticsSkeleton } from "./AnalyticsCard";
 
 const FILTRO_QUERY_OPTS = {
@@ -64,7 +62,7 @@ function formatQty(q: number): string {
   return Number.isInteger(q) ? String(q) : q.toFixed(2);
 }
 
-/** Defaults: últimos 30 dias (exemplo Abril 2025 disponível no modo demo). */
+/** Defaults: últimos 30 dias. */
 function defaultDesde(): string {
   return toInputDate(subDays(new Date(), 30));
 }
@@ -83,7 +81,6 @@ export default function ClienteConsumoList({
   /** Painel lateral: só filtros + texto de ajuda (sem tabela). */
   filtersOnly?: boolean;
 }) {
-  const { demoMode } = useGestorDemo();
   const [desde, setDesde] = useState(defaultDesde);
   const [ate, setAte] = useState(defaultAte);
   const [materialId, setMaterialId] = useState("");
@@ -91,7 +88,7 @@ export default function ClienteConsumoList({
 
   const clienteIdNum = clienteId ? Number(clienteId) : 0;
   const produtoId = materialId ? Number(materialId) : undefined;
-  const intervaloValido = desde && ate && desde <= ate;
+  const intervaloValido = Boolean(desde && ate && desde <= ate);
 
   const { data: real, isLoading, isError, isFetching } = useQuery({
     queryKey: [
@@ -110,7 +107,7 @@ export default function ClienteConsumoList({
         produtoId,
       }),
     staleTime: 30_000,
-    enabled: !!token && !demoMode && clienteIdNum > 0 && intervaloValido,
+    enabled: !!token && clienteIdNum > 0 && intervaloValido,
   });
 
   const { data: produtosCatalogo } = useQuery({
@@ -125,7 +122,7 @@ export default function ClienteConsumoList({
         .filter((p) => p.id > 0 && p.nome) as FiltroOpcao[];
     },
     ...FILTRO_QUERY_OPTS,
-    enabled: !!token && !demoMode,
+    enabled: !!token,
   });
 
   const { data: clientesCatalogo } = useQuery({
@@ -140,33 +137,18 @@ export default function ClienteConsumoList({
         .filter((c) => c.id > 0 && c.nome) as FiltroOpcao[];
     },
     ...FILTRO_QUERY_OPTS,
-    enabled: !!token && !demoMode,
+    enabled: !!token,
   });
 
-  const data = useMemo((): ConsumoClienteResponse | undefined => {
-    if (demoMode && clienteIdNum > 0 && intervaloValido) {
-      return buildDemoConsumoCliente(clienteIdNum, desde, ate, produtoId);
-    }
-    return real;
-  }, [demoMode, real, clienteIdNum, desde, ate, produtoId, intervaloValido]);
-
-  const demoFiltros = useMemo(
-    () =>
-      demoMode
-        ? buildDemoConsumoCliente(1, "2025-04-15", "2025-04-20")
-        : null,
-    [demoMode]
-  );
+  const data = useMemo((): ConsumoClienteResponse | undefined => real, [real]);
 
   const materiaisOpcoes = useMemo((): FiltroOpcao[] => {
-    if (demoFiltros) return demoFiltros.materiais;
     return mergeFiltroOpcoes(data?.materiais, produtosCatalogo);
-  }, [demoFiltros, data?.materiais, produtosCatalogo]);
+  }, [data?.materiais, produtosCatalogo]);
 
   const clientesOpcoes = useMemo((): FiltroOpcao[] => {
-    if (demoFiltros) return demoFiltros.clientes;
     return mergeFiltroOpcoes(data?.clientes, clientesCatalogo);
-  }, [demoFiltros, data?.clientes, clientesCatalogo]);
+  }, [data?.clientes, clientesCatalogo]);
 
   const clienteNome =
     clientesOpcoes.find((c) => String(c.id) === clienteId)?.nome ??
@@ -180,7 +162,7 @@ export default function ClienteConsumoList({
     "w-full min-w-0 rounded-lg border border-[#e7e5e4] bg-white px-2.5 py-1.5 text-sm text-[#1c1917] dark:border-[#333] dark:bg-[#0d0d0d] dark:text-white [color-scheme:light] dark:[color-scheme:dark]";
 
   const showResults = clienteIdNum > 0 && intervaloValido;
-  const busy = showResults && !demoMode && (isLoading || isFetching);
+  const busy = showResults && (isLoading || isFetching);
 
   const intervaloLabel = formatIntervalo(
     data?.desde ?? desde,
@@ -193,12 +175,12 @@ export default function ClienteConsumoList({
       subtitle={
         compact
           ? "Intervalo, material e cliente"
-          : "Escolhe o intervalo no calendário (ex.: 15 abr – 20 abr 2025), material e cliente"
+          : "Escolhe o intervalo no calendário, material e cliente"
       }
       compact={compact}
-      className={`h-full ${demoMode ? "border-dashed border-[#f97316]/40" : ""}`}
+      className="h-full"
       action={
-        isFetching && !isLoading && !demoMode && showResults ? (
+        isFetching && !isLoading && showResults ? (
           <span className="text-xs text-[#78716c]">A atualizar…</span>
         ) : null
       }
@@ -289,7 +271,7 @@ export default function ClienteConsumoList({
         </p>
       ) : busy ? (
         <AnalyticsSkeleton height={compact ? 160 : 220} />
-      ) : !demoMode && isError ? (
+      ) : isError ? (
         <p className={`text-center text-sm text-[#78716c] ${compact ? "py-6" : "py-10"}`}>
           Não foi possível carregar os dados.
         </p>
@@ -301,7 +283,7 @@ export default function ClienteConsumoList({
           {produtoId ? " com o material seleccionado" : ""}.
         </p>
       ) : (
-        <div className={demoMode ? "opacity-90" : ""}>
+        <div>
           <div
             className={`mb-3 flex flex-wrap gap-2 rounded-xl bg-[#fafaf9] text-sm dark:bg-[#111] ${compact ? "px-3 py-2 text-xs" : "mb-4 gap-3 px-4 py-3"}`}
           >

@@ -19,6 +19,7 @@ public static class PoliticasAutorizacao
     public const string PodeVerArmazemStock = "PodeVerArmazemStock";
     public const string PodeGerirArmazem = "PodeGerirArmazem";
     public const string PodeGerirFuncionarios = "PodeGerirFuncionarios";
+    public const string PodeGerirDocumentacaoRegulatoria = "PodeGerirDocumentacaoRegulatoria";
 
     public static void ConfigurarPoliticas(AuthorizationOptions options)
     {
@@ -39,6 +40,11 @@ public static class PoliticasAutorizacao
         options.AddPolicy(PodeGerirArmazem, p => p.RequireRole(ConstantesRoles.Admin, ConstantesRoles.Gestor));
 
         options.AddPolicy(PodeGerirFuncionarios, p => p.RequireRole(ConstantesRoles.Admin, ConstantesRoles.Gestor));
+
+        options.AddPolicy(PodeGerirDocumentacaoRegulatoria, p =>
+        {
+            p.Requirements.Add(new DocumentacaoRegulatoriaRequirement());
+        });
     }
 
     /// <summary>Devolve a lista de permissões (para o frontend) consoante as roles do utilizador.</summary>
@@ -52,12 +58,14 @@ public static class PoliticasAutorizacao
                 perms.Add("admin"); perms.Add("clientes.gerir"); perms.Add("produtos.ver"); perms.Add("produtos.gerir");
                 perms.Add("encomendas.gerir"); perms.Add("encomendas.apagar"); perms.Add("servicos.gerir"); perms.Add("servicos.apagar");
                 perms.Add("armazem.stock"); perms.Add("armazem.gerir"); perms.Add("funcionarios.gerir");
+                perms.Add("documentacao.gerir");
             }
             else if (string.Equals(r, ConstantesRoles.Gestor, StringComparison.OrdinalIgnoreCase))
             {
                 perms.Add("clientes.gerir"); perms.Add("produtos.ver"); perms.Add("produtos.gerir");
                 perms.Add("encomendas.gerir"); perms.Add("encomendas.apagar"); perms.Add("servicos.gerir"); perms.Add("servicos.apagar");
                 perms.Add("armazem.stock"); perms.Add("armazem.gerir"); perms.Add("funcionarios.gerir");
+                perms.Add("documentacao.gerir");
             }
             else if (string.Equals(r, ConstantesRoles.Comercial, StringComparison.OrdinalIgnoreCase))
             {

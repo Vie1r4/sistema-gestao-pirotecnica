@@ -145,6 +145,54 @@ public class EncomendaServiceTests
     }
 
     [Fact]
+    public async Task RegistarPreparacaoAsync_CoordenadorSemCred_FalhaAntesFifo()
+    {
+        await using var ctx = TestDbContextFactory.Create();
+        var (encId, itemId, paiolId, _, _) = await SeedEncomendaComStockAsync(ctx, coordenadorCred: null);
+        var sut = CreateSut(ctx);
+
+        var (ok, erro) = await sut.RegistarPreparacaoAsync(
+            encId,
+            "u1",
+            new[] { paiolId },
+            new List<RetiradaPreparacaoInput>
+            {
+                new() { EncomendaItemId = itemId, PaiolId = paiolId, Quantidade = 10m },
+            },
+            "User");
+
+        Assert.False(ok);
+        Assert.NotNull(erro);
+        Assert.Contains(ConstantesEncomenda.CodigoCoordenadorSemCred, erro, StringComparison.Ordinal);
+
+        var enc = await ctx.Encomendas.AsNoTracking().FirstAsync(e => e.Id == encId);
+        Assert.Equal(ConstantesEncomenda.ACEITE, enc.Estado);
+        Assert.Empty(await ctx.SaidasPaiol.Where(s => s.EncomendaId == encId).ToListAsync());
+    }
+
+    [Fact]
+    public async Task RegistarPreparacaoAsync_CoordenadorComCred_Sucesso()
+    {
+        await using var ctx = TestDbContextFactory.Create();
+        var (encId, itemId, paiolId, _, _) = await SeedEncomendaComStockAsync(ctx, coordenadorCred: "3412");
+        var sut = CreateSut(ctx);
+
+        var (ok, erro) = await sut.RegistarPreparacaoAsync(
+            encId,
+            "u1",
+            new[] { paiolId },
+            new List<RetiradaPreparacaoInput>
+            {
+                new() { EncomendaItemId = itemId, PaiolId = paiolId, Quantidade = 10m },
+            },
+            "User");
+
+        Assert.True(ok, erro);
+        var enc = await ctx.Encomendas.AsNoTracking().FirstAsync(e => e.Id == encId);
+        Assert.Equal(ConstantesEncomenda.EM_PREPARACAO, enc.Estado);
+    }
+
+    [Fact]
     public async Task RegistarPreparacaoAsync_Sucesso_AtualizaEstadoECriaSaidas()
     {
         await using var ctx = TestDbContextFactory.Create();
@@ -215,7 +263,8 @@ public class EncomendaServiceTests
         string estado = ConstantesEncomenda.ACEITE,
         decimal quantidadePedida = 10m,
         decimal quantidadeEntrada = 10m,
-        bool duasEntradasFifo = false)
+        bool duasEntradasFifo = false,
+        string? coordenadorCred = "skip")
     {
         var c = new Cliente { Nome = "C-test", TipoCliente = "Particular" };
         ctx.Clientes.Add(c);
@@ -224,6 +273,10 @@ public class EncomendaServiceTests
             Nome = "Prod-Fifo",
             NEMPorUnidade = 1m,
             FamiliaRisco = "1.3G",
+            FiltroTecnico = TestProdutoDefaults.FiltroTecnico,
+            Calibre = TestProdutoDefaults.Calibre,
+            Categoria = TestProdutoDefaults.Categoria,
+            GrupoCompatibilidade = TestProdutoDefaults.GrupoCompatibilidade,
         };
         ctx.Produtos.Add(prod);
         var paiol = new Paiol
@@ -234,6 +287,21 @@ public class EncomendaServiceTests
             Estado = ConstantesPaiol.EstadoAtivo,
         };
         ctx.Paiol.Add(paiol);
+
+        Funcionario? coord = null;
+        if (coordenadorCred != "skip")
+        {
+            coord = new Funcionario
+            {
+                NomeCompleto = "Coordenador Teste",
+                Email = $"coord-{Guid.NewGuid():N}@teste.pt",
+                Cargo = ConstantesRoles.Gestor,
+                NIF = "111222333",
+                NumeroCredencial = coordenadorCred,
+            };
+            ctx.Funcionarios.Add(coord);
+        }
+
         await ctx.SaveChangesAsync();
 
         var enc = new Encomenda
@@ -241,6 +309,7 @@ public class EncomendaServiceTests
             ClienteId = c.Id,
             Estado = estado,
             DataCriacao = DateTime.UtcNow,
+            CoordenadorPirotecnicoId = coord?.Id,
         };
         ctx.Encomendas.Add(enc);
         await ctx.SaveChangesAsync();

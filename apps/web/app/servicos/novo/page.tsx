@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import Navbar from "@/app/components/Navbar";
+import ZonasLancamentoEditor from "@/app/components/servicos/ZonasLancamentoEditor";
+import ServicoFuncionariosFields from "@/app/components/servicos/ServicoFuncionariosFields";
 import { getToken } from "@/app/lib/auth";
 import {
   servicosApi,
@@ -13,10 +15,19 @@ import {
   type PublicoPrivado,
 } from "@/app/lib/servicos";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
-import MapaCoordenadas from "@/app/components/MapaCoordenadas";
+import {
+  mapFuncionariosServico,
+  membrosEquipaParaZonas,
+} from "@/app/lib/servicosFuncionariosForm";
+import {
+  createDefaultZonasFromItens,
+  parseItensEncomenda,
+  validarZonasForm,
+  zonasToApiInput,
+  type ZonaForm,
+} from "@/app/lib/zonasLancamento";
 
 type EncomendaOpt = { id: string | number; texto?: string; clienteId?: string; cliente?: { nome: string }; dataConclusao?: string };
-type FuncionarioOpt = { id: number | string; nomeCompleto?: string };
 
 const inputClass =
   "rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-white";
@@ -33,19 +44,19 @@ function NovoServicoContent() {
 
   const [mounted, setMounted] = useState(false);
   const [encomendaId, setEncomendaId] = useState(encomendaIdParam ?? "");
+  const [nomeEvento, setNomeEvento] = useState("");
   const [dataServico, setDataServico] = useState("");
   const [local, setLocal] = useState("");
   const [distrito, setDistrito] = useState("");
   const [cidade, setCidade] = useState("");
   const [municipio, setMunicipio] = useState("");
-  const [coordenadasLat, setCoordenadasLat] = useState("");
-  const [coordenadasLng, setCoordenadasLng] = useState("");
-  const [raioPublico, setRaioPublico] = useState("");
   const [publicoPrivado, setPublicoPrivado] = useState<PublicoPrivado | "">("");
-  const [responsavelTecnicoId, setResponsavelTecnicoId] = useState("");
+  const [coordenadorPirotecnicoId, setCoordenadorPirotecnicoId] = useState("");
   const [equipaIds, setEquipaIds] = useState<Set<string>>(new Set());
   const [observacoes, setObservacoes] = useState("");
+  const [zonas, setZonas] = useState<ZonaForm[]>([]);
   const [erro, setErro] = useState<string | null>(null);
+  const prevEncomendaRef = useRef("");
   const token = getToken();
   const encomendaPreselect = encomendaIdParam ? parseInt(encomendaIdParam, 10) : undefined;
 
@@ -54,43 +65,80 @@ function NovoServicoContent() {
     return () => clearTimeout(t);
   }, []);
 
+  const encomendaIdNum = encomendaId ? parseInt(encomendaId, 10) : undefined;
+
   const { data: createData, isLoading: loadingForm } = useQuery({
-    queryKey: ["servicos", "create", encomendaPreselect ?? "none"],
+    queryKey: ["servicos", "create", encomendaIdNum ?? encomendaPreselect ?? "none"],
     queryFn: async () => {
       const t = getToken();
       if (!t) throw new Error("no-token");
-      return servicosApi.fetchServicosCreate(t, encomendaPreselect);
+      const encId = encomendaIdNum && !Number.isNaN(encomendaIdNum) ? encomendaIdNum : encomendaPreselect;
+      return servicosApi.fetchServicosCreate(t, encId);
     },
     enabled: mounted && !!token,
     retry: false,
   });
+
+  const itensEncomenda = useMemo(
+    () => parseItensEncomenda((createData?.itensEncomenda ?? []) as Array<Record<string, unknown>>),
+    [createData?.itensEncomenda]
+  );
 
   const encomendasDisponiveis = useMemo<EncomendaOpt[]>(() => {
     if (!createData) return [];
     return (createData.encomendas ?? []).map((e) => ({ id: e.id, texto: e.texto ?? "" }));
   }, [createData]);
 
-  const responsaveis = useMemo<FuncionarioOpt[]>(() => {
-    if (!createData) return [];
-    return (createData.responsaveisTecnicos as Record<string, unknown>[] ?? []).map((f) => ({
-      id: (f.id ?? f.Id) as number,
-      nomeCompleto: String(f.nomeCompleto ?? f.NomeCompleto ?? ""),
-    }));
-  }, [createData]);
+  const funcionarios = useMemo(
+    () =>
+      mapFuncionariosServico(createData?.funcionarios ?? []),
+    [createData]
+  );
 
-  const funcionariosEquipa = useMemo<FuncionarioOpt[]>(() => {
-    if (!createData) return [];
-    return (createData.funcionariosEquipa as Record<string, unknown>[] ?? []).map((f) => ({
-      id: (f.id ?? f.Id) as number,
-      nomeCompleto: String(f.nomeCompleto ?? f.NomeCompleto ?? ""),
-    }));
-  }, [createData]);
+  const membrosEquipa = useMemo(
+    () => membrosEquipaParaZonas(funcionarios, equipaIds),
+    [funcionarios, equipaIds]
+  );
+
+  useEffect(() => {
+    setZonas((prev) =>
+      prev.map((z) =>
+        z.responsavelPirotecnicoId && !equipaIds.has(z.responsavelPirotecnicoId)
+          ? { ...z, responsavelPirotecnicoId: "" }
+          : z
+      )
+    );
+  }, [equipaIds]);
+
+  useEffect(() => {
+    const sug = createData?.servico?.nomeEventoSugerido;
+    if (sug) setNomeEvento(String(sug).slice(0, 200));
+  }, [createData?.servico?.nomeEventoSugerido, encomendaId]);
+
+  useEffect(() => {
+    if (!createData?.servico?.dataServico && !dataServico) {
+      setDataServico(new Date().toISOString().slice(0, 10));
+    } else if (createData?.servico?.dataServico && !dataServico) {
+      setDataServico(String(createData.servico.dataServico).slice(0, 10));
+    }
+  }, [createData, dataServico]);
+
+  useEffect(() => {
+    if (!encomendaId || itensEncomenda.length === 0) {
+      if (!encomendaId) setZonas([]);
+      return;
+    }
+    if (prevEncomendaRef.current === encomendaId) return;
+    prevEncomendaRef.current = encomendaId;
+    const ds = dataServico || new Date().toISOString().slice(0, 10);
+    setZonas(createDefaultZonasFromItens(itensEncomenda, ds));
+  }, [encomendaId, itensEncomenda, dataServico]);
 
   const createMutation = useMutation({
-    mutationFn: async (fd: FormData) => {
+    mutationFn: async (body: servicosApi.ServicoSaveRequest) => {
       const t = getToken();
       if (!t) throw new Error("Sessão inválida. Faça login.");
-      return servicosApi.postServico(t, fd);
+      return servicosApi.postServico(t, body);
     },
     onSuccess: (res) => {
       const servico = res.servico as { id?: number; Id?: number };
@@ -131,26 +179,30 @@ function NovoServicoContent() {
       setErro("Encomenda inválida ou já utilizada noutro serviço.");
       return;
     }
-    const t = getToken();
-    if (!t) {
-      setErro("Sessão inválida. Faça login.");
+    if (itensEncomenda.length === 0) {
+      setErro("A encomenda não tem itens. Volte a selecionar a encomenda.");
       return;
     }
-    const fd = new FormData();
-    fd.append("Servico.EncomendaId", encomendaId);
-    fd.append("Servico.DataServico", dataServico);
-    fd.append("Servico.PublicoPrivado", publicoPrivado);
-    if (local.trim()) fd.append("Servico.Local", local.trim());
-    if (distrito.trim()) fd.append("Servico.Distrito", distrito.trim());
-    if (cidade.trim()) fd.append("Servico.Cidade", cidade.trim());
-    if (municipio.trim()) fd.append("Servico.Municipio", municipio.trim());
-    if (coordenadasLat) fd.append("Servico.CoordenadasLat", coordenadasLat);
-    if (coordenadasLng) fd.append("Servico.CoordenadasLng", coordenadasLng);
-    if (raioPublico) fd.append("Servico.RaioPublico", raioPublico);
-    if (responsavelTecnicoId) fd.append("Servico.ResponsavelTecnicoId", responsavelTecnicoId);
-    if (observacoes.trim()) fd.append("Servico.Observacoes", observacoes.trim());
-    Array.from(equipaIds).forEach((fid) => fd.append("EquipaIds", fid));
-    await createMutation.mutateAsync(fd);
+    const erroZonas = validarZonasForm(zonas, itensEncomenda);
+    if (erroZonas) {
+      setErro(erroZonas);
+      return;
+    }
+    const body: servicosApi.ServicoSaveRequest = {
+      encomendaId: parseInt(encomendaId, 10),
+      nomeEvento: nomeEvento.trim() || undefined,
+      dataServico,
+      publicoPrivado,
+      local: local.trim() || undefined,
+      distrito: distrito.trim() || undefined,
+      cidade: cidade.trim() || undefined,
+      municipio: municipio.trim() || undefined,
+      coordenadorPirotecnicoId: coordenadorPirotecnicoId ? parseInt(coordenadorPirotecnicoId, 10) : undefined,
+      observacoes: observacoes.trim() || undefined,
+      equipaIds: Array.from(equipaIds).map((x) => parseInt(x, 10)).filter((n) => !Number.isNaN(n)),
+      zonas: zonasToApiInput(zonas),
+    };
+    await createMutation.mutateAsync(body);
   };
 
   if (!mounted || loadingForm) {
@@ -164,12 +216,12 @@ function NovoServicoContent() {
   return (
     <div className="min-h-screen bg-[#f8f7f5] text-[#1c1917] dark:bg-[#0a0a0a] dark:text-white">
       <Navbar />
-      <main className="px-6 pt-14 pb-10 sm:px-8 pt-content-offset" >
-        <div className="mx-auto max-w-2xl">
+      <main className="px-6 pt-14 pb-10 sm:px-8 pt-content-offset">
+        <div className="mx-auto max-w-4xl">
           <motion.div initial={fadeInUp.initial} animate={fadeInUp.animate} transition={transitionSmooth}>
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Novo serviço</h1>
             <p className="mt-1 text-sm text-[#57534e] dark:text-gray-400">
-              Associe uma encomenda concluída e preencha os dados do evento.
+              Associe uma encomenda concluída, reparta o material por zonas de lançamento e preencha os dados do evento.
             </p>
           </motion.div>
 
@@ -178,186 +230,147 @@ function NovoServicoContent() {
             animate={fadeInUp.animate}
             transition={{ ...transitionSmooth, delay: 0.05 }}
             onSubmit={handleSubmit}
-            className="mt-8 rounded-2xl border border-[#e7e5e4] bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111]"
+            className="mt-8 space-y-6"
           >
             {erro && (
-              <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">
+              <div className="rounded-xl bg-red-50 p-3 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">
                 {erro}
               </div>
             )}
 
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="encomendaId" className={labelClass}>
-                  Encomenda *
-                </label>
-                <select
-                  id="encomendaId"
-                  required
-                  value={encomendaId}
-                  onChange={(e) => setEncomendaId(e.target.value)}
-                  className={inputClass + " w-full"}
-                >
-                  <option value="">— Selecione —</option>
-                  {encomendasDisponiveis.map((e) => (
-                    <option key={String(e.id)} value={String(e.id)}>
-                      {"texto" in e && e.texto ? e.texto : `#${e.id} — ${e.cliente?.nome ?? e.clienteId ?? ""} (${e.dataConclusao ? new Date(e.dataConclusao).toLocaleDateString("pt-PT") : ""})`}
-                    </option>
-                  ))}
-                </select>
-                {encomendasDisponiveis.length === 0 && (
-                  <p className="mt-1 text-sm text-amber-600 dark:text-amber-400">
-                    Não há encomendas concluídas disponíveis. Conclua uma encomenda primeiro.
-                  </p>
-                )}
-              </div>
+            <section className="rounded-2xl border border-[#e7e5e4] bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111]">
+              <h2 className="mb-4 text-lg font-semibold">Dados gerais</h2>
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="encomendaId" className={labelClass}>
+                    Encomenda *
+                  </label>
+                  <select
+                    id="encomendaId"
+                    required
+                    value={encomendaId}
+                    onChange={(e) => {
+                      prevEncomendaRef.current = "";
+                      setEncomendaId(e.target.value);
+                    }}
+                    className={inputClass + " w-full"}
+                  >
+                    <option value="">— Selecione —</option>
+                    {encomendasDisponiveis.map((e) => (
+                      <option key={String(e.id)} value={String(e.id)}>
+                        {"texto" in e && e.texto ? e.texto : `#${e.id}`}
+                      </option>
+                    ))}
+                  </select>
+                  {encomendasDisponiveis.length === 0 && (
+                    <p className="mt-1 text-sm text-amber-600 dark:text-amber-400">
+                      Não há encomendas concluídas disponíveis. Conclua uma encomenda primeiro.
+                    </p>
+                  )}
+                </div>
 
-              <div>
-                <label htmlFor="dataServico" className={labelClass}>
-                  Data do serviço *
-                </label>
-                <input
-                  id="dataServico"
-                  type="date"
-                  required
-                  value={dataServico}
-                  onChange={(e) => setDataServico(e.target.value)}
-                  className={inputClass + " w-full"}
+                <div>
+                  <label htmlFor="nomeEvento" className={labelClass}>
+                    Nome do evento
+                  </label>
+                  <input
+                    id="nomeEvento"
+                    type="text"
+                    maxLength={200}
+                    value={nomeEvento}
+                    onChange={(e) => setNomeEvento(e.target.value.slice(0, 200))}
+                    className={inputClass + " w-full"}
+                    placeholder="Ex.: Festas do Concelho 2026"
+                  />
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="dataServico" className={labelClass}>
+                      Data do serviço *
+                    </label>
+                    <input
+                      id="dataServico"
+                      type="date"
+                      required
+                      value={dataServico}
+                      onChange={(e) => setDataServico(e.target.value)}
+                      className={inputClass + " w-full"}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="publicoPrivado" className={labelClass}>
+                      Público / Privado *
+                    </label>
+                    <select
+                      id="publicoPrivado"
+                      required
+                      value={publicoPrivado}
+                      onChange={(e) => setPublicoPrivado(e.target.value as PublicoPrivado)}
+                      className={inputClass + " w-full"}
+                    >
+                      <option value="">— Selecione —</option>
+                      {PUBLICO_PRIVADO.map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <ServicoFuncionariosFields
+                  inputClass={inputClass}
+                  funcionarios={funcionarios}
+                  coordenadorPirotecnicoId={coordenadorPirotecnicoId}
+                  equipaIds={equipaIds}
+                  onCoordenadorChange={setCoordenadorPirotecnicoId}
+                  onToggleEquipa={toggleEquipa}
                 />
-              </div>
 
-              <div>
-                <label htmlFor="publicoPrivado" className={labelClass}>
-                  Público / Privado *
-                </label>
-                <select
-                  id="publicoPrivado"
-                  required
-                  value={publicoPrivado}
-                  onChange={(e) => setPublicoPrivado(e.target.value as PublicoPrivado)}
-                  className={inputClass + " w-full"}
-                >
-                  <option value="">— Selecione —</option>
-                  {PUBLICO_PRIVADO.map((v) => (
-                    <option key={v} value={v}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="responsavelTecnicoId" className={labelClass}>
-                  Responsável técnico
-                </label>
-                <select
-                  id="responsavelTecnicoId"
-                  value={responsavelTecnicoId}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    setResponsavelTecnicoId(id);
-                    if (id) setEquipaIds((prev) => new Set(prev).add(id));
-                  }}
-                  className={inputClass + " w-full"}
-                >
-                  <option value="">— Selecione —</option>
-                  {responsaveis.map((f) => (
-                    <option key={String(f.id)} value={String(f.id)}>
-                      {f.nomeCompleto}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <span className={labelClass}>Equipa</span>
-                <p className="mt-1 text-xs text-[#57534e] dark:text-gray-400">
-                  Funcionários com licença de operador. O responsável técnico fica sempre na equipa.
-                </p>
-                <ul className="mt-2 space-y-1">
-                  {funcionariosEquipa.map((f) => (
-                    <li key={String(f.id)}>
-                      <label className="flex cursor-pointer items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={equipaIds.has(String(f.id)) || responsavelTecnicoId === String(f.id)}
-                          onChange={() => responsavelTecnicoId !== String(f.id) && toggleEquipa(String(f.id))}
-                          disabled={responsavelTecnicoId === String(f.id)}
-                          className="rounded border-gray-300"
-                        />
-                        <span>{f.nomeCompleto}</span>
-                        {responsavelTecnicoId === String(f.id) && (
-                          <span className="text-xs text-[#57534e] dark:text-gray-400">(responsável)</span>
-                        )}
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <label htmlFor="local" className={labelClass}>
-                  Local
-                </label>
-                <input id="local" type="text" value={local} onChange={(e) => setLocal(e.target.value)} className={inputClass + " w-full"} />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <label htmlFor="distrito" className={labelClass}>
-                    Distrito
+                  <label htmlFor="local" className={labelClass}>
+                    Local geral do evento
                   </label>
-                  <input id="distrito" type="text" value={distrito} onChange={(e) => setDistrito(e.target.value)} className={inputClass + " w-full"} />
+                  <input id="local" type="text" value={local} onChange={(e) => setLocal(e.target.value)} className={inputClass + " w-full"} />
                 </div>
-                <div>
-                  <label htmlFor="cidade" className={labelClass}>
-                    Cidade
-                  </label>
-                  <input id="cidade" type="text" value={cidade} onChange={(e) => setCidade(e.target.value)} className={inputClass + " w-full"} />
+
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div>
+                    <label htmlFor="distrito" className={labelClass}>Distrito</label>
+                    <input id="distrito" type="text" value={distrito} onChange={(e) => setDistrito(e.target.value)} className={inputClass + " w-full"} />
+                  </div>
+                  <div>
+                    <label htmlFor="cidade" className={labelClass}>Cidade</label>
+                    <input id="cidade" type="text" value={cidade} onChange={(e) => setCidade(e.target.value)} className={inputClass + " w-full"} />
+                  </div>
+                  <div>
+                    <label htmlFor="municipio" className={labelClass}>Concelho</label>
+                    <input id="municipio" type="text" value={municipio} onChange={(e) => setMunicipio(e.target.value)} className={inputClass + " w-full"} />
+                  </div>
                 </div>
+
                 <div>
-                  <label htmlFor="municipio" className={labelClass}>
-                    Concelho
-                  </label>
-                  <input id="municipio" type="text" value={municipio} onChange={(e) => setMunicipio(e.target.value)} className={inputClass + " w-full"} />
+                  <label htmlFor="observacoes" className={labelClass}>Observações</label>
+                  <textarea id="observacoes" rows={3} value={observacoes} onChange={(e) => setObservacoes(e.target.value)} className={inputClass + " w-full"} />
                 </div>
               </div>
+            </section>
 
-              <div className="mt-6">
-                <h3 className="mb-3 text-sm font-semibold text-gray-800 dark:text-gray-200">Localização no mapa</h3>
-                <MapaCoordenadas
-                  readOnly={false}
-                  lat={coordenadasLat}
-                  lng={coordenadasLng}
-                  raioMetros={raioPublico}
-                  onLatChange={setCoordenadasLat}
-                  onLngChange={setCoordenadasLng}
-                  onRaioChange={setRaioPublico}
-                  onAddressFromCoords={(addr) => {
-                    if (addr.local != null) setLocal(addr.local);
-                    if (addr.distrito != null) setDistrito(addr.distrito);
-                    if (addr.cidade != null) setCidade(addr.cidade);
-                    if (addr.municipio != null) setMunicipio(addr.municipio);
-                  }}
-                  mapContainerId="mapa-servico-novo"
+            {encomendaId && (
+              <section className="rounded-2xl border border-[#e7e5e4] bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111]">
+                <ZonasLancamentoEditor
+                  zonas={zonas}
+                  onChange={setZonas}
+                  itensEncomenda={itensEncomenda}
+                  dataServico={dataServico}
+                  membrosEquipa={membrosEquipa}
+                  disabled={createMutation.isPending}
                 />
-              </div>
+              </section>
+            )}
 
-              <div>
-                <label htmlFor="observacoes" className={labelClass}>
-                  Observações
-                </label>
-                <textarea
-                  id="observacoes"
-                  rows={3}
-                  value={observacoes}
-                  onChange={(e) => setObservacoes(e.target.value)}
-                  className={inputClass + " w-full"}
-                />
-              </div>
-            </div>
-
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-3">
               <button type="submit" disabled={createMutation.isPending || encomendasDisponiveis.length === 0} className={btnPrimary}>
                 {createMutation.isPending ? "A guardar…" : "Criar serviço"}
               </button>

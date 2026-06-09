@@ -136,7 +136,7 @@ export default function EliminarPaiolPage() {
               Eliminar paiol
             </h1>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Esta ação é irreversível. O paiol e a documentação associada serão removidos. A pasta de documentos será apagada. As entradas e saídas já registadas mantêm referência ao paiol (em modo demonstração podem ficar órfãs).
+              Esta ação é irreversível. O paiol e a documentação associada serão removidos. A pasta de documentos será apagada. As entradas e saídas já registadas mantêm referência ao paiol e podem ficar órfãs.
             </p>
           </motion.div>
 

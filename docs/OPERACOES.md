@@ -13,7 +13,7 @@ Cada execução gera **dois ficheiros** com o mesmo carimbo de data em `{Content
 | Ficheiro | Conteúdo |
 |----------|----------|
 | `{Prefixo}_{Bd}_{timestamp}.bak` | Base de dados SQL (dados da app, contas, paths na BD) |
-| `{Prefixo}_{Bd}_{timestamp}_uploads.zip` | Pasta `PirofafeData/Uploads/` (PDFs e documentos no disco) |
+| `{Prefixo}_{Bd}_{timestamp}_uploads.zip` | Pasta `PirofafeData/Uploads/` (PDFs e documentos no disco; **cifrado** se `CifragemEmRepouso:Ativa=true`) |
 
 | Aspeto | Detalhe |
 |--------|---------|
@@ -24,6 +24,18 @@ Cada execução gera **dois ficheiros** com o mesmo carimbo de data em `{Content
 | Restaurar | `POST /api/admin/backups/restore` com `{ nomeFicheiro }` do `.bak` — `RESTORE DATABASE` + extração do ZIP de documentos (Admin) |
 
 Backups antigos **só com `.bak`** (sem ZIP) ainda restauram a BD; documentos não são repostos.
+
+### Permissões do SQL Server (instalação local portável)
+
+Para o backup/restauro funcionar **à primeira** em qualquer máquina, sem ter de configurar permissões NTFS para a conta do serviço SQL Server na pasta `PirofafeData`:
+
+- **Backup:** o `.bak` é escrito primeiro na **pasta de backups padrão da instância** (`SERVERPROPERTY('InstanceDefaultBackupPath')`), onde o SQL Server tem sempre permissões nativas. Depois, a **API (C#)** move o ficheiro para `PirofafeData/Backups`. Se o move falhar, o ficheiro órfão na pasta do SQL é apagado.
+- **Restauro:** simétrico — a API copia o `.bak` (já decifrado, se aplicável) de volta para a pasta padrão do SQL antes do `RESTORE`, e apaga essa cópia temporária no fim.
+- **Fallback:** se `InstanceDefaultBackupPath` for `NULL` (LocalDB / SQL Express, que correm sob a **mesma conta** da app e já têm acesso a `PirofafeData`), o sistema escreve/lê directamente no destino final — comportamento anterior. **Confirmado:** em LocalDB 2019 (15.x) a propriedade devolve `NULL` e o backup/restauro directo na pasta da app funciona, pois o motor corre como o utilizador que criou a pasta.
+- **Discos diferentes (C:\ vs D:\):** quando a pasta do SQL e o `CaminhoRaizDados` estão em volumes distintos, o move usa automaticamente **Copy + Delete** (mover entre volumes não é atómico). No mesmo volume usa `File.Move` directo.
+- **Temporários órfãos:** os `*.tmp` da cifragem atómica (em `Backups`) e os plaintext de restauro (em `TEMP`) são varridos no **arranque** do serviço e após cada backup (apaga só os com >1 h, para nunca tocar numa escrita em curso). Evita acumulação de lixo após queda de energia.
+
+> O ZIP de documentos é sempre criado/lido pela API (não pelo SQL Server), por isso nunca sofreu deste problema de permissões.
 
 ---
 
@@ -93,6 +105,7 @@ Registar data e resultado (ex.: linha na tabela abaixo ou issue «Restore test O
 | Data | Versão / commit | Backup usado | BD + docs OK? | Observações |
 |------|-----------------|--------------|---------------|-------------|
 | 2026-05-25 | `9baf5b3` | `db-backup_FinalprojContext_20260525_015203.bak` (+ `_uploads.zip`) | **Sim** | Script `scripts/test-restore-backup-rpo.ps1`: cliente + PDF → backup manual → DELETE → restore → cliente e PDF `%PDF` OK (~12 s). |
+| 2026-06-09 | (Ponto 5) | `db-backup_*` via staging na pasta padrão do SQL | **A validar** | Backup escreve na pasta padrão do SQL → API move para `Backups`; restauro copia de volta antes do `RESTORE`. Correr `scripts/test-restore-backup-rpo.ps1` end-to-end para confirmar em SQL Server com conta de serviço dedicada. |
 
 ### Como melhorar RPO/RTO (evolução)
 
@@ -129,7 +142,30 @@ Pastas criadas automaticamente no arranque da API (ignoradas pelo Git — ver `.
 | `PirofafeData/Uploads/` | Documentos de clientes, funcionários, paióis, serviços (paths relativos na BD) |
 | `PirofafeData/Backups/` | Cópias `.bak` da base de dados |
 
-Configuração: secção **`DadosLocais`** em `appsettings` (`NomePastaDados`, `SubPastaDocumentos`, `SubPastaBackups`, `CaminhoRaizDados` opcional, `UsarFallbackWwwroot` para ficheiros antigos em `wwwroot`).
+Configuração: secção **`DadosLocais`** em `appsettings` (`NomePastaDados`, `SubPastaDocumentos`, `SubPastaBackups`, `CaminhoRaizDados` opcional). **`UsarFallbackWwwroot`** deve permanecer `false` — uploads só em `PirofafeData/Uploads`; `wwwroot` da API é apenas `favicon.ico`.
+
+### Caminhos portáteis (`CaminhoRaizDados` vs `NomePastaDados`)
+
+O caminho físico final é sempre **`{âncora}/{NomePastaDados}/{Uploads|Backups}`**:
+
+| Chave | Papel | Omissão |
+|-------|-------|---------|
+| `CaminhoRaizDados` | **Âncora** onde nasce a pasta de dados. Vazio → usa o `ContentRootPath` da API (junto ao projeto). Preenchido → tem de ser **caminho absoluto** (ex.: `D:\Pirofafe_Dados_Empresa`, `E:\dados`, ou um caminho POSIX em Linux). | `""` |
+| `NomePastaDados` | Nome da pasta de dados criada **dentro** da âncora. | `PirofafeData` |
+| `SubPastaDocumentos` / `SubPastaBackups` | Subpastas de uploads e `.bak`. | `Uploads` / `Backups` |
+
+Exemplo — mover a instalação para outro disco:
+
+```json
+"DadosLocais": {
+  "CaminhoRaizDados": "D:\\Pirofafe_Dados_Empresa",
+  "NomePastaDados": "PirofafeData"
+}
+```
+
+→ resolve para `D:\Pirofafe_Dados_Empresa\PirofafeData\Uploads` e `...\Backups`.
+
+**Migrar entre PCs Windows da empresa:** 1) parar a API; 2) copiar a pasta `PirofafeData` (ou a raiz absoluta inteira) para o disco do PC novo; 3) ajustar `CaminhoRaizDados` no `appsettings` do PC novo para o novo caminho; 4) arrancar a API. No arranque, `ArquivosRaizService` **valida** que o caminho é absoluto e criável (caso contrário, falha cedo com erro claro) e **regista em `Information`** os caminhos finais de `UploadsRoot` e `BackupsRoot` resolvidos — útil para confirmar que o PC novo aponta para o sítio certo.
 
 ---
 

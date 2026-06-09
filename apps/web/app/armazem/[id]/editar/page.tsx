@@ -21,7 +21,7 @@ import {
 } from "@/app/lib/armazem";
 import { getToken } from "@/app/lib/auth";
 import { useToastStore } from "@/app/stores/useToastStore";
-import { fetchEdit, putEdit } from "@/app/lib/paiolApi";
+import { fetchEdit, putEdit, openDocumento } from "@/app/lib/paiolApi";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 
 const cardClass =
@@ -89,7 +89,14 @@ export default function EditarPaiolPage() {
   const [cargosAcesso, setCargosAcesso] = useState<CargoAcessoPaiol[]>([]);
   const [removerDocIds, setRemoverDocIds] = useState<Set<string>>(new Set());
   const [novosExtras, setNovosExtras] = useState<PaiolDocumentoExtra[]>([]);
+  const [novosExtrasFiles, setNovosExtrasFiles] = useState<(File | null)[]>([]);
   const submittingRef = useRef(false);
+  const [submitLocked, setSubmitLocked] = useState(false);
+
+  const releaseSubmitLock = () => {
+    submittingRef.current = false;
+    setSubmitLocked(false);
+  };
 
   const {
     data: editData,
@@ -141,8 +148,8 @@ export default function EditarPaiolPage() {
     onError: (err: Error) => {
       setMessage({ type: "error", text: err.message || "Erro ao guardar." });
     },
-    onSettled: () => {
-      submittingRef.current = false;
+    onSettled: (_data, error) => {
+      if (error) releaseSubmitLock();
     },
   });
 
@@ -154,10 +161,13 @@ export default function EditarPaiolPage() {
 
   const addNovoDoc = () => {
     setNovosExtras((e) => [...e, { id: `ex-${Date.now()}`, nome: "" }]);
+    setNovosExtrasFiles((f) => [...f, null]);
   };
 
   const removeNovoDoc = (docId: string) => {
+    const idx = novosExtras.findIndex((x) => x.id === docId);
     setNovosExtras((e) => e.filter((x) => x.id !== docId));
+    if (idx >= 0) setNovosExtrasFiles((f) => f.filter((_, i) => i !== idx));
   };
 
   const setNovoDocNome = (docId: string, nome: string) => {
@@ -175,21 +185,40 @@ export default function EditarPaiolPage() {
     });
   };
 
+  const handleVerDocumento = async (extraId: string) => {
+    const token = getToken();
+    const extraNum = parseInt(extraId, 10);
+    if (!token || Number.isNaN(numId) || Number.isNaN(extraNum)) return;
+    try {
+      await openDocumento(token, numId, extraNum);
+    } catch {
+      alert("Não foi possível abrir o documento.");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current || submitLocked || mutation.isPending) return;
     if (!paiol) return;
+
+    submittingRef.current = true;
+    setSubmitLocked(true);
     setMessage(null);
+
     if (!form.nome.trim()) {
       setMessage({ type: "error", text: "O nome do paiol é obrigatório." });
+      releaseSubmitLock();
       return;
     }
     if (form.nome.length > 200) {
       setMessage({ type: "error", text: "O nome não pode exceder 200 caracteres." });
+      releaseSubmitLock();
       return;
     }
     const limite = Number(form.limiteMLE);
     if (!validarLimiteMLE(limite)) {
       setMessage({ type: "error", text: "O limite MLE deve ser um valor positivo." });
+      releaseSubmitLock();
       return;
     }
     const lat = form.coordenadasLat === "" ? undefined : Number(form.coordenadasLat);
@@ -197,6 +226,7 @@ export default function EditarPaiolPage() {
     const token = getToken();
     if (!validId || !token) {
       setMessage({ type: "error", text: "Sessão inválida. Faça login." });
+      releaseSubmitLock();
       return;
     }
     const fd = new FormData();
@@ -211,15 +241,21 @@ export default function EditarPaiolPage() {
     if (lat != null && !Number.isNaN(lat)) fd.append("Paiol.CoordenadasLat", String(lat));
     if (lng != null && !Number.isNaN(lng)) fd.append("Paiol.CoordenadasLng", String(lng));
     (cargosAcesso.length > 0 ? cargosAcesso : ["Admin"]).forEach((c) => fd.append("CargosAcesso", c));
-    Array.from(removerDocIds).forEach((docId) => {
+    Array.from(removerDocIds).forEach((docId, i) => {
       const n = parseInt(docId, 10);
-      if (!Number.isNaN(n)) fd.append("RemoverDocumentoExtraIds", String(n));
+      if (!Number.isNaN(n)) fd.append(`RemoverDocumentoExtraIds[${i}]`, String(n));
     });
-    submittingRef.current = true;
+    novosExtras.forEach((ex, i) => {
+      const file = novosExtrasFiles[i];
+      if (file) {
+        fd.append(`DocumentosExtras[${i}].Nome`, (ex.nome || "Documento").trim().slice(0, 100));
+        fd.append(`DocumentosExtras[${i}].Ficheiro`, file);
+      }
+    });
     mutation.mutate(fd);
   };
 
-  const saving = mutation.isPending;
+  const saving = submitLocked || mutation.isPending;
 
   if (loadingApi) {
     return (
@@ -437,7 +473,7 @@ export default function EditarPaiolPage() {
                       <div className="flex items-center gap-3">
                         <button
                           type="button"
-                          onClick={() => alert("Em modo demonstração os ficheiros não estão disponíveis.")}
+                          onClick={() => handleVerDocumento(doc.id)}
                           className="text-sm text-[#f97316] hover:underline"
                         >
                           Ver
@@ -484,7 +520,22 @@ export default function EditarPaiolPage() {
                     </div>
                     <div className="min-w-[140px] flex-1">
                       <label className="block text-sm font-medium text-gray-600 dark:text-gray-400">Ficheiro</label>
-                      <input type="file" accept={FILE_ACCEPT} className={inputClass} readOnly tabIndex={-1} aria-hidden />
+                      <input
+                        type="file"
+                        accept={FILE_ACCEPT}
+                        className={inputClass}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] ?? null;
+                          const idx = novosExtras.findIndex((x) => x.id === ex.id);
+                          if (idx >= 0) {
+                            setNovosExtrasFiles((f) => {
+                              const next = [...f];
+                              next[idx] = file;
+                              return next;
+                            });
+                          }
+                        }}
+                      />
                     </div>
                     <button
                       type="button"

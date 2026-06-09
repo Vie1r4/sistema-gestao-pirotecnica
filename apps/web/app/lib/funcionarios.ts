@@ -13,6 +13,8 @@ export type DocumentosFuncionario = {
 export type Funcionario = {
   id: string;
   nomeCompleto: string;
+  /** N.º credencial pirotécnica (CRED) — usado na declaração PSP. */
+  numeroCredencial?: string;
   nif?: string;
   email?: string;
   telefone?: string;

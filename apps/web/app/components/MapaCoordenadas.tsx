@@ -8,7 +8,15 @@ import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState } from "react";
 import { getEnderecoFromCoords, type EnderecoFromCoords } from "@/app/lib/geocoding";
 
-const MapaLeaflet = dynamic(() => import("@/app/components/MapaLeaflet"), { ssr: false });
+const MapaLeaflet = dynamic(() => import("@/app/components/MapaLeaflet"), {
+  ssr: false,
+  loading: () => (
+    <div
+      className="mapa-leaflet-canvas mapa-leaflet-canvas--h-280 animate-pulse bg-gray-100 dark:bg-[#1a1a1a]"
+      aria-hidden
+    />
+  ),
+});
 
 type MapaCoordenadasProps = {
   readOnly?: boolean;
@@ -78,7 +86,7 @@ export default function MapaCoordenadas({
 
   return (
     <div className={className}>
-      <div id={mapContainerId} className="rounded-xl overflow-hidden border border-gray-200 dark:border-[#222]">
+      <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-[#222]">
         <MapaLeaflet
           center={center}
           zoom={temCoordenadas ? 15 : 7}

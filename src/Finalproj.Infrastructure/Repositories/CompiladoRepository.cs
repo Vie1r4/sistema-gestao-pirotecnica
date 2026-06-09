@@ -1,5 +1,4 @@
 using Finalproj.Domain.Entities;
-using Finalproj.Domain.Interfaces;
 using Finalproj.Infrastructure.Persistence.Data;
 using Microsoft.EntityFrameworkCore;
 

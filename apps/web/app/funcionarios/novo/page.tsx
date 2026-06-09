@@ -41,6 +41,7 @@ export default function NovoFuncionarioPage() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [form, setForm] = useState({
     nomeCompleto: "",
+    numeroCredencial: "",
     nif: "",
     email: "",
     telefone: "",
@@ -62,6 +63,12 @@ export default function NovoFuncionarioPage() {
   const refLicencaOperador = useRef<HTMLInputElement>(null);
   const refExtrasFiles = useRef<(HTMLInputElement | null)[]>([]);
   const submittingRef = useRef(false);
+  const [submitLocked, setSubmitLocked] = useState(false);
+
+  const releaseSubmitLock = () => {
+    submittingRef.current = false;
+    setSubmitLocked(false);
+  };
 
   const { data: createOptionsData } = useQuery({
     queryKey: ["funcionarios", "create"],
@@ -97,8 +104,8 @@ export default function NovoFuncionarioPage() {
         text: err instanceof Error ? err.message : "Falha ao criar funcionário.",
       });
     },
-    onSettled: () => {
-      submittingRef.current = false;
+    onSettled: (_data, error) => {
+      if (error) releaseSubmitLock();
     },
   });
 
@@ -108,37 +115,48 @@ export default function NovoFuncionarioPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submittingRef.current || createMutation.isPending) return;
+    if (submittingRef.current || submitLocked || createMutation.isPending) return;
+
+    submittingRef.current = true;
+    setSubmitLocked(true);
     setMessage(null);
+
     if (!form.nomeCompleto.trim()) {
       setMessage({ type: "error", text: "O nome completo é obrigatório." });
+      releaseSubmitLock();
       return;
     }
     if (form.nif && !/^\d{9}$/.test(form.nif.replace(/\s/g, ""))) {
       setMessage({ type: "error", text: "O NIF deve ter nove dígitos." });
+      releaseSubmitLock();
       return;
     }
     if (form.criarConta) {
       if (!form.email.trim()) {
         setMessage({ type: "error", text: "Preencha o email do funcionário para criar a conta de acesso." });
+        releaseSubmitLock();
         return;
       }
       const passwordError = validatePasswordClient(form.contaPassword);
       if (passwordError) {
         setMessage({ type: "error", text: passwordError });
+        releaseSubmitLock();
         return;
       }
       if (form.contaPassword !== form.contaConfirmar) {
         setMessage({ type: "error", text: "A palavra-passe e a confirmação não coincidem." });
+        releaseSubmitLock();
         return;
       }
     }
     if (!token) {
       setMessage({ type: "error", text: "Inicie sessão para criar funcionários." });
+      releaseSubmitLock();
       return;
     }
     const formData = new FormData();
     formData.append("Funcionario.NomeCompleto", form.nomeCompleto.trim());
+    formData.append("Funcionario.NumeroCredencial", form.numeroCredencial.trim() || "");
     formData.append("Funcionario.NIF", form.nif.trim() || "");
     formData.append("Funcionario.Email", form.email.trim() || "");
     formData.append("Funcionario.Telefone", form.telefone.trim() || "");
@@ -166,7 +184,6 @@ export default function NovoFuncionarioPage() {
       const f = refExtrasFiles.current[i]?.files?.[0];
       if (f) formData.append(`DocumentosExtras[${i}].Ficheiro`, f);
     });
-    submittingRef.current = true;
     createMutation.mutate(formData);
   };
 
@@ -247,6 +264,18 @@ export default function NovoFuncionarioPage() {
                     onChange={(e) => setForm((f) => ({ ...f, nomeCompleto: e.target.value }))}
                     className={inputClass}
                     placeholder="Nome completo"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="numeroCredencial" className={labelClass}>N.º credencial (CRED)</label>
+                  <input
+                    id="numeroCredencial"
+                    type="text"
+                    maxLength={50}
+                    value={form.numeroCredencial}
+                    onChange={(e) => setForm((f) => ({ ...f, numeroCredencial: e.target.value }))}
+                    className={inputClass}
+                    placeholder="Ex.: 12345"
                   />
                 </div>
                 <div>
@@ -533,10 +562,10 @@ export default function NovoFuncionarioPage() {
               <button
                 type="submit"
                 className={btnPrimary}
-                disabled={createMutation.isPending}
-                aria-busy={createMutation.isPending}
+                disabled={submitLocked || createMutation.isPending}
+                aria-busy={submitLocked || createMutation.isPending}
               >
-                {createMutation.isPending ? "A guardar…" : "Guardar funcionário"}
+                {submitLocked || createMutation.isPending ? "A guardar…" : "Guardar funcionário"}
               </button>
               <Link href="/funcionarios" className={btnSecondary}>Cancelar</Link>
             </div>

@@ -1,5 +1,5 @@
 using Finalproj.Authorization;
-using Finalproj.Application.Common.Validators;
+using Finalproj.Api.Validators;
 using Finalproj.Application.DTOs;
 using Finalproj.Application.Features.Paiols.DTOs;
 using Finalproj.Application.Features.Paiols.Interfaces;

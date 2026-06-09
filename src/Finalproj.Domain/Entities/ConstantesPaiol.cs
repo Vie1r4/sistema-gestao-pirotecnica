@@ -3,7 +3,7 @@ namespace Finalproj.Domain.Constants;
 /// <summary>
 /// Valores fixos do contrato do paiol (Class 3 – validações e opções de formulário).
 /// Alinhado ao PROMPT_Motor_Validacao_Paiol: tipos de paiol, divisões e grupos autorizados na licença.
-/// Opções para vistas/dropdown MVC: ver Finalproj.Application.Common.Models.DropdownSelectLists.
+/// Opções para dropdowns na API: Finalproj.Api.Models.DropdownSelectLists.
 /// </summary>
 public static class ConstantesPaiol
 {

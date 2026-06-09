@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback } from "react";
+import { Suspense, useCallback, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getToken } from "@/app/lib/auth";
@@ -11,13 +11,16 @@ import {
   buildBreadcrumbs,
 } from "@/app/admin/_components";
 import { type LogEntidadeFilter } from "@/app/admin/lib/logEntityFilter";
-import { downloadLogsCsv } from "@/app/admin/lib/exportLogsCsv";
+import { exportFilteredLogsCsv } from "@/app/admin/lib/exportLogsCsv";
 import AdminLogsFilters, { type LogsFilterState } from "./AdminLogsFilters";
 import LogsList from "./_components/LogsList";
 
 function AdminLogsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [exporting, setExporting] = useState(false);
+  const [exportMsg, setExportMsg] = useState<string | null>(null);
+  const [exportErr, setExportErr] = useState<string | null>(null);
 
   const entidade = (searchParams.get("entidade") ?? "") as LogEntidadeFilter;
   const acao = searchParams.get("acao") ?? "";
@@ -100,6 +103,38 @@ function AdminLogsContent() {
     });
   }
 
+  // Filtrar a partir de uma linha (clicar no utilizador / ação): mantém os
+  // restantes filtros e volta à primeira página.
+  const handleFilterUser = useCallback(
+    (nome: string) => {
+      pushParams({
+        entidade,
+        acao,
+        userName: nome,
+        dataInicio,
+        dataFim,
+        itensPorPagina: String(itensPorPagina),
+        pagina: "1",
+      });
+    },
+    [pushParams, entidade, acao, dataInicio, dataFim, itensPorPagina]
+  );
+
+  const handleFilterAcao = useCallback(
+    (novaAcao: string) => {
+      pushParams({
+        entidade,
+        acao: novaAcao,
+        userName,
+        dataInicio,
+        dataFim,
+        itensPorPagina: String(itensPorPagina),
+        pagina: "1",
+      });
+    },
+    [pushParams, entidade, userName, dataInicio, dataFim, itensPorPagina]
+  );
+
   const currentFilters: LogsFilterState = {
     acao,
     userName,
@@ -107,6 +142,41 @@ function AdminLogsContent() {
     dataInicio,
     dataFim,
   };
+
+  const handleExportCsv = useCallback(async () => {
+    if (!token || exporting) return;
+    setExporting(true);
+    setExportMsg(null);
+    setExportErr(null);
+    try {
+      const result = await exportFilteredLogsCsv(token, {
+        acao,
+        userName,
+        entidade,
+        dataInicio,
+        dataFim,
+      });
+      if (!result.ok) {
+        setExportErr("Não há registos para exportar com os filtros actuais.");
+        return;
+      }
+      if (result.truncated) {
+        setExportMsg(
+          `Exportados ${result.exported.toLocaleString("pt-PT")} de ${result.total.toLocaleString("pt-PT")} registos (limite de segurança). Refina os filtros para exportar o resto.`
+        );
+      } else {
+        setExportMsg(
+          `${result.exported.toLocaleString("pt-PT")} ${result.exported === 1 ? "registo exportado" : "registos exportados"}.`
+        );
+      }
+    } catch {
+      setExportErr("Falha ao exportar. Tenta novamente.");
+    } finally {
+      setExporting(false);
+    }
+  }, [token, exporting, acao, userName, entidade, dataInicio, dataFim]);
+
+  const podeExportar = !!data && data.totalRegistos > 0 && !!token;
 
   return (
     <div className={`min-h-screen ${adminTheme.pageBg}`}>
@@ -116,17 +186,31 @@ function AdminLogsContent() {
           description="Auditoria de todas as acções registadas na plataforma."
           breadcrumb={buildBreadcrumbs("/admin/logs")}
           actions={
-            data && data.items.length > 0 ? (
+            podeExportar ? (
               <button
                 type="button"
-                onClick={() => downloadLogsCsv(data.items)}
-                className={adminTheme.btnSecondary}
+                disabled={exporting}
+                onClick={handleExportCsv}
+                className={`${adminTheme.btnSecondary} disabled:opacity-60`}
               >
-                Exportar CSV
+                {exporting ? "A exportar…" : "Exportar CSV (filtros)"}
               </button>
             ) : undefined
           }
         />
+
+        {(exportMsg || exportErr) && (
+          <div
+            className={`rounded-xl border px-4 py-3 text-sm ${
+              exportErr
+                ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400"
+                : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300"
+            }`}
+            role="status"
+          >
+            {exportErr ?? exportMsg}
+          </div>
+        )}
 
         <AdminLogsFilters
           value={currentFilters}
@@ -140,11 +224,7 @@ function AdminLogsContent() {
           </div>
         )}
 
-        {isLoading && (
-          <div className="flex min-h-[30vh] items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent" />
-          </div>
-        )}
+        {isLoading && <LogsListSkeleton />}
 
         {!isLoading && !isError && data && (
           <LogsList
@@ -154,8 +234,34 @@ function AdminLogsContent() {
             itensPorPagina={data.itensPorPagina}
             onPageChange={handlePageChange}
             onPerPageChange={handlePerPageChange}
+            onFilterUser={handleFilterUser}
+            onFilterAcao={handleFilterAcao}
           />
         )}
+      </div>
+    </div>
+  );
+}
+
+function LogsListSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="h-4 w-40 animate-pulse rounded bg-[#e7e5e4] dark:bg-[#1a1a1a]" />
+      <div className="h-3 w-28 animate-pulse rounded bg-[#e7e5e4] dark:bg-[#1a1a1a]" />
+      <div className="divide-y divide-[#f1f0ef] overflow-hidden rounded-2xl border border-[#e7e5e4] bg-white dark:divide-[#1a1a1a] dark:border-[#222] dark:bg-[#111]">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex items-start gap-3 px-4 py-3">
+            <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#e7e5e4] dark:bg-[#333]" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="h-5 w-32 animate-pulse rounded-full bg-[#e7e5e4] dark:bg-[#1a1a1a]" />
+                <span className="h-4 w-24 animate-pulse rounded bg-[#e7e5e4] dark:bg-[#1a1a1a]" />
+                <span className="ml-auto h-3 w-16 animate-pulse rounded bg-[#e7e5e4] dark:bg-[#1a1a1a]" />
+              </div>
+              <span className="block h-4 w-48 animate-pulse rounded bg-[#e7e5e4] dark:bg-[#1a1a1a]" />
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -32,6 +32,7 @@ function mapApiItemToFuncionario(item: Record<string, unknown>): Funcionario {
   return {
     id: String(item.id ?? item.Id ?? ""),
     nomeCompleto: nome,
+    numeroCredencial: (item.numeroCredencial ?? item.NumeroCredencial) as string | undefined,
     nif: (item.nif ?? item.NIF) as string | undefined,
     email: (item.email ?? item.Email) as string | undefined,
     telefone: (item.telefone ?? item.Telefone) as string | undefined,
@@ -75,6 +76,7 @@ export default function EditarFuncionarioPage() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [form, setForm] = useState({
     nomeCompleto: "",
+    numeroCredencial: "",
     nif: "",
     email: "",
     telefone: "",
@@ -152,6 +154,7 @@ export default function EditarFuncionarioPage() {
     const f = mapApiItemToFuncionario(rawItem);
     setForm({
       nomeCompleto: f.nomeCompleto,
+      numeroCredencial: f.numeroCredencial ?? "",
       nif: f.nif ?? "",
       email: f.email ?? "",
       telefone: f.telefone ?? "",
@@ -238,11 +241,12 @@ export default function EditarFuncionarioPage() {
     const fd = new FormData();
     fd.append("Funcionario.Id", id);
     fd.append("Funcionario.NomeCompleto", form.nomeCompleto.trim());
+    fd.append("Funcionario.NumeroCredencial", form.numeroCredencial.trim());
     fd.append("Funcionario.NIF", form.nif.trim());
     fd.append("Funcionario.Email", form.email.trim());
     fd.append("Funcionario.Telefone", form.telefone.trim());
     fd.append("Funcionario.Morada", form.morada.trim());
-    fd.append("Funcionario.NSS", form.nss.trim());
+    fd.append("Funcionario.NumeroSegurancaSocial", form.nss.trim());
     fd.append("Funcionario.IBAN", form.iban.trim());
     fd.append("Funcionario.Cargo", form.cargo);
     fd.append("Funcionario.Notas", form.notas.trim());
@@ -286,6 +290,7 @@ export default function EditarFuncionarioPage() {
       useToastStore.getState().show("Alterações guardadas.", "success");
       queryClient.invalidateQueries({ queryKey: ["funcionarios"] });
       queryClient.invalidateQueries({ queryKey: ["funcionarios", id] });
+      queryClient.invalidateQueries({ queryKey: ["funcionarios", id, "edit"] });
       router.push(`/funcionarios/${id}?editado=1`);
     },
     onError: (err: Error) => setMessage({ type: "error", text: err.message || "Erro ao guardar." }),
@@ -377,6 +382,10 @@ export default function EditarFuncionarioPage() {
                 <div className="sm:col-span-2">
                   <label htmlFor="nome" className={labelClass}>Nome completo *</label>
                   <input id="nome" type="text" required value={form.nomeCompleto} onChange={(e) => setForm((f) => ({ ...f, nomeCompleto: e.target.value }))} className={inputClass} />
+                </div>
+                <div>
+                  <label htmlFor="numeroCredencial" className={labelClass}>N.º credencial (CRED)</label>
+                  <input id="numeroCredencial" type="text" maxLength={50} value={form.numeroCredencial} onChange={(e) => setForm((f) => ({ ...f, numeroCredencial: e.target.value }))} className={inputClass} placeholder="Ex.: 12345" />
                 </div>
                 <div><label htmlFor="nif" className={labelClass}>NIF</label><input id="nif" type="text" maxLength={9} value={form.nif} onChange={(e) => setForm((f) => ({ ...f, nif: e.target.value.replace(/\D/g, "") }))} className={inputClass} /></div>
                 <div><label htmlFor="email" className={labelClass}>Email</label><input id="email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className={inputClass} /></div>

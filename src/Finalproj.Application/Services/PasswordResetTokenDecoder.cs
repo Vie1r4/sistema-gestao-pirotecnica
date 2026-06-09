@@ -1,5 +1,4 @@
 using System.Text;
-using Microsoft.AspNetCore.WebUtilities;
 
 namespace Finalproj.Application.Services;
 
@@ -21,7 +20,7 @@ public static class PasswordResetTokenDecoder
 
         try
         {
-            var bytes = WebEncoders.Base64UrlDecode(normalized);
+            var bytes = Base64UrlDecode(normalized);
             return Encoding.UTF8.GetString(bytes);
         }
         catch (FormatException)
@@ -32,7 +31,7 @@ public static class PasswordResetTokenDecoder
                 var withPlus = normalized.Replace(' ', '+');
                 try
                 {
-                    var bytes = WebEncoders.Base64UrlDecode(withPlus);
+                    var bytes = Base64UrlDecode(withPlus);
                     return Encoding.UTF8.GetString(bytes);
                 }
                 catch (FormatException) { }
@@ -47,4 +46,20 @@ public static class PasswordResetTokenDecoder
         token.Trim().Replace("\r", "", StringComparison.Ordinal)
             .Replace("\n", "", StringComparison.Ordinal)
             .Replace(" ", "", StringComparison.Ordinal);
+
+    private static byte[] Base64UrlDecode(string input)
+    {
+        var padded = input.Replace('-', '+').Replace('_', '/');
+        switch (padded.Length % 4)
+        {
+            case 2:
+                padded += "==";
+                break;
+            case 3:
+                padded += "=";
+                break;
+        }
+
+        return Convert.FromBase64String(padded);
+    }
 }

@@ -17,5 +17,5 @@ public class DadosLocaisOptions
     public string? CaminhoRaizDados { get; set; }
 
     /// <summary>Ler ficheiros antigos em wwwroot se não existirem em Uploads.</summary>
-    public bool UsarFallbackWwwroot { get; set; } = true;
+    public bool UsarFallbackWwwroot { get; set; } = false;
 }

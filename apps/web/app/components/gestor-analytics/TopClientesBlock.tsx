@@ -10,8 +10,6 @@ import {
   type TopClienteLinha,
   type TopClientesResponse,
 } from "@/app/lib/gestorAnalytics";
-import { demoTopClientes } from "@/app/lib/gestorAnalyticsDemo";
-import { useGestorDemo } from "./GestorDemoProvider";
 import AnalyticsCard, { AnalyticsSkeleton } from "./AnalyticsCard";
 
 type TabId = "encomendas" | "servicos";
@@ -226,7 +224,6 @@ export default function TopClientesBlock({
   layout?: "wide" | "column";
 }) {
   const emColuna = layout === "column";
-  const { demoMode } = useGestorDemo();
   const [tab, setTab] = useState<TabId>("encomendas");
   const [selecionadoId, setSelecionadoId] = useState<number | null>(null);
 
@@ -234,10 +231,10 @@ export default function TopClientesBlock({
     queryKey: ["gestor-analytics", "top-clientes"],
     queryFn: () => fetchTopClientes(token, 10),
     staleTime: 120_000,
-    enabled: !!token && !demoMode,
+    enabled: !!token,
   });
 
-  const data: TopClientesResponse | undefined = demoMode ? demoTopClientes : real;
+  const data: TopClientesResponse | undefined = real;
 
   const linhas = useMemo(
     () => (tab === "encomendas" ? data?.porEncomendas : data?.porServicos) ?? [],
@@ -259,16 +256,16 @@ export default function TopClientesBlock({
       title="Melhores clientes"
       subtitle="Ranking por volume de encomendas ou serviços"
       compact={emColuna}
-      className={`h-full ${demoMode ? "border-dashed border-[#f97316]/40" : ""}`}
+      className="h-full"
     >
-      {!demoMode && isLoading ? (
+      {isLoading ? (
         <AnalyticsSkeleton height={emColuna ? 260 : 320} />
-      ) : !demoMode && isError ? (
+      ) : isError ? (
         <p className="py-12 text-center text-sm text-[#78716c]">Sem dados de clientes.</p>
       ) : !data ? (
         <p className="py-12 text-center text-sm text-[#78716c]">Sem dados de clientes.</p>
       ) : (
-        <div className={demoMode ? "opacity-90" : ""}>
+        <div>
           <div className="mb-4 inline-flex rounded-xl border border-[#e7e5e4] bg-[#fafaf9] p-1 dark:border-[#2a2a2a] dark:bg-[#111]">
             {TABS.map((t) => (
               <button

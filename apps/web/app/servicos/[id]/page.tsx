@@ -20,6 +20,19 @@ const btnDanger =
   "data-button rounded-xl border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950";
 const FILE_ACCEPT = ".pdf,.jpg,.jpeg,.png";
 
+function formatHoraApi(h?: string) {
+  if (!h) return "—";
+  const m = /^(\d{1,2}):(\d{2})/.exec(h);
+  return m ? `${m[1].padStart(2, "0")}:${m[2]}` : h;
+}
+
+function badgeDivisaoClasses(cor?: string) {
+  if (cor === "danger") return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
+  if (cor === "warning") return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
+  if (cor === "success") return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+  return "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300";
+}
+
 export default function ServicoDetalhePage() {
   const params = useParams();
   const id = params.id as string;
@@ -28,12 +41,15 @@ export default function ServicoDetalhePage() {
   const permissions = user?.permissions ?? [];
   const canGerirServicos = permissions.includes("servicos.gerir");
   const canApagarServicos = permissions.includes("servicos.apagar");
+  const canDocumentacao = permissions.includes("documentacao.gerir");
   const [coordsCopied, setCoordsCopied] = useState(false);
   const [docNome, setDocNome] = useState("");
   const [docFicheiro, setDocFicheiro] = useState<File | null>(null);
   const [docRemoverId, setDocRemoverId] = useState<string | null>(null);
   const [docErro, setDocErro] = useState<string | null>(null);
   const [docInfo, setDocInfo] = useState<string | null>(null);
+  const [pspInfo, setPspInfo] = useState<string | null>(null);
+  const [pspErro, setPspErro] = useState<string | null>(null);
 
   const {
     data: servico,
@@ -60,27 +76,30 @@ export default function ServicoDetalhePage() {
     );
   }, [servico?.equipa]);
 
-  const buildServicoBaseFormData = (s: ServicoDetalhe): FormData => {
-    const fd = new FormData();
-    fd.append("Servico.Id", String(s.id));
-    fd.append("Servico.EncomendaId", String(s.encomendaId));
-    fd.append("Servico.ClienteId", String(s.clienteId));
-    fd.append("Servico.DataServico", String(s.dataServico).slice(0, 10));
-    if (s.publicoPrivado) fd.append("Servico.PublicoPrivado", s.publicoPrivado);
-    if (s.local) fd.append("Servico.Local", s.local);
-    if (s.distrito) fd.append("Servico.Distrito", s.distrito);
-    if (s.cidade) fd.append("Servico.Cidade", s.cidade);
-    if (s.municipio) fd.append("Servico.Municipio", s.municipio);
-    if (s.coordenadasLat != null) fd.append("Servico.CoordenadasLat", String(s.coordenadasLat));
-    if (s.coordenadasLng != null) fd.append("Servico.CoordenadasLng", String(s.coordenadasLng));
-    if (s.raioPublico != null) fd.append("Servico.RaioPublico", String(s.raioPublico));
-    if (s.responsavelTecnicoId) fd.append("Servico.ResponsavelTecnicoId", String(s.responsavelTecnicoId));
-    if (s.observacoes) fd.append("Servico.Observacoes", s.observacoes);
-    s.equipa.forEach((m) => {
-      if (m.funcionarioId) fd.append("EquipaIds", String(m.funcionarioId));
-    });
-    return fd;
-  };
+  const gerarPspMutation = useMutation({
+    mutationFn: async () => {
+      const token = getToken();
+      if (!token) throw new Error("Sessão expirada.");
+      return servicosApi.postGerarDeclaracaoPsp(token, id);
+    },
+    onSuccess: async (res) => {
+      setPspErro(null);
+      setPspInfo(`Declaração PSP gerada (licença #${res.licencaId}). A descarregar PDF…`);
+      queryClient.invalidateQueries({ queryKey: ["servicos", id] });
+      const token = getToken();
+      if (token) {
+        await servicosApi.downloadComToken(
+          token,
+          servicosApi.licencaFicheiroUrl(id, res.licencaId),
+          { fileName: res.nomeFicheiro, mimeType: "application/pdf" }
+        );
+      }
+    },
+    onError: (e: Error) => {
+      setPspInfo(null);
+      setPspErro(e.message || "Erro ao gerar declaração PSP.");
+    },
+  });
 
   const uploadDocumentoMutation = useMutation({
     mutationFn: async (): Promise<void> => {
@@ -89,12 +108,7 @@ export default function ServicoDetalhePage() {
       if (!token) throw new Error("Sessão expirada.");
       if (!docFicheiro) throw new Error("Selecione um ficheiro.");
       const nome = docNome.trim() || "Documento";
-
-      const fd = buildServicoBaseFormData(servico);
-      fd.append("DocumentosExtras[0].Nome", nome.slice(0, 100));
-      fd.append("DocumentosExtras[0].Ficheiro", docFicheiro);
-
-      await servicosApi.putServico(token, servico.id, fd);
+      await servicosApi.postDocumentoExtra(token, servico.id, nome.slice(0, 100), docFicheiro);
     },
     onSuccess: () => {
       setDocErro(null);
@@ -115,9 +129,7 @@ export default function ServicoDetalhePage() {
       if (!servico) throw new Error("Serviço não encontrado.");
       const token = getToken();
       if (!token) throw new Error("Sessão expirada.");
-      const fd = buildServicoBaseFormData(servico);
-      fd.append("RemoverDocumentoExtraIds", String(extraId));
-      await servicosApi.putServico(token, servico.id, fd);
+      await servicosApi.deleteDocumentoExtra(token, servico.id, extraId);
     },
     onSuccess: () => {
       setDocErro(null);
@@ -136,7 +148,7 @@ export default function ServicoDetalhePage() {
     const token = getToken();
     if (!token || !servico) return;
     try {
-      await servicosApi.downloadComToken(token, servicosApi.documentoUrl(servico.id, extraId));
+      await servicosApi.abrirFicheiroComToken(token, servicosApi.documentoUrl(servico.id, extraId));
     } catch (e) {
       setDocInfo(null);
       setDocErro(e instanceof Error ? e.message : "Não foi possível abrir o documento.");
@@ -230,16 +242,49 @@ export default function ServicoDetalhePage() {
                   Eliminar
                 </Link>
               )}
-              {(user?.roles ?? []).some((r) => r === "Admin" || r === "Gestor") && (
-                <Link href={`/documentacao?servicoId=${encodeURIComponent(String(servico.id))}`} className={btnSecondary}>
-                  Documentação
-                </Link>
+              {canDocumentacao && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => gerarPspMutation.mutate()}
+                    disabled={gerarPspMutation.isPending || (servico.zonasLancamento ?? []).length === 0}
+                    className="data-button rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black hover:opacity-90 disabled:opacity-50"
+                    title={
+                      (servico.zonasLancamento ?? []).length === 0
+                        ? "Adicione pelo menos uma zona de lançamento"
+                        : undefined
+                    }
+                  >
+                    {gerarPspMutation.isPending ? "A gerar PDF…" : "Gerar declaração PSP"}
+                  </button>
+                  <Link
+                    href={`/documentacao?servicoId=${encodeURIComponent(String(servico.id))}`}
+                    className={btnSecondary}
+                  >
+                    Documentação
+                  </Link>
+                </>
               )}
               <Link href="/servicos" className={btnSecondary}>
                 Voltar à lista
               </Link>
             </div>
           </motion.div>
+
+          {(pspInfo || pspErro) && canDocumentacao && (
+            <div className="mt-4 space-y-2">
+              {pspInfo && (
+                <p className="rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800 dark:bg-green-900/20 dark:text-green-300">
+                  {pspInfo}
+                </p>
+              )}
+              {pspErro && (
+                <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">
+                  {pspErro}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Dados do serviço + Equipa (mesmo cartão) */}
           <motion.section
@@ -256,12 +301,34 @@ export default function ServicoDetalhePage() {
                 <dl className="grid gap-x-6 gap-y-3.5 text-sm sm:grid-cols-[minmax(0,7.5rem)_1fr] sm:gap-y-3">
                   <dt className="text-[#57534e] dark:text-gray-400 sm:pt-0.5">Cliente</dt>
                   <dd className="text-[#1c1917] dark:text-gray-100">{servico.cliente?.nome ?? servico.clienteId}</dd>
+                  {servico.nomeEvento && (
+                    <>
+                      <dt className="text-[#57534e] dark:text-gray-400 sm:pt-0.5">Evento</dt>
+                      <dd className="text-[#1c1917] dark:text-gray-100">{servico.nomeEvento}</dd>
+                    </>
+                  )}
                   <dt className="text-[#57534e] dark:text-gray-400 sm:pt-0.5">Data</dt>
                   <dd className="text-[#1c1917] dark:text-gray-100">
                     {new Date(servico.dataServico).toLocaleDateString("pt-PT")}
                   </dd>
                   <dt className="text-[#57534e] dark:text-gray-400 sm:pt-0.5">Público / Privado</dt>
                   <dd className="text-[#1c1917] dark:text-gray-100">{servico.publicoPrivado ?? "—"}</dd>
+                  {servico.coordenadorPirotecnico && (
+                    <>
+                      <dt className="text-[#57534e] dark:text-gray-400 sm:pt-0.5">Coordenador pirotécnico</dt>
+                      <dd className="text-[#1c1917] dark:text-gray-100">
+                        <Link
+                          href={`/funcionarios/${servico.coordenadorPirotecnico.id}`}
+                          className="text-[#f97316] hover:underline"
+                        >
+                          {servico.coordenadorPirotecnico.nomeCompleto}
+                        </Link>
+                        {servico.coordenadorPirotecnico.numeroCredencial
+                          ? ` — CRED n.º ${servico.coordenadorPirotecnico.numeroCredencial}`
+                          : " — CRED por preencher na ficha do funcionário"}
+                      </dd>
+                    </>
+                  )}
                   {servico.raioPublico != null && (
                     <>
                       <dt className="text-[#57534e] dark:text-gray-400 sm:pt-0.5">Raio público</dt>
@@ -321,11 +388,11 @@ export default function ServicoDetalhePage() {
                 <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#78716c] dark:text-gray-500">
                   Equipa
                 </h3>
-                {equipaOrdenada.length === 0 && !servico.responsavelTecnico ? (
+                {equipaOrdenada.length === 0 ? (
                   <p className="text-sm leading-relaxed text-[#57534e] dark:text-gray-400">
                     Nenhum funcionário foi associado a este serviço.
                   </p>
-                ) : equipaOrdenada.length > 0 ? (
+                ) : (
                   <ul className="space-y-1">
                     {equipaOrdenada.map((m, equipaIndex) => (
                       <li
@@ -338,28 +405,9 @@ export default function ServicoDetalhePage() {
                         >
                           {m.funcionario?.nomeCompleto ?? (m.funcionarioId ? `Funcionário #${m.funcionarioId}` : "—")}
                         </Link>
-                        {String(servico.responsavelTecnicoId ?? "") === String(m.funcionarioId ?? "") && (
-                          <span className="shrink-0 rounded-md bg-white px-2 py-0.5 text-[0.7rem] font-medium text-[#57534e] ring-1 ring-[#e7e5e4] dark:bg-[#1a1a1a] dark:text-gray-300 dark:ring-[#333]">
-                            Responsável técnico
-                          </span>
-                        )}
                       </li>
                     ))}
                   </ul>
-                ) : (
-                  servico.responsavelTecnico && (
-                    <div className="rounded-lg bg-white/90 p-3 ring-1 ring-[#e7e5e4] dark:bg-[#1a1a1a] dark:ring-[#333]">
-                      <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-[#78716c] dark:text-gray-500">
-                        Responsável técnico
-                      </p>
-                      <Link
-                        href={`/funcionarios/${servico.responsavelTecnicoId}`}
-                        className="mt-1 inline-block font-medium text-[#1c1917] hover:text-[#f97316] hover:underline dark:text-white dark:hover:text-[#fdba74]"
-                      >
-                        {servico.responsavelTecnico.nomeCompleto}
-                      </Link>
-                    </div>
-                  )
                 )}
               </aside>
             </div>
@@ -423,15 +471,7 @@ export default function ServicoDetalhePage() {
                   </span>
                   {servico.resumoMaterial.divisaoDominante && (
                     <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        servico.resumoMaterial.corDivisaoDominante === "danger"
-                          ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
-                          : servico.resumoMaterial.corDivisaoDominante === "warning"
-                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
-                            : servico.resumoMaterial.corDivisaoDominante === "success"
-                              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                              : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
-                      }`}
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeDivisaoClasses(servico.resumoMaterial.corDivisaoDominante)}`}
                     >
                       {servico.resumoMaterial.divisaoDominante}
                     </span>
@@ -449,6 +489,114 @@ export default function ServicoDetalhePage() {
               >
                 Ver encomenda #{servico.encomendaId}
               </Link>
+            </motion.section>
+          )}
+
+          {/* Zonas de lançamento */}
+          {(servico.zonasLancamento ?? []).length > 0 && (
+            <motion.section
+              initial={fadeInUp.initial}
+              animate={fadeInUp.animate}
+              transition={{ ...transitionSmooth, delay: 0.08 }}
+              className="mt-6 rounded-2xl border border-[#e7e5e4] bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111]"
+            >
+              <h2 className="mb-4 text-lg font-semibold">Zonas de lançamento</h2>
+              <div className="space-y-6">
+                {(servico.zonasLancamento ?? []).map((zona) => (
+                  <div key={zona.id} className="rounded-xl border border-[#e7e5e4] p-4 dark:border-[#333]">
+                    <h3 className="font-medium text-[#1c1917] dark:text-white">
+                      {zona.designacao || `Zona #${zona.id}`}
+                    </h3>
+                    <dl className="mt-2 grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[auto_1fr]">
+                      {zona.coordenadasLat != null && zona.coordenadasLng != null && (
+                        <>
+                          <dt className="text-[#57534e] dark:text-gray-400">Coordenadas</dt>
+                          <dd className="font-mono text-[0.8125rem]">
+                            {Number(zona.coordenadasLat).toFixed(4)}° N, {Number(zona.coordenadasLng).toFixed(4)}° W
+                          </dd>
+                        </>
+                      )}
+                      {zona.raioPublico != null && (
+                        <>
+                          <dt className="text-[#57534e] dark:text-gray-400">Raio público</dt>
+                          <dd>{zona.raioPublico} m</dd>
+                        </>
+                      )}
+                      {zona.responsavelPirotecnico && (
+                        <>
+                          <dt className="text-[#57534e] dark:text-gray-400">Responsável pirotécnico</dt>
+                          <dd>
+                            {zona.responsavelPirotecnico.nomeCompleto}
+                            {zona.responsavelPirotecnico.numeroCredencial
+                              ? ` — CRED n.º ${zona.responsavelPirotecnico.numeroCredencial}`
+                              : ""}
+                          </dd>
+                        </>
+                      )}
+                    </dl>
+                    {zona.linhas.length > 0 && (
+                      <div className="mt-3 overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                          <thead>
+                            <tr className="border-b border-[#e7e5e4] dark:border-[#222]">
+                              <th className="pb-2 pr-4 font-semibold">Produto</th>
+                              <th className="pb-2 pr-4 font-semibold">Data</th>
+                              <th className="pb-2 pr-4 font-semibold">Início</th>
+                              <th className="pb-2 pr-4 font-semibold">Fim</th>
+                              <th className="pb-2 pr-4 font-semibold">Categoria</th>
+                              <th className="pb-2 pr-4 text-right font-semibold">Qtd.</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {zona.linhas.map((l) => (
+                              <tr key={l.id} className="border-b border-[#f5f5f4] dark:border-[#1a1a1a]">
+                                <td className="py-2 pr-4">{l.produtoNome ?? l.produtoId}</td>
+                                <td className="py-2 pr-4">{l.data ? new Date(l.data).toLocaleDateString("pt-PT") : "—"}</td>
+                                <td className="py-2 pr-4">{formatHoraApi(l.horaInicio)}</td>
+                                <td className="py-2 pr-4">{formatHoraApi(l.horaFim)}</td>
+                                <td className="py-2 pr-4">{l.produtoCategoria ?? "—"}</td>
+                                <td className="py-2 pr-4 text-right">{Number(l.quantidade).toFixed(2)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    {zona.resumoMaterial && (
+                      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-[#fafaf9] p-3 text-sm dark:bg-[#0a0a0a]">
+                        <span>
+                          {zona.resumoMaterial.numeroProdutos} produtos · {zona.resumoMaterial.totalUnidades.toFixed(0)} unidades · MLE:{" "}
+                          <strong>{zona.resumoMaterial.mleTotalKg.toFixed(1)} kg</strong>
+                        </span>
+                        {zona.resumoMaterial.divisaoDominante && (
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeDivisaoClasses(zona.resumoMaterial.corDivisaoDominante)}`}>
+                            {zona.resumoMaterial.divisaoDominante}
+                          </span>
+                        )}
+                        {zona.resumoMaterial.categoriasPresentes && (
+                          <span className="text-[#57534e] dark:text-gray-400">
+                            Categorias ADR: {zona.resumoMaterial.categoriasPresentes}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {zona.distanciasSeguranca.length > 0 && (
+                      <div className="mt-3">
+                        <p className="text-sm font-medium text-[#57534e] dark:text-gray-400">Distâncias de segurança (zona)</p>
+                        <ul className="mt-1 space-y-1 text-sm">
+                          {zona.distanciasSeguranca.map((d) => (
+                            <li key={d.id}>
+                              {d.descricaoReferencia}: mín. {d.distanciaMinima_m} m
+                              {d.distanciaMedida_m != null ? ` · medida ${d.distanciaMedida_m} m` : ""}
+                              {d.cumpre != null ? (d.cumpre ? " · cumpre" : " · não cumpre") : ""}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </motion.section>
           )}
 

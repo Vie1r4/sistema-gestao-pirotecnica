@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Http;
+using Finalproj.Application.Common.Models;
 
 namespace Finalproj.Application.Services;
 
@@ -8,5 +8,5 @@ namespace Finalproj.Application.Services;
 public interface IUploadFileContentValidator
 {
     /// <summary>Valida nome, extensão e primeiros bytes do ficheiro.</summary>
-    Task ValidarAsync(IFormFile ficheiro, CancellationToken cancellationToken = default);
+    Task ValidarAsync(UploadedFileContent ficheiro, CancellationToken cancellationToken = default);
 }

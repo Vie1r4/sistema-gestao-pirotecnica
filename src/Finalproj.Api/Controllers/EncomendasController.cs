@@ -1,5 +1,5 @@
 using Finalproj.Authorization;
-using Finalproj.Application.Common.Validators;
+using Finalproj.Api.Validators;
 using Finalproj.Application.Features.Compilados.Interfaces;
 using Finalproj.Application.Features.Encomendas.DTOs;
 using Finalproj.Application.Features.Encomendas.Interfaces;
@@ -285,7 +285,7 @@ public class EncomendasController : ControllerBase
             return BadRequest(new { error = "Adicione pelo menos um produto à encomenda." });
         }
 
-        var encomenda = await _workflow.SubmeterAsync(clienteId, input.DataEntrega, input.Observacoes, draft.Itens, cancellationToken);
+        var encomenda = await _workflow.SubmeterAsync(clienteId, input.Nome, input.DataEntrega, input.Observacoes, draft.Itens, cancellationToken);
         if (encomenda == null) return BadRequest(new { error = "Cliente não encontrado ou encomenda sem itens." });
 
         var userId = User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;

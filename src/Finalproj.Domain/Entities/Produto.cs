@@ -23,13 +23,22 @@ public class Produto
     [StringLength(50)]
     [Display(Name = "Unidade")]
     public string? Unidade { get; set; }
+    [Required(ErrorMessage = "O filtro técnico é obrigatório.")]
     [StringLength(30)]
     [Display(Name = "Filtro técnico")]
     public string? FiltroTecnico { get; set; }
+
+    [Required(ErrorMessage = "O calibre é obrigatório.")]
     [StringLength(30)]
     [Display(Name = "Calibre")]
     public string? Calibre { get; set; }
 
+    [Required(ErrorMessage = "A categoria pirotécnica é obrigatória.")]
+    [StringLength(20)]
+    [Display(Name = "Categoria")]
+    public string? Categoria { get; set; }
+
+    [Required(ErrorMessage = "O grupo de compatibilidade é obrigatório.")]
     [StringLength(5)]
     [Display(Name = "Grupo de compatibilidade")]
     public string? GrupoCompatibilidade { get; set; }

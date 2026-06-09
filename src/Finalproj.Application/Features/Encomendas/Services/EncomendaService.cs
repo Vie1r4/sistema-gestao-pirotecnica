@@ -45,6 +45,10 @@ public class EncomendaService : IEncomendaService
         if (encomenda.Estado != ConstantesEncomenda.ACEITE)
             return (false, "Apenas encomendas aceites podem ser preparadas.");
 
+        var erroCred = ValidarCoordenadorCred(encomenda);
+        if (erroCred != null)
+            return (false, erroCred);
+
         var retiradasComQuantidade = (retiradas ?? new List<RetiradaPreparacaoInput>()).Where(r => r.Quantidade > 0).ToList();
         var itensPorId = encomenda.Itens.ToDictionary(i => i.Id);
 
@@ -63,22 +67,23 @@ public class EncomendaService : IEncomendaService
                 return (false, $"Para o produto {item.Produto?.Nome}, a soma das quantidades a retirar ({somaRetiradas:N2}) deve ser igual à quantidade pedida ({item.QuantidadePedida:N2}).");
         }
 
-        var entradas = await _entradaPaiolRepository.ListForPreparacaoByPaiolIdsWithIncludesAsync(idsPaióisComAcesso.ToList(), cancellationToken);
-        var saidasExistentes = await _saidaPaiolRepository.ListComEntradaPaiolReferenciadaAsync(cancellationToken);
-        var restantePorEntrada = new Dictionary<int, decimal>();
-        foreach (var e in entradas)
-            restantePorEntrada[e.Id] = e.Quantidade;
-        foreach (var s in saidasExistentes.Where(s => s.EntradaPaiolId.HasValue))
-            restantePorEntrada[s.EntradaPaiolId!.Value] = restantePorEntrada.GetValueOrDefault(s.EntradaPaiolId.Value) - s.Quantidade;
+        var produtoIds = retiradasComQuantidade
+            .Select(r => itensPorId[r.EncomendaItemId].ProdutoId)
+            .Distinct()
+            .ToList();
+
+        var entradasComSaldo = await _entradaPaiolRepository.ListComSaldoParaPreparacaoAsync(
+            idsPaióisComAcesso.ToList(),
+            produtoIds,
+            cancellationToken);
+        var restantePorEntrada = entradasComSaldo.ToDictionary(e => e.Id, e => e.QuantidadeRestante);
 
         foreach (var r in retiradasComQuantidade)
         {
             var item = itensPorId[r.EncomendaItemId];
             var falta = r.Quantidade;
-            var entradasPaiolProduto = entradas
+            var entradasPaiolProduto = entradasComSaldo
                 .Where(e => e.PaiolId == r.PaiolId && e.ProdutoId == item.ProdutoId && restantePorEntrada.GetValueOrDefault(e.Id, 0) > 0)
-                .OrderBy(e => e.DataFabrico ?? e.DataEntrada)
-                .ThenBy(e => e.DataEntrada)
                 .ToList();
 
             foreach (var ent in entradasPaiolProduto)
@@ -106,7 +111,7 @@ public class EncomendaService : IEncomendaService
                     numero_lote = ent.NumeroLote,
                     quantidade_retirada_kg = qty,
                     paiol_id = ent.PaiolId,
-                    paiol_nome = ent.Paiol?.Nome,
+                    paiol_nome = ent.PaiolNome,
                     encomenda_id = encomenda.Id
                 }, cancellationToken);
             }
@@ -120,5 +125,29 @@ public class EncomendaService : IEncomendaService
         encomenda.DataEmPreparacao ??= DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return (true, null);
+    }
+
+    /// <summary>
+    /// Antecipa validação PSP: se a encomenda tem coordenador pirotécnico, exige n.º CRED na ficha
+    /// antes de alocar stock (FIFO) e mudar para «Em preparação».
+    /// </summary>
+    private static string? ValidarCoordenadorCred(Encomenda encomenda)
+    {
+        if (!encomenda.CoordenadorPirotecnicoId.HasValue)
+            return null;
+
+        var coord = encomenda.CoordenadorPirotecnico;
+        if (coord == null)
+        {
+            return $"{ConstantesEncomenda.CodigoCoordenadorSemCred}: Coordenador pirotécnico associado à encomenda não foi encontrado.";
+        }
+
+        if (string.IsNullOrWhiteSpace(coord.NumeroCredencial))
+        {
+            return $"{ConstantesEncomenda.CodigoCoordenadorSemCred}: O coordenador «{coord.NomeCompleto}» não tem n.º CRED na ficha. " +
+                   "Preencha em Funcionários → editar → «N.º credencial (CRED)».";
+        }
+
+        return null;
     }
 }

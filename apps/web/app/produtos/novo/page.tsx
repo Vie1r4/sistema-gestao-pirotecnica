@@ -10,11 +10,13 @@ import { getToken } from "@/app/lib/auth";
 import { useToastStore } from "@/app/stores/useToastStore";
 import {
   CLASSIFICACOES_RISCO,
+  CATEGORIAS_PIROTECNICAS,
   GRUPOS_COMPATIBILIDADE,
   FILTROS_TECNICOS,
   CALIBRES,
   textoClassificacao,
   validarNemPorUnidade,
+  validarCamposCatalogoProduto,
   type ClassificacaoRisco,
 } from "@/app/lib/produtos";
 import { postCreate } from "@/app/lib/produtosApi";
@@ -60,6 +62,7 @@ export default function NovoProdutoPage() {
     grupoCompatibilidade: "",
     filtroTecnico: "",
     calibre: "",
+    categoria: "",
   });
 
   useEffect(() => {
@@ -83,6 +86,11 @@ export default function NovoProdutoPage() {
       setMessage({ type: "error", text: "O NEM por unidade deve ser um valor positivo (mínimo 0,0001)." });
       return;
     }
+    const erroCatalogo = validarCamposCatalogoProduto(form);
+    if (erroCatalogo) {
+      setMessage({ type: "error", text: erroCatalogo });
+      return;
+    }
     if (!token) {
       setMessage({ type: "error", text: "Inicie sessão para criar produtos." });
       return;
@@ -91,9 +99,10 @@ export default function NovoProdutoPage() {
       nome: form.nome.trim(),
       nemPorUnidade: nem,
       familiaRisco: form.familiaRisco as string,
-      grupoCompatibilidade: form.grupoCompatibilidade.trim() || undefined,
-      filtroTecnico: form.filtroTecnico.trim() || undefined,
-      calibre: form.calibre.trim() || undefined,
+      grupoCompatibilidade: form.grupoCompatibilidade.trim(),
+      filtroTecnico: form.filtroTecnico.trim(),
+      calibre: form.calibre.trim(),
+      categoria: form.categoria.trim(),
     });
   };
 
@@ -117,7 +126,7 @@ export default function NovoProdutoPage() {
               Criar produto
             </h1>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Nome, NEM por unidade (kg), classificação de risco e opcionalmente grupo, filtro técnico e calibre.
+              Nome, NEM, classificação de risco, categoria pirotécnica, grupo de compatibilidade, filtro técnico e calibre.
             </p>
           </motion.div>
 
@@ -172,14 +181,33 @@ export default function NovoProdutoPage() {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="grupoCompatibilidade" className={labelClass}>Grupo de compatibilidade</label>
+                  <label htmlFor="categoria" className={labelClass}>Categoria pirotécnica *</label>
+                  <select
+                    id="categoria"
+                    required
+                    value={form.categoria}
+                    onChange={(e) => setForm((f) => ({ ...f, categoria: e.target.value }))}
+                    className={inputClass}
+                  >
+                    <option value="">— Selecionar —</option>
+                    {CATEGORIAS_PIROTECNICAS.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    F1–F4 ou FP — usado na declaração PSP.
+                  </p>
+                </div>
+                <div>
+                  <label htmlFor="grupoCompatibilidade" className={labelClass}>Grupo de compatibilidade *</label>
                   <select
                     id="grupoCompatibilidade"
+                    required
                     value={form.grupoCompatibilidade}
                     onChange={(e) => setForm((f) => ({ ...f, grupoCompatibilidade: e.target.value }))}
                     className={inputClass}
                   >
-                    <option value="">— Opcional —</option>
+                    <option value="">— Selecionar —</option>
                     {GRUPOS_COMPATIBILIDADE.map((g) => (
                       <option key={g.value} value={g.value}>{g.text}</option>
                     ))}
@@ -190,28 +218,30 @@ export default function NovoProdutoPage() {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="filtroTecnico" className={labelClass}>Filtro técnico</label>
+                    <label htmlFor="filtroTecnico" className={labelClass}>Filtro técnico *</label>
                     <select
                       id="filtroTecnico"
+                      required
                       value={form.filtroTecnico}
                       onChange={(e) => setForm((f) => ({ ...f, filtroTecnico: e.target.value }))}
                       className={inputClass}
                     >
-                      <option value="">— Opcional —</option>
+                      <option value="">— Selecionar —</option>
                       {FILTROS_TECNICOS.map((f) => (
                         <option key={f.value} value={f.value}>{f.text}</option>
                       ))}
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="calibre" className={labelClass}>Calibre</label>
+                    <label htmlFor="calibre" className={labelClass}>Calibre *</label>
                     <select
                       id="calibre"
+                      required
                       value={form.calibre}
                       onChange={(e) => setForm((f) => ({ ...f, calibre: e.target.value }))}
                       className={inputClass}
                     >
-                      <option value="">— Opcional —</option>
+                      <option value="">— Selecionar —</option>
                       {CALIBRES.map((c) => (
                         <option key={c.value} value={c.value}>{c.text}</option>
                       ))}

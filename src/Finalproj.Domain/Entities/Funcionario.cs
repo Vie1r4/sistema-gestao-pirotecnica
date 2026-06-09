@@ -65,6 +65,10 @@ public class Funcionario
     [Display(Name = "Licença de Operador")]
     public string? LicencaOperadorCaminho { get; set; }
 
+    [StringLength(50)]
+    [Display(Name = "N.º de credencial (CRED)")]
+    public string? NumeroCredencial { get; set; }
+
     [StringLength(500)]
     [Display(Name = "Outros")]
     public string? OutrosCaminho { get; set; }

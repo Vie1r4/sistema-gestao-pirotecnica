@@ -1,5 +1,11 @@
 # Teste RPO/RTO: dado + PDF -> backup -> apagar -> restaurar -> verificar
 # Requer API em https://localhost:7225 (Development)
+#
+# Cobre tambem a robustez local (Ponto 5):
+#  - Backup faz staging na pasta padrao do SQL Server e a API move o .bak para PirofafeData/Backups.
+#  - Restauro copia o .bak de volta para a pasta padrao do SQL antes do RESTORE.
+#  - Fallback automatico para escrita directa quando InstanceDefaultBackupPath e NULL (LocalDB/Express).
+# Se este fluxo end-to-end passar (backup -> delete -> restore -> dado+PDF OK), o staging simetrico esta validado.
 $ErrorActionPreference = "Stop"
 [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
 $base = if ($env:PIROFAFE_API_BASE) { $env:PIROFAFE_API_BASE } else { "http://localhost:5078" }

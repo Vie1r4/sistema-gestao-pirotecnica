@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { fetchServicosFromApi } from "@/app/lib/servicos";
-import { gerarAutorizacaoTestePdf, gerarDeclaracaoTestePdf, gerarLicencaTestePdf } from "@/app/lib/documentacaoPdf";
+import * as servicosApi from "@/app/lib/servicosApi";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 
 const btnSecondary =
@@ -28,16 +28,18 @@ export default function DocumentacaoPage() {
   const { user, loading } = useUser();
   const token = getToken();
 
-  const roles = user?.roles ?? [];
-  const isAdminOrGestor = roles.includes("Admin") || roles.includes("Gestor");
+  const permissions = user?.permissions ?? [];
+  const canDocumentacao = permissions.includes("documentacao.gerir");
   const selectedServicoId = searchParams.get("servicoId") ?? "";
-  const [gerandoPdf, setGerandoPdf] = useState(false);
+  const [msgApi, setMsgApi] = useState<string | null>(null);
+  const [erroApi, setErroApi] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (loading) return;
     if (!user) return;
-    if (!isAdminOrGestor) router.replace("/");
-  }, [loading, user, isAdminOrGestor, router]);
+    if (!canDocumentacao) router.replace("/");
+  }, [loading, user, canDocumentacao, router]);
 
   const { data, isLoading, error, isRefetching } = useQuery({
     queryKey: ["documentacao", "servicos-picker"],
@@ -47,24 +49,13 @@ export default function DocumentacaoPage() {
       const res = await fetchServicosFromApi(t, undefined, 1, 200);
       return (res.lista ?? []) as ServicoPickerItem[];
     },
-    enabled: !!token && isAdminOrGestor,
+    enabled: !!token && canDocumentacao,
     staleTime: 30 * 1000,
     retry: 2,
   });
 
   const servicos = data ?? [];
   const selectedServico = servicos.find((s) => String(s.id) === String(selectedServicoId)) ?? null;
-
-  const dadosPdfBase = selectedServico
-    ? {
-        servicoId: String(selectedServico.id),
-        dataServico: selectedServico.dataServico
-          ? new Date(selectedServico.dataServico).toLocaleDateString("pt-PT")
-          : undefined,
-        clienteNome: selectedServico.cliente?.nome ?? selectedServico.clienteId,
-        local: undefined,
-      }
-    : null;
 
   const setServico = (servicoId: string) => {
     const p = new URLSearchParams(searchParams.toString());
@@ -73,37 +64,32 @@ export default function DocumentacaoPage() {
     router.replace(`/documentacao${p.toString() ? `?${p.toString()}` : ""}`);
   };
 
-  const handleGerarDeclaracaoTeste = () => {
-    if (!dadosPdfBase) return;
-    setGerandoPdf(true);
-    try {
-      gerarDeclaracaoTestePdf(dadosPdfBase);
-    } finally {
-      setGerandoPdf(false);
-    }
-  };
+  const gerarPspMutation = useMutation({
+    mutationFn: async () => {
+      const t = getToken();
+      if (!t || !selectedServicoId) throw new Error("Selecione um serviço.");
+      return servicosApi.postGerarDeclaracaoPsp(t, selectedServicoId);
+    },
+    onSuccess: async (res) => {
+      setErroApi(null);
+      setMsgApi(`Declaração PSP gerada (licença #${res.licencaId}). A descarregar PDF…`);
+      queryClient.invalidateQueries({ queryKey: ["servicos", selectedServicoId] });
+      const t = getToken();
+      if (t) {
+        await servicosApi.downloadComToken(
+          t,
+          servicosApi.licencaFicheiroUrl(selectedServicoId, res.licencaId),
+          { fileName: res.nomeFicheiro, mimeType: "application/pdf" }
+        );
+      }
+    },
+    onError: (e: Error) => {
+      setMsgApi(null);
+      setErroApi(e.message || "Erro ao gerar declaração.");
+    },
+  });
 
-  const handleGerarLicencaTeste = () => {
-    if (!dadosPdfBase) return;
-    setGerandoPdf(true);
-    try {
-      gerarLicencaTestePdf(dadosPdfBase);
-    } finally {
-      setGerandoPdf(false);
-    }
-  };
-
-  const handleGerarAutorizacaoTeste = () => {
-    if (!dadosPdfBase) return;
-    setGerandoPdf(true);
-    try {
-      gerarAutorizacaoTestePdf(dadosPdfBase);
-    } finally {
-      setGerandoPdf(false);
-    }
-  };
-
-  if (loading || (user && !isAdminOrGestor)) {
+  if (loading || (user && !canDocumentacao)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#fafafa] dark:bg-[#0a0a0a]">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent" />
@@ -114,7 +100,7 @@ export default function DocumentacaoPage() {
   return (
     <div className="min-h-screen bg-[#f8f7f5] text-[#1c1917] dark:bg-[#0a0a0a] dark:text-white">
       <Navbar />
-      <main className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset" >
+      <main className="relative px-6 pt-14 pb-10 sm:px-8 pt-content-offset">
         <div className="content-container">
           <motion.div
             initial={fadeInUp.initial}
@@ -124,7 +110,7 @@ export default function DocumentacaoPage() {
           >
             <h1 className="font-heading text-2xl tracking-tight sm:text-3xl">Documentação</h1>
             <p className="text-sm text-[#57534e] dark:text-gray-400">
-              Esta página é apenas para gerar documentos de teste. O upload/anexo é feito no detalhe do serviço.
+              Geração oficial da declaração PSP (PDF). O upload de documentos definitivos é feito no detalhe do serviço.
               {isRefetching && <span className="ml-2 text-xs text-[#78716c] dark:text-gray-500">A atualizar…</span>}
             </p>
           </motion.div>
@@ -175,29 +161,19 @@ export default function DocumentacaoPage() {
               <div className="mt-5 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={handleGerarDeclaracaoTeste}
-                  disabled={gerandoPdf}
-                  className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#444] dark:text-gray-300 dark:hover:bg-[#1a1a1a]"
+                  onClick={() => gerarPspMutation.mutate()}
+                  disabled={gerarPspMutation.isPending}
+                  className="rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {gerandoPdf ? "A gerar PDF..." : "Gerar declaração (teste)"}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleGerarLicencaTeste}
-                  disabled={gerandoPdf}
-                  className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#444] dark:text-gray-300 dark:hover:bg-[#1a1a1a]"
-                >
-                  {gerandoPdf ? "A gerar PDF..." : "Gerar licença (teste)"}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleGerarAutorizacaoTeste}
-                  disabled={gerandoPdf}
-                  className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#444] dark:text-gray-300 dark:hover:bg-[#1a1a1a]"
-                >
-                  {gerandoPdf ? "A gerar PDF..." : "Gerar autorização (teste)"}
+                  {gerarPspMutation.isPending ? "A gerar PDF…" : "Gerar declaração PSP (oficial)"}
                 </button>
               </div>
+              {erroApi && (
+                <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">{erroApi}</p>
+              )}
+              {msgApi && (
+                <p className="mt-4 rounded-xl bg-green-50 px-3 py-2 text-sm text-green-800 dark:bg-green-900/20 dark:text-green-300">{msgApi}</p>
+              )}
               <p className="mt-4 text-sm text-[#57534e] dark:text-gray-400">
                 Depois de validar o ficheiro gerado, anexe-o na secção de documentação do detalhe do serviço.
               </p>

@@ -15,8 +15,10 @@ vi.mock("next/link", () => ({
 }));
 
 const fetchServicoDetalheFromApiMock = vi.fn();
-const putServicoMock = vi.fn();
+const postDocumentoExtraMock = vi.fn();
+const deleteDocumentoExtraMock = vi.fn();
 const downloadComTokenMock = vi.fn();
+const abrirFicheiroComTokenMock = vi.fn();
 const documentoUrlMock = vi.fn();
 const getTokenMock = vi.fn();
 const useUserMock = vi.fn();
@@ -54,8 +56,10 @@ vi.mock("@/app/context/UserContext", () => ({
 vi.mock("@/app/lib/servicos", () => ({
   fetchServicoDetalheFromApi: (...args: unknown[]) => fetchServicoDetalheFromApiMock(...args),
   servicosApi: {
-    putServico: (...args: unknown[]) => putServicoMock(...args),
+    postDocumentoExtra: (...args: unknown[]) => postDocumentoExtraMock(...args),
+    deleteDocumentoExtra: (...args: unknown[]) => deleteDocumentoExtraMock(...args),
     downloadComToken: (...args: unknown[]) => downloadComTokenMock(...args),
+    abrirFicheiroComToken: (...args: unknown[]) => abrirFicheiroComTokenMock(...args),
     documentoUrl: (...args: unknown[]) => documentoUrlMock(...args),
   },
 }));
@@ -67,14 +71,6 @@ function renderPage() {
       <ServicoDetalhePage />
     </QueryClientProvider>
   );
-}
-
-function formDataToRecord(fd: FormData): Record<string, string> {
-  const rec: Record<string, string> = {};
-  for (const [k, v] of fd.entries()) {
-    rec[k] = typeof v === "string" ? v : v.name;
-  }
-  return rec;
 }
 
 describe("ServicoDetalhePage - documentação", () => {
@@ -105,17 +101,14 @@ describe("ServicoDetalhePage - documentação", () => {
     fireEvent.click(screen.getByRole("button", { name: /Adicionar/i }));
 
     await waitFor(() => {
-      expect(putServicoMock).toHaveBeenCalledTimes(1);
+      expect(postDocumentoExtraMock).toHaveBeenCalledTimes(1);
     });
 
-    const args = putServicoMock.mock.calls[0] as [string, string, FormData];
-    const payload = formDataToRecord(args[2]);
+    const args = postDocumentoExtraMock.mock.calls[0] as [string, string, string, File];
     expect(args[0]).toBe("token-ok");
     expect(args[1]).toBe("1");
-    expect(payload["DocumentosExtras[0].Nome"]).toBe("Declaracao final");
-    expect(payload["DocumentosExtras[0].Ficheiro"]).toBe("declaracao.pdf");
-    expect(payload["Servico.Id"]).toBe("1");
-    expect(payload["Servico.EncomendaId"]).toBe("20");
+    expect(args[2]).toBe("Declaracao final");
+    expect(args[3].name).toBe("declaracao.pdf");
   });
 
   it("permite remover documento existente", async () => {
@@ -125,16 +118,17 @@ describe("ServicoDetalhePage - documentação", () => {
     fireEvent.click(screen.getByRole("button", { name: /Remover/i }));
 
     await waitFor(() => {
-      expect(putServicoMock).toHaveBeenCalledTimes(1);
+      expect(deleteDocumentoExtraMock).toHaveBeenCalledTimes(1);
     });
 
-    const args = putServicoMock.mock.calls[0] as [string, string, FormData];
-    const payload = formDataToRecord(args[2]);
-    expect(payload.RemoverDocumentoExtraIds).toBe("55");
+    const args = deleteDocumentoExtraMock.mock.calls[0] as [string, string, string];
+    expect(args[0]).toBe("token-ok");
+    expect(args[1]).toBe("1");
+    expect(args[2]).toBe("55");
   });
 
   it("mostra erro quando upload falha", async () => {
-    putServicoMock.mockRejectedValueOnce(new Error("Falha API upload"));
+    postDocumentoExtraMock.mockRejectedValueOnce(new Error("Falha API upload"));
     renderPage();
     await screen.findByText(/Documentação do serviço/i);
 
@@ -153,7 +147,7 @@ describe("ServicoDetalhePage - documentação", () => {
   });
 
   it("mostra erro quando remoção falha", async () => {
-    putServicoMock.mockRejectedValueOnce(new Error("Falha API remover"));
+    deleteDocumentoExtraMock.mockRejectedValueOnce(new Error("Falha API remover"));
     renderPage();
     await screen.findByText("Doc Existente");
 
@@ -184,7 +178,7 @@ describe("ServicoDetalhePage - documentação", () => {
 
     await waitFor(() => {
       expect(documentoUrlMock).toHaveBeenCalledWith("1", "55");
-      expect(downloadComTokenMock).toHaveBeenCalledWith("token-ok", "/api/servicos/1/documentos/55");
+      expect(abrirFicheiroComTokenMock).toHaveBeenCalledWith("token-ok", "/api/servicos/1/documentos/55");
     });
   });
 
@@ -200,11 +194,11 @@ describe("ServicoDetalhePage - documentação", () => {
     await waitFor(() => {
       expect(screen.getByText(/Selecione um ficheiro para anexar/i)).toBeInTheDocument();
     });
-    expect(putServicoMock).not.toHaveBeenCalled();
+    expect(postDocumentoExtraMock).not.toHaveBeenCalled();
   });
 
   it("mostra erro se falhar abrir documento", async () => {
-    downloadComTokenMock.mockRejectedValueOnce(new Error("Falha a abrir documento"));
+    abrirFicheiroComTokenMock.mockRejectedValueOnce(new Error("Falha a abrir documento"));
     renderPage();
     await screen.findByText("Doc Existente");
 

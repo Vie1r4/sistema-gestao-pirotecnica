@@ -32,7 +32,7 @@ Governança do sistema (contas, auditoria, backups, limpeza em testes). **Não**
 
 | `/admin/utilizadores/[id]/editar` | Redireciona para `?edit=` na lista |
 
-| `/admin/logs` | Auditoria: filtros por **área** (`entidade`), **tipo** (`acao`), utilizador, datas, presets de período (Hoje/7d/30d); chips activos com remoção individual; debounce nos campos de texto; paginação; export CSV. Componentes: `logs/AdminLogsFilters.tsx`, `logs/_components/LogsList.tsx` |
+| `/admin/logs` | Auditoria: filtros por **área** (`entidade`), **tipo** (`acao`), utilizador, datas, presets de período (Hoje/7d/30d); chips activos com remoção individual; debounce nos campos de texto; paginação; **export CSV (filtros)** com linhas `#` de metadados (filtros activos, data ISO, contagens, truncado). Componentes: `logs/AdminLogsFilters.tsx`, `logs/_components/LogsList.tsx`, `lib/exportLogsCsv.ts` |
 
 | `/admin/definicoes` | Health, **backup completo** (`.bak` + `_uploads.zip`), descarregar/restaurar/apagar, limpeza com opção de recuperar último backup. RPO/RTO e teste de restauro: [OPERACOES.md](../OPERACOES.md#testes-de-restauro-processo-recomendado) (`scripts/test-restore-backup-rpo.ps1`) |
 

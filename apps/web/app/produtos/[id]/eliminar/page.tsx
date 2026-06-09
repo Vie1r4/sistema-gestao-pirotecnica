@@ -110,7 +110,7 @@ export default function EliminarProdutoPage() {
               Eliminar produto
             </h1>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Esta ação é irreversível. O produto será removido do catálogo. Itens de encomenda ou entradas/saídas de paiol que o referenciem podem ficar órfãos (em modo demonstração).
+              Esta ação é irreversível. O produto será removido do catálogo. Itens de encomenda ou entradas/saídas de paiol que o referenciem podem ficar órfãos.
             </p>
           </motion.div>
 

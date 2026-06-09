@@ -15,7 +15,7 @@ const NAV_LINKS: { label: string; href: string; permission: string[] }[] = [
   { label: "Catálogo", href: "/produtos", permission: ["produtos.ver", "produtos.gerir"] },
   { label: "Encomendas", href: "/encomendas", permission: ["encomendas.gerir"] },
   { label: "Serviços", href: "/servicos", permission: ["servicos.gerir"] },
-  { label: "Documentação", href: "/documentacao", permission: ["servicos.gerir"] },
+  { label: "Documentação", href: "/documentacao", permission: ["documentacao.gerir"] },
 ];
 
 export const SIDEBAR_WIDTH = 200;
@@ -40,7 +40,7 @@ export default function Navbar() {
   const visibleLinks = NAV_LINKS.filter((link) =>
     link.permission.some((p) => permissions.includes(p))
   ).filter((link) =>
-    link.href === "/documentacao" ? isAdminOrGestor : true
+    link.href === "/documentacao" ? permissions.includes("documentacao.gerir") : true
   );
   const [scrolled, setScrolled] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);

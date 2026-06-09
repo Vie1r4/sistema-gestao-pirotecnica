@@ -9,6 +9,10 @@ public class Encomenda
     public int ClienteId { get; set; }
     public Cliente Cliente { get; set; } = null!;
 
+    [StringLength(200)]
+    [Display(Name = "Nome / Designação")]
+    public string? Nome { get; set; }
+
     [Required(ErrorMessage = "O estado da encomenda é obrigatório.")]
     [StringLength(20, ErrorMessage = "O estado não pode exceder 20 caracteres.")]
     public string Estado { get; set; } = ConstantesEncomenda.PENDENTE;
@@ -45,6 +49,10 @@ public class Encomenda
     public string? FuncionarioAceiteUserId { get; set; }
     [StringLength(450)]
     public string? FuncionarioPreparouUserId { get; set; }
+
+    [Display(Name = "Coordenador pirotécnico")]
+    public int? CoordenadorPirotecnicoId { get; set; }
+    public Funcionario? CoordenadorPirotecnico { get; set; }
 
     public ICollection<EncomendaItem> Itens { get; set; } = new List<EncomendaItem>();
 

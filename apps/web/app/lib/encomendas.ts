@@ -28,6 +28,7 @@ export type Encomenda = {
   funcionarioPreparouNome?: string;
   dataConclusao?: string;
   motivoRejeicao?: string;
+  coordenadorPirotecnicoId?: string | null;
 };
 
 export type EncomendaItem = {

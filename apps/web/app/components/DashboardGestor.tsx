@@ -1,16 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion, useInView } from "framer-motion";
+import { motion } from "framer-motion";
 import { format } from "date-fns";
 import VolumeChart from "@/app/components/gestor-analytics/VolumeChart";
+import YoYChart from "@/app/components/gestor-analytics/YoYChart";
 import ClienteConsumoList from "@/app/components/gestor-analytics/ClienteConsumoList";
 import TopClientesBlock from "@/app/components/gestor-analytics/TopClientesBlock";
-import { GestorDemoBanner, GestorDemoProvider } from "@/app/components/gestor-analytics/GestorDemoProvider";
 import { pt } from "date-fns/locale";
-import { useRef } from "react";
 import {
   gestorDashboardQueryKey,
   getGestorDashboard,
@@ -25,6 +24,14 @@ import {
   dashboardPanelHeaderClass,
   dashboardPanelHoverClass,
 } from "@/app/components/gestor-analytics/dashboardPanelStyles";
+
+type TabId = "atividade" | "clientes" | "armazem";
+
+const TABS: { id: TabId; label: string }[] = [
+  { id: "atividade", label: "Atividade" },
+  { id: "clientes", label: "Clientes" },
+  { id: "armazem", label: "Armazém" },
+];
 
 const ROLE_COLORS: Record<string, string> = {
   Admin: "bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-300",
@@ -53,12 +60,7 @@ export default function DashboardGestor({
   userName: string;
   roleLabel: string;
 }) {
-  const sec2Ref = useRef(null);
-  const sec3Ref = useRef(null);
-  const sec4Ref = useRef(null);
-  const sec2InView = useInView(sec2Ref, { once: true, margin: "-80px" });
-  const sec3InView = useInView(sec3Ref, { once: true, margin: "-80px" });
-  const sec4InView = useInView(sec4Ref, { once: true, margin: "-80px" });
+  const [tab, setTab] = useState<TabId>("atividade");
 
   const liveDate = useLiveDateTime();
   const {
@@ -149,7 +151,8 @@ export default function DashboardGestor({
       .slice(0, 5);
   }, [data]);
 
-  const temAlertas = data && (data.paioisEmManutencao?.length > 0);
+  const alertasCount = data?.paioisEmManutencao?.length ?? 0;
+  const temAlertas = alertasCount > 0;
   const roleBadgeClass = ROLE_COLORS[roleLabel] ?? "bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200";
 
   if (isError) {
@@ -177,36 +180,31 @@ export default function DashboardGestor({
   }
 
   return (
-    <GestorDemoProvider>
     <section
       id="dashboard-gestor"
       className="border-t border-[#e7e5e4] bg-[#fafaf9] px-4 py-12 dark:border-[#1a1a1a] dark:bg-[#050505] sm:px-6 sm:py-16 lg:px-8"
     >
       <div className="content-container">
-        <GestorDemoBanner />
         {/* Cabeçalho */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="flex flex-wrap items-start justify-between gap-4"
         >
-          <div>
-            <h1 className="font-heading text-2xl font-bold tracking-tight text-[#1c1917] sm:text-3xl dark:text-white">
-              Bem-vindo, {userName || "Gestor"}
-            </h1>
-            <p className="mt-1.5 text-sm text-[#57534e] dark:text-[#888]">
-              <span className={`mr-2 inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${roleBadgeClass}`}>
-                {roleLabel}
-              </span>
-              {format(liveDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: pt })}
-              {" · "}
-              <span className="tabular-nums">{format(liveDate, "HH:mm:ss")}</span>
-            </p>
-          </div>
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-[#1c1917] sm:text-3xl dark:text-white">
+            Bem-vindo, {userName || "Gestor"}
+          </h1>
+          <p className="mt-1.5 text-sm text-[#57534e] dark:text-[#888]">
+            <span className={`mr-2 inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${roleBadgeClass}`}>
+              {roleLabel}
+            </span>
+            {format(liveDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: pt })}
+            {" · "}
+            <span className="tabular-nums">{format(liveDate, "HH:mm:ss")}</span>
+          </p>
         </motion.div>
 
-        {/* Linha 1 — Métricas (5 colunas) */}
+        {/* Métricas (5 colunas) — sempre visíveis acima das tabs */}
         <motion.div
           variants={staggerContainer}
           initial="initial"
@@ -227,87 +225,101 @@ export default function DashboardGestor({
             : cards.map((card, i) => <StatCard key={card.title} card={card} index={i} />)}
         </motion.div>
 
-        {/* Alertas (só se houver) */}
-        {temAlertas && (
-          <div className="mt-4">
-            <h2 className="font-semibold text-[#1c1917] dark:text-white">Alertas</h2>
-            <div className="mt-3 flex flex-wrap gap-3">
-              {data!.paioisEmManutencao.length > 0 && (
+        {/* Barra de tabs */}
+        <div className="mt-6 border-b border-[#e7e5e4] dark:border-[#222]">
+          <div className="flex flex-wrap gap-1" role="tablist" aria-label="Secções do painel">
+            {TABS.map((t) => {
+              const ativo = tab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={ativo}
+                  onClick={() => setTab(t.id)}
+                  className={`relative -mb-px rounded-t-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+                    ativo
+                      ? "border-b-2 border-[#f97316] text-[#1c1917] dark:text-white"
+                      : "border-b-2 border-transparent text-[#78716c] hover:text-[#1c1917] dark:text-[#888] dark:hover:text-white"
+                  }`}
+                >
+                  {t.label}
+                  {t.id === "armazem" && alertasCount > 0 && (
+                    <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-amber-200 px-1.5 text-[10px] font-bold text-amber-900 dark:bg-amber-800 dark:text-amber-100">
+                      {alertasCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Conteúdo das tabs */}
+        <motion.div
+          key={tab}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="mt-5"
+        >
+          {tab === "atividade" && (
+            <div className="space-y-5">
+              {/* Gráfico herói — 2 linhas + legenda (este ano vs ano passado) */}
+              <YoYChart token={token} />
+              <VolumeChart token={token} />
+            </div>
+          )}
+
+          {tab === "clientes" && (
+            <div className="space-y-5">
+              <TopClientesBlock token={token} layout="wide" />
+              <ClienteConsumoList token={token} />
+            </div>
+          )}
+
+          {tab === "armazem" && (
+            <div className="space-y-5">
+              {temAlertas && (
                 <Link
                   href="/armazem/gestao"
                   className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 transition-shadow hover:shadow-md dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200"
                 >
                   <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold dark:bg-amber-800">
-                    {data!.paioisEmManutencao.length}
+                    {alertasCount}
                   </span>
                   Paióis em manutenção
                   <span className="text-amber-600 dark:text-amber-400">→</span>
                 </Link>
               )}
+              <div className={GRID_3_COL}>
+                <div className={COL_SPAN_MAIN}>
+                  <MovimentosArmazemPanel
+                    isLoading={isLoading}
+                    movimentos={ultimosMovimentos}
+                  />
+                </div>
+                <div className={COL_SPAN_SIDE}>
+                  {isLoading ? (
+                    <div className={`${dashboardPanelClass} h-full min-h-[320px] animate-pulse`} />
+                  ) : (
+                    data && (
+                      <PendingEncomendasPanel
+                        total={data.encomendasPendentes}
+                        lista={data.encomendasPendentesLista}
+                        recebidasSemana={
+                          data.kpiContexto?.encomendasPendentes?.recebidasSemana ?? 0
+                        }
+                      />
+                    )
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* Linha 2 — Movimentos (2/3) + Encomendas pendentes (1/3) */}
-        <motion.div
-          ref={sec2Ref}
-          initial={{ opacity: 0, y: 24 }}
-          animate={sec2InView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.4 }}
-          className={`mt-5 ${GRID_3_COL}`}
-        >
-          <div className={COL_SPAN_MAIN}>
-            <MovimentosArmazemPanel
-              isLoading={isLoading}
-              movimentos={ultimosMovimentos}
-            />
-          </div>
-          <div className={COL_SPAN_SIDE}>
-            {isLoading ? (
-              <div className={`${dashboardPanelClass} h-full min-h-[320px] animate-pulse`} />
-            ) : (
-              data && (
-                <PendingEncomendasPanel
-                  total={data.encomendasPendentes}
-                  lista={data.encomendasPendentesLista}
-                  recebidasSemana={
-                    data.kpiContexto?.encomendasPendentes?.recebidasSemana ?? 0
-                  }
-                />
-              )
-            )}
-          </div>
-        </motion.div>
-
-        {/* Linha 3 — Volume (2/3) + O que o cliente levou (1/3) */}
-        <motion.div
-          ref={sec3Ref}
-          initial={{ opacity: 0, y: 24 }}
-          animate={sec3InView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.4 }}
-          className={`mt-5 ${GRID_3_COL} lg:items-stretch`}
-        >
-          <div className={COL_SPAN_MAIN}>
-            <VolumeChart token={token} layout="panel" />
-          </div>
-          <div className={COL_SPAN_SIDE}>
-            <ClienteConsumoList token={token} compact filtersOnly />
-          </div>
-        </motion.div>
-
-        {/* Linha 4 — Melhores clientes (100%) */}
-        <motion.div
-          ref={sec4Ref}
-          initial={{ opacity: 0, y: 24 }}
-          animate={sec4InView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.4 }}
-          className="mt-5"
-        >
-          <TopClientesBlock token={token} layout="wide" />
+          )}
         </motion.div>
       </div>
     </section>
-    </GestorDemoProvider>
   );
 }
 

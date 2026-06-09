@@ -163,12 +163,12 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | POST | `/adicionar-compilado` | Adicionar compilado (atalho); expande para produtos no rascunho |
 | POST | `/remover-item` | Remover item |
 | POST | `/submeter` | Submeter encomenda |
-| PUT | `/{id}` | Editar encomenda |
+| PUT | `/{id}` | Editar encomenda. Aceita **`coordenadorPirotecnicoId`** (opcional) que é persistido na encomenda; o detalhe (`GET /{id}`) devolve `coordenadorPirotecnicoId` + `coordenadorPirotecnico`. |
 | POST | `/{id}/aceitar` | Aceitar encomenda |
 | GET | `/{id}/rejeitar` | Dados para rejeitar |
 | POST | `/{id}/rejeitar` | Rejeitar encomenda |
 | GET | `/{id}/preparar` | Dados para preparação |
-| POST | `/{id}/registar-preparacao` | Registar preparação |
+| POST | `/{id}/registar-preparacao` | Registar preparação (FIFO). **400** com `ENCOMENDA_COORDENADOR_SEM_CRED` se a encomenda tiver `coordenadorPirotecnicoId` e o funcionário não tiver `numeroCredencial` na ficha — validação antes de alocar stock. |
 | POST | `/{id}/concluir` | Concluir encomenda |
 
 **DTOs (encomendas):** listagem e detalhe devolvem objetos tipados (`EncomendaListResponseDto`, `EncomendaDetailResponseDto`) — **sem** expor `FuncionarioAceiteUserId` / `FuncionarioPreparouUserId`. No **GET `/{id}`**, o JSON inclui também **`funcionarioAceiteNome`** e **`funcionarioPreparouNome`** no nível raiz (com `encomenda`, `stockPorProduto`). Ver [CONTRATOS-API-DTOs.md](./CONTRATOS-API-DTOs.md).
@@ -178,20 +178,25 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
 | GET | `/` | Lista de serviços (paginada) |
-| GET | `/create` | Dados para criar |
-| POST | `/` | Criar serviço |
+| GET | `/create` | Dados para criar (`itensEncomenda` quando `?encomendaId=`). |
+| POST | `/` | Criar serviço (**JSON** `ServicoSaveRequestDto`: evento + `zonas[]` com linhas de material). |
 | GET | `/{id}` | Detalhe |
-| GET | `/{id}/edit` | Dados para edição |
-| PUT | `/{id}` | Atualizar |
+| GET | `/{id}/edit` | Dados para edição (`itensEncomenda`, `zonasLancamento` no `servico`). |
+| PUT | `/{id}` | Atualizar (**JSON** `ServicoSaveRequestDto`). |
 | GET | `/{id}/delete` | Confirmação de eliminação |
 | DELETE | `/{id}` | Eliminar |
+| POST | `/{id}/documentos-extras` | Anexar documento (multipart: `nome`, `ficheiro`). |
+| DELETE | `/{id}/documentos-extras/{extraId}` | Remover documento extra. |
 | GET | `/{id}/documentos/{extraId}` | Documento extra |
 | GET | `/{id}/upload-licenca` | Dados para upload de licença |
 | POST | `/{id}/upload-licenca` | Upload de licença |
 | GET | `/{id}/licenca/{licencaId}/ficheiro` | Ficheiro de licença |
 | PUT | `/{id}/distancia-seguranca/{distanciaId}` | Atualizar distância de segurança |
+| POST | `/{id}/licenca/gerar` | Gerar declaração PSP (PDF, Admin/Gestor; 404 para restantes) |
 
-**DTOs:** lista e **`servico`** em create/edit/delete/detalhe como **ServicoResponseDto**; no GET **`/{id}`**, **`itensEncomenda`** são DTOs de item+produto, **`paiolParaRota`** é **PaiolResponseDto**, licenças sem caminho de ficheiro no JSON (**`hasFicheiro`**). Ver [CONTRATOS-API-DTOs.md](./CONTRATOS-API-DTOs.md).
+**Documentação regulatória:** ver [documentacao-regulatoria/README.md](./documentacao-regulatoria/README.md).
+
+**DTOs:** lista e **`servico`** em create/edit/delete/detalhe como **ServicoResponseDto** (inclui **`nomeEvento`**, **`coordenadorPirotecnicoId`**, **`zonasLancamento`** com linhas e distâncias por zona). POST/PUT usam **`ServicoSaveRequestDto`** (`equipaIds` histórico; **`responsavelPirotecnicoId`** por zona tem de pertencer à equipa). GET **`/create`** e **`/{id}/edit`** devolvem **`funcionarios`** (todos, para coordenador/equipa/responsáveis de zona). No GET **`/{id}`**, **`itensEncomenda`** são DTOs de item+produto, **`paiolParaRota`** usa coordenadas da primeira zona (fallback: serviço), licenças sem caminho de ficheiro no JSON (**`hasFicheiro`**). Ver [CONTRATOS-API-DTOs.md](./CONTRATOS-API-DTOs.md).
 
 ### Paiol / Armazém — `/api/paiol`
 
@@ -229,7 +234,7 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | GET | `/create` | Dados para criar |
 | POST | `/` | Criar |
 | GET | `/{id}/edit` | Dados para edição |
-| PUT | `/{id}` | Atualizar |
+| PUT | `/{id}` | Atualizar (`UpdateProdutoRequestDto`; `dataRegisto` só no GET, read-only) |
 | GET | `/{id}/delete` | Confirmação |
 | DELETE | `/{id}` | Eliminar |
 

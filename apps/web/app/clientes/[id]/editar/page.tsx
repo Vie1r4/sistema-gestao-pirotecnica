@@ -9,6 +9,7 @@ import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import {
   fetchClienteEdit,
   updateClienteApi,
+  fetchDocumentoClienteBlobUrl,
   TIPOS_CLIENTE,
   type TipoCliente,
   type ClienteDocumentoExtra,
@@ -53,6 +54,12 @@ export default function EditarClientePage() {
   const [novosExtras, setNovosExtras] = useState<ClienteDocumentoExtra[]>([]);
   const [novosExtrasFiles, setNovosExtrasFiles] = useState<(File | null)[]>([]);
   const submittingRef = useRef(false);
+  const [submitLocked, setSubmitLocked] = useState(false);
+
+  const releaseSubmitLock = () => {
+    submittingRef.current = false;
+    setSubmitLocked(false);
+  };
 
   const {
     data: editData,
@@ -104,12 +111,23 @@ export default function EditarClientePage() {
     onError: (err: Error) => {
       setMessage({ type: "error", text: err.message || "Erro ao guardar." });
     },
-    onSettled: () => {
-      submittingRef.current = false;
+    onSettled: (_data, error) => {
+      if (error) releaseSubmitLock();
     },
   });
 
-  const submitting = mutation.isPending;
+  const submitting = submitLocked || mutation.isPending;
+
+  const handleVerDocumento = async (extraId: string) => {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const url = await fetchDocumentoClienteBlobUrl(token, id, extraId);
+      window.open(url, "_blank", "noopener");
+    } catch {
+      alert("Não foi possível abrir o documento.");
+    }
+  };
 
   const addNovoDoc = () => {
     setNovosExtras((e) => [...e, { id: `ex-${Date.now()}`, nome: "" }]);
@@ -146,30 +164,37 @@ export default function EditarClientePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submittingRef.current) return;
+    if (submittingRef.current || submitLocked || mutation.isPending) return;
     if (!cliente) return;
+
+    submittingRef.current = true;
+    setSubmitLocked(true);
     setMessage(null);
+
     if (!form.nome.trim()) {
       setMessage({ type: "error", text: "O nome é obrigatório." });
+      releaseSubmitLock();
       return;
     }
     if (form.nome.length > 200) {
       setMessage({ type: "error", text: "O nome não pode exceder 200 caracteres." });
+      releaseSubmitLock();
       return;
     }
     if (form.nif && !validarNif(form.nif)) {
       setMessage({ type: "error", text: "O NIF deve ter exatamente 9 dígitos." });
+      releaseSubmitLock();
       return;
     }
     const fd = new FormData();
     fd.append("Cliente.Id", id);
     fd.append("Cliente.Nome", form.nome.trim());
     fd.append("Cliente.TipoCliente", form.tipoCliente);
-    if (form.nif.trim()) fd.append("Cliente.NIF", form.nif.trim());
-    if (form.email.trim()) fd.append("Cliente.Email", form.email.trim());
-    if (form.telefone.trim()) fd.append("Cliente.Telefone", form.telefone.trim());
-    if (form.morada.trim()) fd.append("Cliente.Morada", form.morada.trim());
-    if (form.notas.trim()) fd.append("Cliente.Notas", form.notas.trim());
+    fd.append("Cliente.NIF", form.nif.trim());
+    fd.append("Cliente.Email", form.email.trim());
+    fd.append("Cliente.Telefone", form.telefone.trim());
+    fd.append("Cliente.Morada", form.morada.trim());
+    fd.append("Cliente.Notas", form.notas.trim());
     const removerIds = Array.from(removerDocIds).filter((docId) => /^\d+$/.test(docId));
     removerIds.forEach((docId, i) => fd.append(`RemoverDocumentoExtraIds[${i}]`, docId));
     novosExtras.forEach((ex, i) => {
@@ -179,7 +204,6 @@ export default function EditarClientePage() {
         fd.append(`DocumentosExtras[${i}].Ficheiro`, file);
       }
     });
-    submittingRef.current = true;
     mutation.mutate(fd);
   };
 
@@ -348,7 +372,7 @@ export default function EditarClientePage() {
                       <div className="flex items-center gap-3">
                         <button
                           type="button"
-                          onClick={() => alert("Em modo demonstração os ficheiros não estão disponíveis.")}
+                          onClick={() => handleVerDocumento(doc.id)}
                           className="text-sm text-[#f97316] hover:underline"
                         >
                           Ver

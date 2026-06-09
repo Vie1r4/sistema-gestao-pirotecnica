@@ -58,7 +58,14 @@ export default function NovoPaiolPage() {
   });
   const [cargosAcesso, setCargosAcesso] = useState<CargoAcessoPaiol[]>([]);
   const [extras, setExtras] = useState<PaiolDocumentoExtra[]>([]);
+  const [extrasFiles, setExtrasFiles] = useState<(File | null)[]>([]);
   const submittingRef = useRef(false);
+  const [submitLocked, setSubmitLocked] = useState(false);
+
+  const releaseSubmitLock = () => {
+    submittingRef.current = false;
+    setSubmitLocked(false);
+  };
 
   const queryClient = useQueryClient();
   const token = getToken();
@@ -77,8 +84,11 @@ export default function NovoPaiolPage() {
       if (newId != null) router.push(`/armazem/${String(newId)}?criado=1`);
       else router.push("/armazem/gestao?criado=1");
     },
-    onSettled: () => {
-      submittingRef.current = false;
+    onError: (err) => {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Erro de rede. Tente novamente." });
+    },
+    onSettled: (_data, error) => {
+      if (error) releaseSubmitLock();
     },
   });
 
@@ -94,10 +104,13 @@ export default function NovoPaiolPage() {
 
   const addDocExtra = () => {
     setExtras((e) => [...e, { id: `ex-${Date.now()}`, nome: "" }]);
+    setExtrasFiles((f) => [...f, null]);
   };
 
   const removeDocExtra = (id: string) => {
+    const idx = extras.findIndex((x) => x.id === id);
     setExtras((e) => e.filter((x) => x.id !== id));
+    if (idx >= 0) setExtrasFiles((f) => f.filter((_, i) => i !== idx));
   };
 
   const setExtraNome = (id: string, nome: string) => {
@@ -108,19 +121,26 @@ export default function NovoPaiolPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submittingRef.current || createMutation.isPending) return;
+    if (submittingRef.current || submitLocked || createMutation.isPending) return;
+
+    submittingRef.current = true;
+    setSubmitLocked(true);
     setMessage(null);
+
     if (!form.nome.trim()) {
       setMessage({ type: "error", text: "O nome do paiol é obrigatório." });
+      releaseSubmitLock();
       return;
     }
     if (form.nome.length > 200) {
       setMessage({ type: "error", text: "O nome não pode exceder 200 caracteres." });
+      releaseSubmitLock();
       return;
     }
     const limite = Number(form.limiteMLE);
     if (!validarLimiteMLE(limite)) {
       setMessage({ type: "error", text: "O limite MLE deve ser um valor positivo (ex.: 0.01 ou mais)." });
+      releaseSubmitLock();
       return;
     }
     const latRaw = form.coordenadasLat === "" ? undefined : Number(form.coordenadasLat);
@@ -129,6 +149,7 @@ export default function NovoPaiolPage() {
     const lat = latRaw != null && !Number.isNaN(latRaw) ? roundCoord(latRaw) : undefined;
     const lng = lngRaw != null && !Number.isNaN(lngRaw) ? roundCoord(lngRaw) : undefined;
     if (!token) {
+      releaseSubmitLock();
       router.replace("/login");
       return;
     }
@@ -144,13 +165,15 @@ export default function NovoPaiolPage() {
     if (lng != null) fd.append("Paiol.CoordenadasLng", String(lng));
     const cargosParaEnviar = cargosAcesso.length > 0 ? cargosAcesso : ["Admin"];
     cargosParaEnviar.forEach((c) => fd.append("CargosAcesso", c));
-
-    submittingRef.current = true;
-    createMutation.mutate(fd, {
-      onError: (err) => {
-        setMessage({ type: "error", text: err instanceof Error ? err.message : "Erro de rede. Tente novamente." });
-      },
+    extras.forEach((ex, i) => {
+      const file = extrasFiles[i];
+      if (file) {
+        fd.append(`DocumentosExtras[${i}].Nome`, (ex.nome || "Documento").trim().slice(0, 100));
+        fd.append(`DocumentosExtras[${i}].Ficheiro`, file);
+      }
     });
+
+    createMutation.mutate(fd);
   };
 
   if (!mounted) return null;
@@ -409,9 +432,17 @@ export default function NovoPaiolPage() {
                         type="file"
                         accept={FILE_ACCEPT}
                         className={inputClass}
-                        readOnly
-                        tabIndex={-1}
-                        aria-label="Ficheiro (em demonstração não é guardado)"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] ?? null;
+                          const idx = extras.findIndex((x) => x.id === ex.id);
+                          if (idx >= 0) {
+                            setExtrasFiles((f) => {
+                              const next = [...f];
+                              next[idx] = file;
+                              return next;
+                            });
+                          }
+                        }}
                       />
                     </div>
                     <button
@@ -437,8 +468,8 @@ export default function NovoPaiolPage() {
             )}
 
             <div className="flex flex-wrap gap-3">
-              <button type="submit" className={btnPrimary} disabled={createMutation.isPending}>
-                {createMutation.isPending ? "A guardar…" : "Guardar paiol"}
+              <button type="submit" className={btnPrimary} disabled={submitLocked || createMutation.isPending}>
+                {submitLocked || createMutation.isPending ? "A guardar…" : "Guardar paiol"}
               </button>
               <Link href="/armazem/gestao" className={btnSecondary}>
                 Cancelar

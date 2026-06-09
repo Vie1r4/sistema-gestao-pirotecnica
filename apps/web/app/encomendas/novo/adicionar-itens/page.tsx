@@ -72,6 +72,7 @@ function AdicionarItensContent() {
   const [compiladoId, setCompiladoId] = useState("");
   const [quantidadeCompilado, setQuantidadeCompilado] = useState("");
   const [dataEntrega, setDataEntrega] = useState("");
+  const [nomeEncomenda, setNomeEncomenda] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [mensagem, setMensagem] = useState<"ItemAdicionado" | "Erro" | "ErroStock" | null>(null);
   const [erroRegistar, setErroRegistar] = useState<string | null>(null);
@@ -245,6 +246,7 @@ function AdicionarItensContent() {
       if (!t) throw new Error("Sessão expirada. Faça login novamente.");
       return postSubmeter(t, {
         clienteId: cIdNum,
+        nome: nomeEncomenda.trim() || null,
         dataEntrega: dataEntrega.trim() || null,
         observacoes: observacoes.trim() || null,
       });
@@ -728,6 +730,17 @@ function AdicionarItensContent() {
                   {itens.length > 0 && (
                     <form onSubmit={handleRegistarEncomenda} className="mt-6 space-y-4 border-t border-[#e7e5e4] pt-6 dark:border-[#333]">
                       <h3 className="font-medium text-gray-900 dark:text-white">Registar encomenda</h3>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome do evento / encomenda</label>
+                        <input
+                          type="text"
+                          maxLength={200}
+                          value={nomeEncomenda}
+                          onChange={(e) => setNomeEncomenda(e.target.value.slice(0, 200))}
+                          className={`${inputClass} mt-1 w-full`}
+                          placeholder="Ex.: Festas do Concelho 2026"
+                        />
+                      </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Data de entrega</label>
                         <input

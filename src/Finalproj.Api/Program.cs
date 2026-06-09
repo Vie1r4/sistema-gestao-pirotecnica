@@ -69,6 +69,7 @@ builder.Services.AddScoped<FluentValidation.IValidator<Finalproj.Application.Fea
 builder.Services.AddScoped<FluentValidation.IValidator<Finalproj.Application.Features.Paiols.DTOs.CreatePaiolInputDto>, Finalproj.Application.Features.Paiols.Validators.CreatePaiolInputDtoValidator>();
 builder.Services.AddScoped<FluentValidation.IValidator<Finalproj.Application.Features.Funcionarios.DTOs.CreateFuncionarioInputDto>, Finalproj.Application.Features.Funcionarios.Validators.CreateFuncionarioInputDtoValidator>();
 builder.Services.AddScoped<FluentValidation.IValidator<Finalproj.Application.Features.Paiols.DTOs.EntradaPaiolViewModel>, Finalproj.Application.Features.Paiols.Validators.EntradaPaiolViewModelValidator>();
+builder.Services.AddScoped<FluentValidation.IValidator<Finalproj.Application.Features.Servicos.DTOs.ServicoSaveRequestDto>, Finalproj.Application.Features.Servicos.Validators.ServicoSaveRequestDtoValidator>();
 
 // Opções de documentos (tamanho máximo de upload) e pastas locais portáteis
 builder.Services.Configure<Finalproj.Infrastructure.Configuration.DadosLocaisOptions>(builder.Configuration.GetSection(Finalproj.Infrastructure.Configuration.DadosLocaisOptions.SectionName));
@@ -77,6 +78,11 @@ builder.Services.Configure<Finalproj.Infrastructure.Configuration.DocumentosOpti
 builder.Services.AddSingleton<Finalproj.Application.Services.IArquivosRaizService, Finalproj.Infrastructure.Services.ArquivosRaizService>();
 builder.Services.Configure<Finalproj.Infrastructure.Services.DatabaseBackupOptions>(
     builder.Configuration.GetSection(Finalproj.Infrastructure.Services.DatabaseBackupOptions.SectionName));
+builder.Services.Configure<Finalproj.Infrastructure.Configuration.CifragemEmRepousoOptions>(
+    builder.Configuration.GetSection(Finalproj.Infrastructure.Configuration.CifragemEmRepousoOptions.SectionName));
+builder.Services.Configure<Finalproj.Infrastructure.Configuration.EmpresaPirotecnicaOptions>(
+    builder.Configuration.GetSection(Finalproj.Infrastructure.Configuration.EmpresaPirotecnicaOptions.SectionName));
+builder.Services.AddSingleton<Finalproj.Application.Services.ICifragemEmRepousoService, Finalproj.Infrastructure.Services.CifragemEmRepousoService>();
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
 {
     var maxBytes = builder.Configuration.GetValue<long>("Documentos:MaxFileSizeBytes", 10 * 1024 * 1024);
@@ -106,34 +112,37 @@ builder.Services.AddScoped<Finalproj.Application.Features.GestorAnalytics.Interf
 builder.Services.AddScoped<Finalproj.Domain.Interfaces.IGestorAnalyticsRepository, Finalproj.Infrastructure.Repositories.GestorAnalyticsRepository>();
 builder.Services.AddScoped<Finalproj.Application.Features.Encomendas.Interfaces.IEncomendaWorkflowService, Finalproj.Application.Features.Encomendas.Services.EncomendaWorkflowService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Servicos.Interfaces.IServicosApiApplicationService, Finalproj.Application.Features.Servicos.Services.ServicosApiApplicationService>();
+builder.Services.AddSingleton<Finalproj.Infrastructure.DocumentacaoRegulatoria.GeradorDeclaracaoPspService>();
+builder.Services.AddScoped<Finalproj.Application.Features.DocumentacaoRegulatoria.Interfaces.IDocumentacaoRegulatoriaService, Finalproj.Infrastructure.Services.DocumentacaoRegulatoriaService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Auth.Interfaces.IAuthAccountInfoService, Finalproj.Application.Features.Auth.Services.AuthAccountInfoService>();
 builder.Services.AddScoped<Finalproj.Application.Services.Interfaces.IIdentityUserLookupService, Finalproj.Infrastructure.Services.IdentityUserLookupService>();
 builder.Services.AddScoped<Finalproj.Application.Services.Interfaces.IPasswordValidationService, Finalproj.Infrastructure.Services.IdentityPasswordValidationService>();
 builder.Services.AddScoped<Finalproj.Application.Services.Interfaces.IDatabaseCleanupService, Finalproj.Infrastructure.Services.DatabaseCleanupService>();
 
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.IPaiolRepository, Finalproj.Infrastructure.Repositories.PaiolRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.IProdutoRepository, Finalproj.Infrastructure.Repositories.ProdutoRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.ICompiladoRepository, Finalproj.Infrastructure.Repositories.CompiladoRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.IEncomendaRepository, Finalproj.Infrastructure.Repositories.EncomendaRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.IClienteRepository, Finalproj.Infrastructure.Repositories.ClienteRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.IFuncionarioRepository, Finalproj.Infrastructure.Repositories.FuncionarioRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.IServicoRepository, Finalproj.Infrastructure.Repositories.ServicoRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.IEntradaPaiolRepository, Finalproj.Infrastructure.Repositories.EntradaPaiolRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.ISaidaPaiolRepository, Finalproj.Infrastructure.Repositories.SaidaPaiolRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.IPerfilRepository, Finalproj.Infrastructure.Repositories.PerfilRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.ILogSistemaRepository, Finalproj.Infrastructure.Repositories.LogSistemaRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.IRefreshTokenRepository, Finalproj.Infrastructure.Repositories.RefreshTokenRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IPaiolRepository, Finalproj.Infrastructure.Repositories.PaiolRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IProdutoRepository, Finalproj.Infrastructure.Repositories.ProdutoRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.ICompiladoRepository, Finalproj.Infrastructure.Repositories.CompiladoRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IEncomendaRepository, Finalproj.Infrastructure.Repositories.EncomendaRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IClienteRepository, Finalproj.Infrastructure.Repositories.ClienteRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IFuncionarioRepository, Finalproj.Infrastructure.Repositories.FuncionarioRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IServicoRepository, Finalproj.Infrastructure.Repositories.ServicoRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IEntradaPaiolRepository, Finalproj.Infrastructure.Repositories.EntradaPaiolRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.ISaidaPaiolRepository, Finalproj.Infrastructure.Repositories.SaidaPaiolRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IPerfilRepository, Finalproj.Infrastructure.Repositories.PerfilRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.ILogSistemaRepository, Finalproj.Infrastructure.Repositories.LogSistemaRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IRefreshTokenRepository, Finalproj.Infrastructure.Repositories.RefreshTokenRepository>();
 builder.Services.AddScoped<Finalproj.Domain.Interfaces.IUnitOfWork, Finalproj.Infrastructure.Repositories.UnitOfWork>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.IReservaRepository, Finalproj.Infrastructure.Repositories.ReservaRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.IServicoDocumentoExtraRepository, Finalproj.Infrastructure.Repositories.ServicoDocumentoExtraRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.IServicoEquipaRepository, Finalproj.Infrastructure.Repositories.ServicoEquipaRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.IServicoDistanciaSegurancaRepository, Finalproj.Infrastructure.Repositories.ServicoDistanciaSegurancaRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.IPaiolAcessoRepository, Finalproj.Infrastructure.Repositories.PaiolAcessoRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.IClienteDocumentoExtraRepository, Finalproj.Infrastructure.Repositories.ClienteDocumentoExtraRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.IPaiolDocumentoExtraRepository, Finalproj.Infrastructure.Repositories.PaiolDocumentoExtraRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.IEncomendaItemRepository, Finalproj.Infrastructure.Repositories.EncomendaItemRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.IServicoLicencaRepository, Finalproj.Infrastructure.Repositories.ServicoLicencaRepository>();
-builder.Services.AddScoped<Finalproj.Domain.Interfaces.IFuncionarioDocumentoExtraRepository, Finalproj.Infrastructure.Repositories.FuncionarioDocumentoExtraRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IReservaRepository, Finalproj.Infrastructure.Repositories.ReservaRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IServicoDocumentoExtraRepository, Finalproj.Infrastructure.Repositories.ServicoDocumentoExtraRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IServicoEquipaRepository, Finalproj.Infrastructure.Repositories.ServicoEquipaRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IServicoDistanciaSegurancaRepository, Finalproj.Infrastructure.Repositories.ServicoDistanciaSegurancaRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IServicoZonaLancamentoRepository, Finalproj.Infrastructure.Repositories.ServicoZonaLancamentoRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IPaiolAcessoRepository, Finalproj.Infrastructure.Repositories.PaiolAcessoRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IClienteDocumentoExtraRepository, Finalproj.Infrastructure.Repositories.ClienteDocumentoExtraRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IPaiolDocumentoExtraRepository, Finalproj.Infrastructure.Repositories.PaiolDocumentoExtraRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IEncomendaItemRepository, Finalproj.Infrastructure.Repositories.EncomendaItemRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IServicoLicencaRepository, Finalproj.Infrastructure.Repositories.ServicoLicencaRepository>();
+builder.Services.AddScoped<Finalproj.Domain.Interfaces.Repositories.IFuncionarioDocumentoExtraRepository, Finalproj.Infrastructure.Repositories.FuncionarioDocumentoExtraRepository>();
 builder.Services.AddSingleton<Finalproj.Infrastructure.Services.DatabaseBackupHostedService>();
 builder.Services.AddSingleton<Finalproj.Infrastructure.Services.IDatabaseBackupService>(sp =>
     sp.GetRequiredService<Finalproj.Infrastructure.Services.DatabaseBackupHostedService>());

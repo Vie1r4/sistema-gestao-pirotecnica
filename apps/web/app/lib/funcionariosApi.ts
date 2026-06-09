@@ -104,11 +104,12 @@ export function mapApiItemToFuncionarioDetalhe(
   return {
     id: String(item.id ?? item.Id ?? ""),
     nomeCompleto: nome,
+    numeroCredencial: (item.numeroCredencial ?? item.NumeroCredencial) as string | undefined,
     nif: (item.nif ?? item.NIF) as string | undefined,
     email: (item.email ?? item.Email) as string | undefined,
     telefone: (item.telefone ?? item.Telefone) as string | undefined,
     morada: (item.morada ?? item.Morada) as string | undefined,
-    nss: (item.nss ?? item.NSS) as string | undefined,
+    nss: (item.numeroSegurancaSocial ?? item.NumeroSegurancaSocial ?? item.nss ?? item.NSS) as string | undefined,
     iban: (item.iban ?? item.IBAN) as string | undefined,
     cargo: (item.cargo ?? item.Cargo ?? "Comercial") as CargoFuncionario,
     notas: (item.notas ?? item.Notas) as string | undefined,
@@ -224,4 +225,52 @@ export async function postDesassociarConta(token: string, id: string): Promise<v
   if (res.status === 400 && data.error) throw new Error(data.error);
   if (res.status === 403) throw new Error("Sem permissão para desassociar contas.");
   throw new Error(data.error || "Ocorreu um erro ao desassociar a conta.");
+}
+
+/** GET api/funcionarios/{id}/documentos?tipo=cc|addr|licenca|outros|extra&extraId= */
+export function funcionarioDocumentoUrl(
+  funcionarioId: string,
+  tipo: string,
+  extraId?: string
+): string {
+  const q = new URLSearchParams({ tipo });
+  if (extraId) q.set("extraId", extraId);
+  return `${apiPath("api/funcionarios")}/${funcionarioId}/documentos?${q.toString()}`;
+}
+
+export async function openFuncionarioDocumento(
+  token: string,
+  funcionarioId: string,
+  tipo: string,
+  extraId?: string
+): Promise<void> {
+  const res = await fetch(funcionarioDocumentoUrl(funcionarioId, tipo, extraId), {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Documento não encontrado");
+  const blob = await res.blob();
+  const contentType = res.headers.get("content-type") ?? "application/octet-stream";
+  const url = URL.createObjectURL(new Blob([blob], { type: contentType }));
+  const w = window.open(url, "_blank", "noopener");
+  if (!w) URL.revokeObjectURL(url);
+}
+
+export async function downloadFuncionarioDocumento(
+  token: string,
+  funcionarioId: string,
+  tipo: string,
+  fileName: string,
+  extraId?: string
+): Promise<void> {
+  const res = await fetch(funcionarioDocumentoUrl(funcionarioId, tipo, extraId), {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Documento não encontrado");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
 }

@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import { getToken } from "@/app/lib/auth";
 import { fetchPreparar, postRegistarPreparacao, type RetiradaPreparacaoInput } from "@/app/lib/encomendasApi";
+import { mensagemErroPreparacao } from "@/app/lib/encomendaErrors";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 
 const inputClass =
@@ -252,7 +253,8 @@ export default function PrepararEncomendaPage() {
       await postRegistarPreparacao(token, idNum, listaApi);
       router.push(`/encomendas/${id}?preparacao=1`);
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao registar preparação.");
+      const raw = err instanceof Error ? err.message : "Erro ao registar preparação.";
+      setErro(mensagemErroPreparacao(raw));
     } finally {
       submittingRef.current = false;
       setSubmitting(false);

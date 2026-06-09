@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,6 +11,12 @@ import { useToastStore } from "@/app/stores/useToastStore";
 import { useUser } from "@/app/context/UserContext";
 import { fetchEncomendaDetalhe, putEncomenda } from "@/app/lib/encomendasApi";
 import { fetchList } from "@/app/lib/produtosApi";
+import { fetchFuncionariosLista } from "@/app/lib/funcionariosApi";
+import {
+  mapFuncionariosServico,
+  elegivelCoordenadorPirotecnico,
+  rotuloCoordenadorPirotecnico,
+} from "@/app/lib/servicosFuncionariosForm";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 
 const inputClass =
@@ -35,6 +41,7 @@ function mapApiToForm(data: { encomenda: Record<string, unknown> }): {
   estado: string;
   dataEntrega: string;
   observacoes: string;
+  coordenadorPirotecnicoId: string;
   itens: ItemEdit[];
 } {
   const e = data.encomenda;
@@ -60,6 +67,7 @@ function mapApiToForm(data: { encomenda: Record<string, unknown> }): {
         ? dataEntregaRaw.slice(0, 10)
         : new Date(dataEntregaRaw as string).toISOString().slice(0, 10)
       : "";
+  const coordRaw = get("coordenadorPirotecnicoId") ?? get("CoordenadorPirotecnicoId");
   return {
     id: String(get("id") ?? get("Id") ?? ""),
     clienteId: String(get("clienteId") ?? get("ClienteId") ?? ""),
@@ -67,6 +75,7 @@ function mapApiToForm(data: { encomenda: Record<string, unknown> }): {
     estado: String(get("estado") ?? get("Estado") ?? "Pendente"),
     dataEntrega: dataEntregaStr,
     observacoes: String(get("observacoes") ?? get("Observacoes") ?? ""),
+    coordenadorPirotecnicoId: coordRaw != null ? String(coordRaw) : "",
     itens,
   };
 }
@@ -84,6 +93,7 @@ export default function EditarEncomendaPage() {
   const canGerirEncomendas = (user?.permissions ?? []).includes("encomendas.gerir");
   const [dataEntrega, setDataEntrega] = useState("");
   const [observacoes, setObservacoes] = useState("");
+  const [coordenadorPirotecnicoId, setCoordenadorPirotecnicoId] = useState("");
   const [itens, setItens] = useState<ItemEdit[]>([]);
   const [novoProdutoId, setNovoProdutoId] = useState("");
   const [novaQuantidade, setNovaQuantidade] = useState("");
@@ -114,6 +124,22 @@ export default function EditarEncomendaPage() {
     enabled: validId && !!getToken(),
   });
 
+  const { data: funcionariosData } = useQuery({
+    queryKey: ["funcionarios", "list"],
+    queryFn: async () => {
+      const token = getToken();
+      if (!token) throw new Error("Sessão expirada.");
+      return fetchFuncionariosLista(token);
+    },
+    staleTime: 60 * 1000,
+    enabled: validId && !!getToken(),
+  });
+
+  const funcionariosCoordenador = useMemo(
+    () => mapFuncionariosServico(funcionariosData?.items ?? []),
+    [funcionariosData?.items]
+  );
+
   const encomendaForm = editData ? mapApiToForm(editData) : null;
   const produtos = (produtosData?.items ?? []) as Array<{ id?: number; Id?: number; nome?: string; Nome?: string }>;
   const produtosSorted = [...produtos].sort((a, b) =>
@@ -125,18 +151,27 @@ export default function EditarEncomendaPage() {
     if (encomendaForm) {
       setDataEntrega(encomendaForm.dataEntrega);
       setObservacoes(encomendaForm.observacoes);
+      setCoordenadorPirotecnicoId(encomendaForm.coordenadorPirotecnicoId);
       setItens(encomendaForm.itens);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sincronizar só quando muda o id (encomendaForm muda referência a cada render)
   }, [encomendaForm?.id]);
 
   const mutation = useMutation({
-    mutationFn: async (payload: { dataEntrega: string; observacoes: string; itens: ItemEdit[] }) => {
+    mutationFn: async (payload: {
+      dataEntrega: string;
+      observacoes: string;
+      coordenadorPirotecnicoId: string;
+      itens: ItemEdit[];
+    }) => {
       const token = getToken();
       if (!token) throw new Error("Sessão expirada.");
       await putEncomenda(token, numId, {
         dataEntrega: payload.dataEntrega.trim() || null,
         observacoes: payload.observacoes.trim() || null,
+        coordenadorPirotecnicoId: payload.coordenadorPirotecnicoId
+          ? parseInt(payload.coordenadorPirotecnicoId, 10)
+          : null,
         itens: payload.itens.map((i) => ({ produtoId: parseInt(i.produtoId, 10), quantidade: i.quantidade })),
       });
     },
@@ -249,7 +284,7 @@ export default function EditarEncomendaPage() {
       return;
     }
     submittingRef.current = true;
-    mutation.mutate({ dataEntrega, observacoes, itens: validos });
+    mutation.mutate({ dataEntrega, observacoes, coordenadorPirotecnicoId, itens: validos });
   };
 
   const submitting = mutation.isPending;
@@ -309,6 +344,31 @@ export default function EditarEncomendaPage() {
                     placeholder="Notas internas sobre a encomenda..."
                   />
                   <p className="mt-1 text-xs text-[#57534e] dark:text-gray-500">{observacoes.length}/2000</p>
+                </div>
+                <div>
+                  <label htmlFor="coordenadorPirotecnicoId" className={labelClass}>
+                    Coordenador pirotécnico
+                  </label>
+                  <p className="mt-1 text-xs text-[#57534e] dark:text-gray-500">
+                    Opcional — necessário para a declaração PSP. Requer licença de operador e n.º CRED na ficha do
+                    funcionário.{" "}
+                    <Link href="/funcionarios" className="text-[#f97316] hover:underline">
+                      Gerir funcionários
+                    </Link>
+                  </p>
+                  <select
+                    id="coordenadorPirotecnicoId"
+                    value={coordenadorPirotecnicoId}
+                    onChange={(e) => setCoordenadorPirotecnicoId(e.target.value)}
+                    className={`${inputClass} mt-2 w-full`}
+                  >
+                    <option value="">— Sem coordenador —</option>
+                    {funcionariosCoordenador.map((f) => (
+                      <option key={`coord-${f.id}`} value={f.id} disabled={!elegivelCoordenadorPirotecnico(f)}>
+                        {rotuloCoordenadorPirotecnico(f)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </motion.div>

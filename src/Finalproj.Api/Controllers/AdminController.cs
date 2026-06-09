@@ -1,3 +1,4 @@
+using Finalproj.Application.Services;
 using Finalproj.Authorization;
 using Finalproj.Application.DTOs;
 using Finalproj.Application.Features.Admin.DTOs;
@@ -22,6 +23,7 @@ namespace Finalproj.Controllers
         private readonly UserManager<IdentityUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IDatabaseBackupService _databaseBackupService;
+        private readonly ICifragemEmRepousoService _cifragem;
         private readonly IAdminStatsService _adminStats;
         private readonly IAdminUserAccountService _adminUserAccounts;
         private readonly IDatabaseCleanupService _databaseCleanup;
@@ -33,6 +35,7 @@ namespace Finalproj.Controllers
             UserManager<IdentityUser> userManager,
             RoleManager<IdentityRole> roleManager,
             IDatabaseBackupService databaseBackupService,
+            ICifragemEmRepousoService cifragem,
             IAdminStatsService adminStats,
             IAdminUserAccountService adminUserAccounts,
             IDatabaseCleanupService databaseCleanup,
@@ -42,6 +45,7 @@ namespace Finalproj.Controllers
             _userManager = userManager;
             _roleManager = roleManager;
             _databaseBackupService = databaseBackupService;
+            _cifragem = cifragem;
             _adminStats = adminStats;
             _adminUserAccounts = adminUserAccounts;
             _databaseCleanup = databaseCleanup;
@@ -382,11 +386,12 @@ namespace Finalproj.Controllers
 
         /// <summary>Descarrega .bak ou ZIP de documentos (_uploads.zip) da pasta de backups (apenas Admin).</summary>
         [HttpGet("backups/{nomeFicheiro}/download")]
-        public IActionResult DownloadBackup(string nomeFicheiro, CancellationToken cancellationToken = default)
+        public async Task<IActionResult> DownloadBackup(string nomeFicheiro, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var path = _databaseBackupService.ResolveBackupFullPath(nomeFicheiro);
-            return PhysicalFile(path, "application/octet-stream", Path.GetFileName(path), enableRangeProcessing: true);
+            var bytes = await _cifragem.LerBytesAsync(path, cancellationToken);
+            return File(bytes, "application/octet-stream", Path.GetFileName(path), enableRangeProcessing: false);
         }
 
         /// <summary>Restaura BD (.bak) e documentos (ZIP associado), se existir.</summary>

@@ -7,8 +7,8 @@ describe("getRequiredPermissionsForPath", () => {
     expect(getRequiredPermissionsForPath("/servicos/123")).toEqual(["servicos.gerir"]);
   });
 
-  it("exige permissao base de servicos na rota /documentacao", () => {
-    expect(getRequiredPermissionsForPath("/documentacao")).toEqual(["servicos.gerir"]);
+  it("exige documentacao.gerir na rota /documentacao", () => {
+    expect(getRequiredPermissionsForPath("/documentacao")).toEqual(["documentacao.gerir"]);
   });
 
   it("exige admin em /admin", () => {

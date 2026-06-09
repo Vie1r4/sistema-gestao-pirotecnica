@@ -70,11 +70,17 @@ public sealed class ClienteApplicationService(
             return null;
         existente.Nome = cliente.Nome;
         existente.TipoCliente = cliente.TipoCliente;
-        existente.NIF = cliente.NIF;
-        existente.Email = cliente.Email;
-        existente.Telefone = cliente.Telefone;
-        existente.Morada = cliente.Morada;
-        existente.Notas = cliente.Notas;
+        existente.NIF = string.IsNullOrWhiteSpace(cliente.NIF) ? null : cliente.NIF.Trim();
+        existente.Email = string.IsNullOrWhiteSpace(cliente.Email) ? null : cliente.Email.Trim();
+        existente.Telefone = string.IsNullOrWhiteSpace(cliente.Telefone) ? null : cliente.Telefone.Trim();
+        existente.Morada = string.IsNullOrWhiteSpace(cliente.Morada) ? null : cliente.Morada.Trim();
+        existente.CodigoPostal = string.IsNullOrWhiteSpace(cliente.CodigoPostal)
+            ? null
+            : cliente.CodigoPostal.Trim()[..Math.Min(10, cliente.CodigoPostal.Trim().Length)];
+        existente.Localidade = string.IsNullOrWhiteSpace(cliente.Localidade)
+            ? null
+            : cliente.Localidade.Trim()[..Math.Min(100, cliente.Localidade.Trim().Length)];
+        existente.Notas = string.IsNullOrWhiteSpace(cliente.Notas) ? null : cliente.Notas.Trim();
         if (removerDocumentoIds?.Count > 0)
             documentos.RemoveRange(await documentos.ListByClienteAndIdsAsync(id, removerDocumentoIds, cancellationToken));
         foreach (var doc in novosDocumentos ?? Enumerable.Empty<ClienteDocumentoExtra>())

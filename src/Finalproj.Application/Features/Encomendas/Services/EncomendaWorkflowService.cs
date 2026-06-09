@@ -19,6 +19,7 @@ public sealed class EncomendaWorkflowService(
     IPaiolRepository paiois,
     IEntradaPaiolRepository entradas,
     ISaidaPaiolRepository saidas,
+    IFuncionarioRepository funcionarios,
     IStockDisponivelService stockDisponivel,
     IUnitOfWork unitOfWork) : IEncomendaWorkflowService
 {
@@ -83,13 +84,14 @@ public sealed class EncomendaWorkflowService(
     public Task<Produto?> GetProdutoAsync(int produtoId, CancellationToken cancellationToken = default) =>
         produtos.GetByIdAsync(produtoId, cancellationToken);
 
-    public async Task<Encomenda?> SubmeterAsync(int clienteId, DateTime? dataEntrega, string? observacoes, IReadOnlyList<EncomendaItemCriarViewModel> draftItens, CancellationToken cancellationToken = default)
+    public async Task<Encomenda?> SubmeterAsync(int clienteId, string? nome, DateTime? dataEntrega, string? observacoes, IReadOnlyList<EncomendaItemCriarViewModel> draftItens, CancellationToken cancellationToken = default)
     {
         if (await clientes.GetByIdAsync(clienteId, cancellationToken) == null || draftItens.Count == 0)
             return null;
         var encomenda = new Encomenda
         {
             ClienteId = clienteId,
+            Nome = string.IsNullOrWhiteSpace(nome) ? null : nome.Trim()[..Math.Min(200, nome.Trim().Length)],
             Estado = ConstantesEncomenda.PENDENTE,
             DataCriacao = DateTime.UtcNow,
             DataEntrega = dataEntrega,
@@ -122,6 +124,13 @@ public sealed class EncomendaWorkflowService(
             if (!await produtos.ExistsAsync(item.ProdutoId, cancellationToken))
                 return (encomenda, $"Produto com id {item.ProdutoId} não encontrado.");
         }
+        if (input.CoordenadorPirotecnicoId.HasValue)
+        {
+            var coordenador = await funcionarios.GetByIdAsync(input.CoordenadorPirotecnicoId.Value, cancellationToken);
+            if (coordenador == null)
+                return (encomenda, "Coordenador pirotécnico não encontrado.");
+        }
+        encomenda.CoordenadorPirotecnicoId = input.CoordenadorPirotecnicoId;
         encomenda.DataEntrega = input.DataEntrega;
         var obs = input.Observacoes?.Trim();
         encomenda.Observacoes = string.IsNullOrWhiteSpace(obs) ? null : obs.Length > 2000 ? obs[..2000] : obs;

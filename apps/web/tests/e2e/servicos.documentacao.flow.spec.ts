@@ -11,14 +11,14 @@ const servicoDetalheBase = {
   cidade: "Braga",
   municipio: "Braga",
   publicoPrivado: "Público",
-  responsavelTecnicoId: "5",
+  coordenadorPirotecnicoId: "5",
   observacoes: "obs",
   coordenadasLat: 41.54,
   coordenadasLng: -8.42,
   raioPublico: 50,
   cliente: { id: "30", nome: "Cliente E2E" },
   encomenda: null,
-  responsavelTecnico: null,
+  coordenadorPirotecnico: { id: "5", nomeCompleto: "Coordenador E2E" },
   equipa: [{ servicoId: "1", funcionarioId: "5", funcionario: { id: "5", nomeCompleto: "Tecnico E2E" } }],
   licencas: [],
   licencasEvento: [],
@@ -27,6 +27,7 @@ const servicoDetalheBase = {
   itensEncomenda: [],
   licencasObrigatoriasTotal: 0,
   licencasObrigatoriasEntregues: 0,
+  zonasLancamento: [],
 };
 
 function apiDetalheResponse(documentosExtras: Array<{ id: string; nome: string }>) {
