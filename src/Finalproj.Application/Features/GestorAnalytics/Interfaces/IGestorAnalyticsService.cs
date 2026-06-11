@@ -9,7 +9,6 @@ public interface IGestorAnalyticsService
         int? produtoId,
         int? clienteId,
         CancellationToken cancellationToken = default);
-    Task<PrevisaoResponseDto> GetPrevisaoAsync(int dias, decimal crescimentoPct, CancellationToken cancellationToken = default);
     Task<ConsumoClienteResponseDto> GetConsumoClienteAsync(
         int clienteId,
         DateOnly desde,

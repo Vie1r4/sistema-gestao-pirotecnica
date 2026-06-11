@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Finalproj.Infrastructure.Configuration;
 using Finalproj.Infrastructure.Persistence.Data;
 using Finalproj.Middleware;
 using Microsoft.Extensions.Logging;
@@ -16,6 +17,9 @@ using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (builder.Environment.IsProduction())
+    ProductionConfigurationValidator.EnsureValidOrThrow(builder.Configuration);
 
 // Autenticação por controller: API usa JWT ([Authorize(AuthenticationSchemes = JwtBearer...)]), outras áreas usam cookies.
 // Não usar AuthorizeFilter global para não forçar Cookies e redirecionar a API para login (HTML).
@@ -360,7 +364,7 @@ if (!app.Environment.IsEnvironment("Testing"))
 
 static async Task InicializarAsync(WebApplication app)
 {
-    // Migrações + seed de dados + roles (Admin, Armazém, etc.)
+    // Migrações + roles Identity (sem dados de negócio automáticos)
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<FinalprojContext>();
     await context.Database.MigrateAsync();
@@ -370,10 +374,7 @@ static async Task InicializarAsync(WebApplication app)
     await GarantirColunaTemaPerfilAsync(context);
     await GarantirColunaDistanciaSegurancaPublicoProdutoAsync(context);
     await GarantirColunasSoftDeleteClienteFuncionarioAsync(context);
-    DbInitializer.Initialize(context);
     await SeedRoles.InitializeAsync(scope.ServiceProvider);
-    if (app.Environment.IsDevelopment())
-        await DemoAnalyticsSeeder.SeedYoY2025Async(context);
 }
 
 static async Task GarantirColunaOrigemRegistoServicoLicencaAsync(FinalprojContext context)

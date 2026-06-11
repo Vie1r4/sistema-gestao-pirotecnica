@@ -58,7 +58,7 @@ Finalproj/
 │   └── app/lib/*Api.ts         # Chamadas à API por domínio
 ├── Finalproj.Tests/            # Testes unitários (domínio)
 ├── Finalproj.IntegrationTests/ # Testes HTTP (auth, 401/403, IDOR)
-└── Docs/                       # 8 ficheiros — ver Docs/README.md
+└── Docs/                       # documentação — ver Docs/README.md
 ```
 
 ## Convenções de nomenclatura

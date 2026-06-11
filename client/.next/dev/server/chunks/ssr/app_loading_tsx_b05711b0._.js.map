@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/shovi/source/repos/Finalproj/client/app/loading.tsx"],"sourcesContent":["/**\r\n * Loading UI global: mostrado automaticamente pelo Next.js enquanto uma rota\r\n * está a carregar. Substitui a necessidade de loading state em cada página.\r\n */\r\nexport default function Loading() {\r\n  return (\r\n    <div\r\n      className=\"flex min-h-screen flex-col items-center justify-center gap-4 bg-[#fafafa] text-[#57534e] dark:bg-[#0a0a0a] dark:text-gray-400\"\r\n      aria-live=\"polite\"\r\n      aria-busy=\"true\"\r\n      role=\"status\"\r\n    >\r\n      <div\r\n        className=\"h-8 w-8 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent\"\r\n        aria-hidden\r\n      />\r\n      <span className=\"text-sm\">A carregar…</span>\r\n    </div>\r\n  );\r\n}\r\n"],"names":[],"mappings":"AAAA;;;CAGC;;;;;;AACc,SAAS;IACtB,qBACE,8OAAC;QACC,WAAU;QACV,aAAU;QACV,aAAU;QACV,MAAK;;0BAEL,8OAAC;gBACC,WAAU;gBACV,aAAW;;;;;;0BAEb,8OAAC;gBAAK,WAAU;0BAAU;;;;;;;;;;;;AAGhC"}}]
-}

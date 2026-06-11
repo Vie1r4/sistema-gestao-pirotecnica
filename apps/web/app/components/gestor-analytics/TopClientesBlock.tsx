@@ -11,6 +11,7 @@ import {
   type TopClientesResponse,
 } from "@/app/lib/gestorAnalytics";
 import AnalyticsCard, { AnalyticsSkeleton } from "./AnalyticsCard";
+import AnalyticsErrorState from "./AnalyticsErrorState";
 
 type TabId = "encomendas" | "servicos";
 
@@ -227,7 +228,7 @@ export default function TopClientesBlock({
   const [tab, setTab] = useState<TabId>("encomendas");
   const [selecionadoId, setSelecionadoId] = useState<number | null>(null);
 
-  const { data: real, isLoading, isError } = useQuery({
+  const { data: real, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["gestor-analytics", "top-clientes"],
     queryFn: () => fetchTopClientes(token, 10),
     staleTime: 120_000,
@@ -261,7 +262,10 @@ export default function TopClientesBlock({
       {isLoading ? (
         <AnalyticsSkeleton height={emColuna ? 260 : 320} />
       ) : isError ? (
-        <p className="py-12 text-center text-sm text-[#78716c]">Sem dados de clientes.</p>
+        <AnalyticsErrorState
+          message={error instanceof Error ? error.message : "Erro ao carregar o ranking de clientes."}
+          onRetry={() => refetch()}
+        />
       ) : !data ? (
         <p className="py-12 text-center text-sm text-[#78716c]">Sem dados de clientes.</p>
       ) : (

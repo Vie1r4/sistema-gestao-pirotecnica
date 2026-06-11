@@ -21,6 +21,7 @@ import {
 } from "@/app/lib/gestorAnalytics";
 import { fetchList as fetchProdutosList } from "@/app/lib/produtosApi";
 import AnalyticsCard, { AnalyticsSkeleton } from "./AnalyticsCard";
+import AnalyticsErrorState from "./AnalyticsErrorState";
 import {
   anosSelecionadosIniciais,
   buildYoYChartRows,
@@ -138,7 +139,7 @@ export default function YoYChart({
   const produtoId = materialId ? Number(materialId) : undefined;
   const clienteIdNum = clienteId ? Number(clienteId) : undefined;
 
-  const { data: real, isLoading, isFetching, isError } = useQuery({
+  const { data: real, isLoading, isFetching, isError, error, refetch } = useQuery({
     queryKey: ["gestor-analytics", "comparacao-anual", produtoId, clienteIdNum],
     queryFn: () =>
       fetchComparacaoAnual(token, {
@@ -347,7 +348,10 @@ export default function YoYChart({
       {chartBusy ? (
         <AnalyticsSkeleton height={chartHeight + 48} />
       ) : isError ? (
-        <p className="py-12 text-center text-sm text-[#78716c]">Sem dados.</p>
+        <AnalyticsErrorState
+          message={error instanceof Error ? error.message : "Erro ao carregar a comparação anual."}
+          onRetry={() => refetch()}
+        />
       ) : chartData.length === 0 ? (
         <p className="py-12 text-center text-sm text-[#78716c]">
           Seleccione pelo menos um ano com dados.

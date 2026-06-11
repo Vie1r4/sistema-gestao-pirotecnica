@@ -101,22 +101,6 @@ export type ConsumoClienteResponse = {
   clientes: FiltroOpcao[];
 };
 
-export type PrevisaoPonto = {
-  data: string;
-  valor: number;
-  min: number;
-  max: number;
-};
-
-export type PrevisaoResponse = {
-  dias: number;
-  crescimentoPct: number;
-  historico: PrevisaoPonto[];
-  previsao: PrevisaoPonto[];
-  totalPrevisto14Dias?: number;
-  resumoDestaque?: string;
-};
-
 export type TopClienteLinha = {
   clienteId: number;
   nome: string;
@@ -273,10 +257,6 @@ export function fetchConsumoCliente(
   return getJson<Record<string, unknown>>(token, `/consumo-cliente?${params}`).then(
     normalizeConsumoCliente
   );
-}
-
-export function fetchPrevisao(token: string, dias: 30 | 60 | 90, crescimentoPct: number) {
-  return getJson<PrevisaoResponse>(token, `/previsao?dias=${dias}&crescimentoPct=${crescimentoPct}`);
 }
 
 export function fetchTopClientes(token: string, limite = 10) {

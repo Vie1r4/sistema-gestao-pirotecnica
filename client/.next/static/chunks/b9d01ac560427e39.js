@@ -1,1 +1,0 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,3914,e=>{"use strict";var t=e.i(71645),u=e.i(18566);function r(){let e=(0,u.useParams)(),r=(0,u.useRouter)(),s=e.id;return(0,t.useEffect)(()=>{r.replace(`/encomendas/${s}/editar`)},[r,s]),null}e.s(["default",()=>r])}]);

@@ -61,5 +61,3 @@ Schema: colunas `DataRegisto` em `Servicos` e `Paiol` via migração EF `Servico
 - Componentes: [`apps/web/app/components/gestor-analytics/`](../../apps/web/app/components/gestor-analytics/)
 
 Ver [API.md](../API.md) — `/api/gestor-analytics`.
-
-**Development:** no arranque da API (`ASPNETCORE_ENVIRONMENT=Development`), são criadas automaticamente **60 encomendas demo em 2025** (5 por mês) se ainda não existirem (`Observacoes = SEED-DEMO-YOY-2025`), para testar o gráfico «Comparação anual».

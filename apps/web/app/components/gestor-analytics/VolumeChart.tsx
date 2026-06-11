@@ -23,6 +23,7 @@ import {
 } from "recharts";
 import { fetchVolume, type VolumePeriodo } from "@/app/lib/gestorAnalytics";
 import AnalyticsCard, { AnalyticsSkeleton } from "./AnalyticsCard";
+import AnalyticsErrorState from "./AnalyticsErrorState";
 import { buildVolumeXAxisConfig } from "./volumeChartAxis";
 import {
   prepareVolumeChartData,
@@ -219,7 +220,7 @@ export default function VolumeChart({
 
   const periodoLabelLongo = PERIODO_LABEL_LONGO[periodId];
 
-  const { data: real, isLoading, isError } = useQuery({
+  const { data: real, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["gestor-analytics", "volume", agrupamentoAtual, periodo.dias],
     queryFn: () => fetchVolume(token, agrupamentoAtual, periodo.dias),
     staleTime: 60_000,
@@ -349,7 +350,10 @@ export default function VolumeChart({
         {isLoading ? (
           <AnalyticsSkeleton height={emPainel ? chartHeight + 88 : 320} />
         ) : isError ? (
-          <p className="py-12 text-center text-sm text-[#78716c]">Sem dados suficientes.</p>
+          <AnalyticsErrorState
+            message={error instanceof Error ? error.message : "Erro ao carregar o volume de encomendas."}
+            onRetry={() => refetch()}
+          />
         ) : chartData.length === 0 ? (
           <p className="py-12 text-center text-sm text-[#78716c]">Sem dados suficientes.</p>
         ) : (

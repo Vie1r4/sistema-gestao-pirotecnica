@@ -123,68 +123,6 @@ public sealed class GestorAnalyticsService(IGestorAnalyticsRepository repo) : IG
             hoje);
     }
 
-    public async Task<PrevisaoResponseDto> GetPrevisaoAsync(int dias, decimal crescimentoPct, CancellationToken cancellationToken = default)
-    {
-        dias = dias is 30 or 60 or 90 ? dias : 30;
-        var desde = DateTime.UtcNow.Date.AddMonths(-12);
-        var rows = await repo.ListEncomendaDatasAsync(desde, cancellationToken);
-        var porSemana = rows
-            .GroupBy(r => (Ano: ISOWeek.GetYear(r.DataCriacao), Semana: ISOWeek.GetWeekOfYear(r.DataCriacao)))
-            .Select(g => new { g.Key.Ano, g.Key.Semana, Total = g.Count() })
-            .ToList();
-
-        var media = porSemana.Count > 0 ? (decimal)porSemana.Average(x => x.Total) : 1m;
-        var std = porSemana.Count > 1
-            ? (decimal)Math.Sqrt(porSemana.Average(x => Math.Pow(x.Total - (double)media, 2)))
-            : media * 0.2m;
-        var factor = 1m + crescimentoPct / 100m;
-
-        var historico = rows
-            .GroupBy(r => r.DataCriacao.Date)
-            .OrderBy(g => g.Key)
-            .TakeLast(60)
-            .Select(g => new PrevisaoPontoDto
-            {
-                Data = g.Key.ToString("yyyy-MM-dd"),
-                Valor = g.Count(),
-                Min = g.Count(),
-                Max = g.Count()
-            })
-            .ToList();
-
-        var previsao = new List<PrevisaoPontoDto>();
-        var hoje = DateTime.UtcNow.Date;
-        for (var i = 1; i <= dias; i++)
-        {
-            var dt = hoje.AddDays(i);
-            var sem = ISOWeek.GetWeekOfYear(dt);
-            var sazonal = porSemana.FirstOrDefault(x => x.Semana == sem)?.Total ?? (double)media;
-            var val = (decimal)sazonal * factor;
-            previsao.Add(new PrevisaoPontoDto
-            {
-                Data = dt.ToString("yyyy-MM-dd"),
-                Valor = Math.Round(val, 1),
-                Min = Math.Round(Math.Max(0, val - std), 1),
-                Max = Math.Round(val + std, 1)
-            });
-        }
-
-        var total14 = previsao.Take(14).Sum(p => p.Valor);
-        var total14Int = (int)Math.Round(total14);
-
-        return new PrevisaoResponseDto
-        {
-            Dias = dias,
-            CrescimentoPct = crescimentoPct,
-            Historico = historico,
-            Previsao = previsao,
-            TotalPrevisto14Dias = total14,
-            ResumoDestaque = total14Int <= 0
-                ? "Ainda não há base histórica suficiente para uma previsão fiável."
-                : $"Prevemos cerca de {total14Int} encomendas nas próximas 2 semanas."
-        };
-    }
-
     public async Task<ConsumoClienteResponseDto> GetConsumoClienteAsync(
         int clienteId,
         DateOnly desde,

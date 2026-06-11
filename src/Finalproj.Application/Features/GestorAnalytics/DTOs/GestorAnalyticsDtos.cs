@@ -83,24 +83,6 @@ public sealed class ConsumoClienteResponseDto
     public IReadOnlyList<FiltroOpcaoDto> Clientes { get; set; } = [];
 }
 
-public sealed class PrevisaoPontoDto
-{
-    public string Data { get; set; } = "";
-    public decimal Valor { get; set; }
-    public decimal Min { get; set; }
-    public decimal Max { get; set; }
-}
-
-public sealed class PrevisaoResponseDto
-{
-    public int Dias { get; set; }
-    public decimal CrescimentoPct { get; set; }
-    public IReadOnlyList<PrevisaoPontoDto> Historico { get; set; } = [];
-    public IReadOnlyList<PrevisaoPontoDto> Previsao { get; set; } = [];
-    public decimal TotalPrevisto14Dias { get; set; }
-    public string ResumoDestaque { get; set; } = "";
-}
-
 public sealed class TopClienteLinhaDto
 {
     public int ClienteId { get; set; }

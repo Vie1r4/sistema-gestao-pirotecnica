@@ -79,6 +79,9 @@ _build_verify/
 build_tmp/
 client-eslint.json
 
+# Frontend legado (substituído por apps/web/) — não versionar
+client/
+
 # Tye
 .tye/
 

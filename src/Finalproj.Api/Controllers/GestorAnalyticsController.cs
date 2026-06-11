@@ -26,13 +26,6 @@ public class GestorAnalyticsController(IGestorAnalyticsService analytics) : Cont
         CancellationToken cancellationToken = default) =>
         OkResult(analytics.GetComparacaoAnualAsync(produtoId, clienteId, cancellationToken));
 
-    [HttpGet("previsao")]
-    public Task<IActionResult> Previsao(
-        [FromQuery] int dias = 30,
-        [FromQuery] decimal crescimentoPct = 0,
-        CancellationToken cancellationToken = default) =>
-        OkResult(analytics.GetPrevisaoAsync(dias, crescimentoPct, cancellationToken));
-
     [HttpGet("consumo-cliente")]
     public Task<IActionResult> ConsumoCliente(
         [FromQuery] int clienteId,

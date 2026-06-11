@@ -15,13 +15,13 @@ Frontend **Next.js 16** (React 19) do sistema PIROFAFE. Consome a API do backend
 
 ## Variáveis de ambiente
 
-Crie `.env.local` para desenvolvimento (opcional; por defeito usa `https://localhost:7225`):
+Copie `.env.example` para `.env.local` (opcional; por defeito usa `https://localhost:7225`):
 
 ```env
 NEXT_PUBLIC_API_URL=https://localhost:7225
 ```
 
-Em produção, defina `NEXT_PUBLIC_API_URL` com a URL pública da API.
+Em produção, use `.env.production.example` como modelo e veja [Docs/PRODUCAO.md](../../Docs/PRODUCAO.md).
 
 ## Executar
 
@@ -30,7 +30,7 @@ npm install
 npm run dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000).
+O script `scripts/dev.mjs` mostra um **banner** com URLs organizadas (este PC, rede Wi‑Fi, adaptadores virtuais) e a porta da API para telemóvel (`5078`). Abre [http://localhost:3000](http://localhost:3000) no PC.
 
 ## Build para produção
 

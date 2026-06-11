@@ -13,6 +13,7 @@ import {
 } from "@/app/lib/gestorAnalytics";
 import { fetchList as fetchProdutosList } from "@/app/lib/produtosApi";
 import AnalyticsCard, { AnalyticsSkeleton } from "./AnalyticsCard";
+import AnalyticsErrorState from "./AnalyticsErrorState";
 
 const FILTRO_QUERY_OPTS = {
   staleTime: 0,
@@ -90,7 +91,7 @@ export default function ClienteConsumoList({
   const produtoId = materialId ? Number(materialId) : undefined;
   const intervaloValido = Boolean(desde && ate && desde <= ate);
 
-  const { data: real, isLoading, isError, isFetching } = useQuery({
+  const { data: real, isLoading, isError, isFetching, error, refetch } = useQuery({
     queryKey: [
       "gestor-analytics",
       "consumo-cliente",
@@ -272,9 +273,10 @@ export default function ClienteConsumoList({
       ) : busy ? (
         <AnalyticsSkeleton height={compact ? 160 : 220} />
       ) : isError ? (
-        <p className={`text-center text-sm text-[#78716c] ${compact ? "py-6" : "py-10"}`}>
-          Não foi possível carregar os dados.
-        </p>
+        <AnalyticsErrorState
+          message={error instanceof Error ? error.message : "Erro ao carregar o consumo do cliente."}
+          onRetry={() => refetch()}
+        />
       ) : !data?.linhas.length ? (
         <p className={`text-center text-sm text-[#78716c] ${compact ? "py-6" : "py-10"}`}>
           Sem linhas para{" "}

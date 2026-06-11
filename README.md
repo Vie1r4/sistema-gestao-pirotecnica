@@ -8,11 +8,13 @@ Aplicação full-stack: **backend** ASP.NET Core 8 (API REST + Identity) e **fro
 
 | Área | Ligação rápida |
 |------|----------------|
+| **Preparar demo / defesa** | [Docs/DEMO-PREPARACAO.md](Docs/DEMO-PREPARACAO.md) |
 | **Iniciantes** | [Docs/guia-iniciantes.md](Docs/guia-iniciantes.md) |
 | **Arquitetura** | [Docs/ARQUITETURA.md](Docs/ARQUITETURA.md) |
 | **API** | [Docs/API.md](Docs/API.md) |
 | **Testes** | [Docs/TESTES.md](Docs/TESTES.md) |
 | **Segurança** | [Docs/SEGURANCA.md](Docs/SEGURANCA.md) |
+| **Produção** | [Docs/PRODUCAO.md](Docs/PRODUCAO.md) |
 | **Roles** | [Docs/ROLES-E-PERMISSOES.md](Docs/ROLES-E-PERMISSOES.md) |
 | **Operações** | [Docs/OPERACOES.md](Docs/OPERACOES.md) |
 
@@ -102,12 +104,7 @@ dotnet user-secrets set "Email:From" "seu-email@gmail.com" --project src/Finalpr
 dotnet user-secrets set "Frontend:BaseUrl" "http://localhost:3000" --project src/Finalproj.Api/Finalproj.Api.csproj
 ```
 
-Em **produção**, use variáveis de ambiente ou Azure Key Vault (por exemplo `Jwt__Secret`, `Cors__AllowedOrigins`).
-
-### Seed de utilizadores (opcional; desativado por defeito)
-
-O projeto suporta criação opcional de contas de teste por cargo (admin/gestor/comercial/armazém) **apenas se** `SeedUsers:Enabled=true` e existir `SeedUsers:Password` definido via segredos (User Secrets / env vars).  
-Por segurança, **não** guardes passwords de seed no repositório.
+Em **produção**, use variáveis de ambiente ou Azure Key Vault (por exemplo `Jwt__Secret`, `Cors__AllowedOrigins`). Checklist completo: [Docs/PRODUCAO.md](Docs/PRODUCAO.md) — a API **não arranca** em `Production` se CORS, bootstrap ou segredos estiverem mal configurados.
 
 ### CORS
 
