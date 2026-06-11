@@ -74,7 +74,7 @@ Auth: JWT + refresh HttpOnly; endpoints em `AuthController`. Listagem completa d
 1. HSTS (não-Development) → middleware de erros JSON em `/api/*`.
 2. HTTPS (prod) → static files → routing → CORS → session → auth → controllers.
 3. `RequestDiagnosticsMiddleware` — `X-Correlation-Id`, latência (ver [OPERACOES.md](OPERACOES.md)).
-4. Arranque: `MigrateAsync`, seed de roles, opcional seed de utilizadores (`SeedUsers:Enabled=false` por defeito).
+4. Arranque: `MigrateAsync` (inclui evolução de schema, ex. `ServicoPaiolDataRegisto` para KPIs do gestor), seed de roles, opcional seed de utilizadores (`SeedUsers:Enabled=false` por defeito).
 
 ---
 

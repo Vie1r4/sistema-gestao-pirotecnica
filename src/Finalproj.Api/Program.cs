@@ -370,7 +370,6 @@ static async Task InicializarAsync(WebApplication app)
     await GarantirColunaTemaPerfilAsync(context);
     await GarantirColunaDistanciaSegurancaPublicoProdutoAsync(context);
     await GarantirColunasSoftDeleteClienteFuncionarioAsync(context);
-    await GarantirColunasDataRegistoServicoPaiolAsync(context);
     DbInitializer.Initialize(context);
     await SeedRoles.InitializeAsync(scope.ServiceProvider);
     if (app.Environment.IsDevelopment())
@@ -438,48 +437,6 @@ static async Task GarantirColunasSoftDeleteClienteFuncionarioAsync(FinalprojCont
            AND COL_LENGTH(N'Funcionarios', N'EliminadoEm') IS NULL
         BEGIN
             ALTER TABLE [Funcionarios] ADD [EliminadoEm] DATETIME2 NULL;
-        END
-        """);
-}
-
-static async Task GarantirColunasDataRegistoServicoPaiolAsync(FinalprojContext context)
-{
-    // Cada ALTER/UPDATE num batch separado: o SQL Server valida referências à coluna
-    // antes de executar o batch (UPDATE falha se DataRegisto ainda não existir no mesmo batch).
-    await context.Database.ExecuteSqlRawAsync(
-        """
-        IF OBJECT_ID(N'[dbo].[Servicos]', N'U') IS NOT NULL
-           AND COL_LENGTH(N'Servicos', N'DataRegisto') IS NULL
-        BEGIN
-            ALTER TABLE [Servicos] ADD [DataRegisto] DATETIME2 NULL;
-        END
-        """);
-    await context.Database.ExecuteSqlRawAsync(
-        """
-        IF OBJECT_ID(N'[dbo].[Servicos]', N'U') IS NOT NULL
-           AND COL_LENGTH(N'Servicos', N'DataRegisto') IS NOT NULL
-        BEGIN
-            UPDATE [Servicos]
-            SET [DataRegisto] = CAST([DataServico] AS DATETIME2)
-            WHERE [DataRegisto] IS NULL;
-        END
-        """);
-    await context.Database.ExecuteSqlRawAsync(
-        """
-        IF OBJECT_ID(N'[dbo].[Paiol]', N'U') IS NOT NULL
-           AND COL_LENGTH(N'Paiol', N'DataRegisto') IS NULL
-        BEGIN
-            ALTER TABLE [Paiol] ADD [DataRegisto] DATETIME2 NULL;
-        END
-        """);
-    await context.Database.ExecuteSqlRawAsync(
-        """
-        IF OBJECT_ID(N'[dbo].[Paiol]', N'U') IS NOT NULL
-           AND COL_LENGTH(N'Paiol', N'DataRegisto') IS NOT NULL
-        BEGIN
-            UPDATE [Paiol]
-            SET [DataRegisto] = CAST('2000-01-01' AS DATETIME2)
-            WHERE [DataRegisto] IS NULL;
         END
         """);
 }

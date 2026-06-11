@@ -40,6 +40,8 @@ Cada cartão compara o **total actual** com o **total de há 7 dias** (UTC, iní
 
 Campo API: `kpiContexto.<entidade>.deltaSemana` em `GET /api/home/gestor-dashboard`.
 
+Schema: colunas `DataRegisto` em `Servicos` e `Paiol` via migração EF `ServicoPaiolDataRegisto` (backfill de registos antigos na própria migração).
+
 > Reorganização inspirada num layout de referência (cabeçalho com estado, tabs, gráfico herói com 2 séries, tabela de eventos). Sem gráficos novos — apenas redistribuição dos componentes existentes, mantendo a paleta laranja `#f97316`/`#ea580c`.
 
 ## Widgets e API
