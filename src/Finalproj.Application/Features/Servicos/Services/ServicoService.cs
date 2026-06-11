@@ -119,6 +119,7 @@ public class ServicoService : IServicoService
             return (null, errorMsg);
 
         servico.ResponsavelTecnicoId = null;
+        servico.DataRegisto ??= DateTime.UtcNow;
 
         await _servicoRepository.AddAsync(servico, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -156,6 +157,7 @@ public class ServicoService : IServicoService
             return (null, erro);
 
         await GravarZonasAsync(created.Id, dto.Zonas, itens, cancellationToken);
+        await AtualizarRaioPublicoServicoAsync(created, dto.Zonas, itens, cancellationToken);
         return (created, null);
     }
 
@@ -215,6 +217,7 @@ public class ServicoService : IServicoService
         await _zonasRepository.ClearForServicoAsync(id, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         await GravarZonasAsync(id, dto.Zonas, itens, cancellationToken);
+        await AtualizarRaioPublicoServicoAsync(existente, dto.Zonas, itens, cancellationToken);
 
         if (documentosNovos != null && documentosNovos.Count > 0)
             await AdicionarDocumentosExtrasAsync(id, documentosNovos, cancellationToken);
@@ -360,31 +363,7 @@ public class ServicoService : IServicoService
     /// <inheritdoc />
     public async Task EnsureDistanciasSegurancaAsync(int servicoId, string? divisaoDominante, CancellationToken cancellationToken = default)
     {
-        var existentes = await _servicoDistanciaSegurancaRepository.ListTiposByServicoIdAsync(servicoId, cancellationToken);
-        var tipos = Enum.GetValues<TipoReferenciaDistancia>().Where(t => t != TipoReferenciaDistancia.OUTRO).ToList();
-        var faltam = tipos.Where(t => !existentes.Contains(t)).ToList();
-        if (faltam.Count == 0) return;
-        foreach (var tipo in faltam)
-        {
-            int min = tipo == TipoReferenciaDistancia.HABITACAO
-                ? ConstantesDistanciaSeguranca.HabitacaoMinimaMetros(divisaoDominante)
-                : tipo switch
-                {
-                    TipoReferenciaDistancia.ESTRADA_NACIONAL => ConstantesDistanciaSeguranca.EstradaNacional,
-                    TipoReferenciaDistancia.AUTOESTRADA => ConstantesDistanciaSeguranca.Autoestrada,
-                    TipoReferenciaDistancia.LINHA_ALTA_TENSAO => ConstantesDistanciaSeguranca.LinhaAltaTensao,
-                    TipoReferenciaDistancia.FLORESTA => ConstantesDistanciaSeguranca.Floresta,
-                    _ => 50
-                };
-            await _servicoDistanciaSegurancaRepository.AddAsync(new ServicoDistanciaSeguranca
-            {
-                ServicoId = servicoId,
-                TipoReferencia = tipo,
-                DescricaoReferencia = ConstantesDistanciaSeguranca.Nome(tipo),
-                DistanciaMinima_m = min
-            }, cancellationToken);
-        }
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await EnsureDistanciasSegurancaZonasAsync(servicoId, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -394,19 +373,21 @@ public class ServicoService : IServicoService
         if (servico?.ZonasLancamento == null || servico.ZonasLancamento.Count == 0)
             return;
 
+        int? maxServico = null;
         foreach (var zona in servico.ZonasLancamento)
         {
             var linhas = zona.Linhas?.ToList() ?? new List<ServicoZonaLinha>();
-            var produtos = linhas.Where(l => l.Produto != null).Select(l => l.Produto!).ToList();
-            var itensVirtuais = linhas.Select(l => new EncomendaItem
-            {
-                ProdutoId = l.ProdutoId,
-                QuantidadePedida = l.Quantidade,
-                Produto = l.Produto
-            }).ToList();
-            var divisao = CalcularResumoMaterial(servico.EncomendaId, itensVirtuais).DivisaoDominante;
-            await _zonasRepository.AddDistanciasPadraoAsync(zona.Id, divisao, cancellationToken);
+            var produtosPorId = linhas
+                .Where(l => l.Produto != null)
+                .GroupBy(l => l.ProdutoId)
+                .ToDictionary(g => g.Key, g => g.First().Produto!);
+            var distanciaExigida = CalculoAreaSegurancaPublico.CalcularRaioMetros(linhas.Select(l => l.ProdutoId), produtosPorId);
+            await _zonasRepository.SyncDistanciasSegurancaZonaAsync(zona.Id, distanciaExigida, cancellationToken);
+            if (distanciaExigida.HasValue)
+                maxServico = maxServico.HasValue ? Math.Max(maxServico.Value, distanciaExigida.Value) : distanciaExigida;
         }
+
+        await _servicoDistanciaSegurancaRepository.SyncDistanciasSegurancaServicoAsync(servicoId, maxServico, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
@@ -504,15 +485,19 @@ public class ServicoService : IServicoService
             .GroupBy(i => i.ProdutoId)
             .ToDictionary(g => g.Key, g => g.First().Produto!);
 
+        int? maxServico = null;
         foreach (var zDto in zonasDto)
         {
+            var produtoIdsZona = zDto.Linhas.Select(l => l.ProdutoId);
+            var raioCalculado = CalculoAreaSegurancaPublico.CalcularRaioMetros(produtoIdsZona, produtosPorId);
+
             var zona = new ServicoZonaLancamento
             {
                 ServicoId = servicoId,
                 Designacao = zDto.Designacao?.Trim(),
                 CoordenadasLat = zDto.CoordenadasLat,
                 CoordenadasLng = zDto.CoordenadasLng,
-                RaioPublico = zDto.RaioPublico,
+                RaioPublico = raioCalculado,
                 ResponsavelPirotecnicoId = zDto.ResponsavelPirotecnicoId,
                 Observacoes = zDto.Observacoes?.Trim()
             };
@@ -530,14 +515,36 @@ public class ServicoService : IServicoService
             await _zonasRepository.AddAsync(zona, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            var itensVirtuais = zona.Linhas.Select(l =>
-            {
-                produtosPorId.TryGetValue(l.ProdutoId, out var p);
-                return new EncomendaItem { ProdutoId = l.ProdutoId, QuantidadePedida = l.Quantidade, Produto = p! };
-            }).ToList();
-            var resumo = CalcularResumoMaterial(servicoId, itensVirtuais);
-            await _zonasRepository.AddDistanciasPadraoAsync(zona.Id, resumo.DivisaoDominante, cancellationToken);
+            await _zonasRepository.SyncDistanciasSegurancaZonaAsync(zona.Id, raioCalculado, cancellationToken);
+            if (raioCalculado.HasValue)
+                maxServico = maxServico.HasValue ? Math.Max(maxServico.Value, raioCalculado.Value) : raioCalculado;
         }
+
+        await _servicoDistanciaSegurancaRepository.SyncDistanciasSegurancaServicoAsync(servicoId, maxServico, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task AtualizarRaioPublicoServicoAsync(
+        Servico servico,
+        IReadOnlyList<ServicoZonaLancamentoInputDto> zonasDto,
+        IReadOnlyList<EncomendaItem> itensEncomenda,
+        CancellationToken cancellationToken)
+    {
+        var produtosPorId = itensEncomenda
+            .Where(i => i.Produto != null)
+            .GroupBy(i => i.ProdutoId)
+            .ToDictionary(g => g.Key, g => g.First().Produto!);
+
+        int? maxRaio = null;
+        foreach (var zDto in zonasDto)
+        {
+            var raio = CalculoAreaSegurancaPublico.CalcularRaioMetros(zDto.Linhas.Select(l => l.ProdutoId), produtosPorId);
+            if (!raio.HasValue)
+                continue;
+            maxRaio = maxRaio.HasValue ? Math.Max(maxRaio.Value, raio.Value) : raio;
+        }
+
+        servico.RaioPublico = maxRaio;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 

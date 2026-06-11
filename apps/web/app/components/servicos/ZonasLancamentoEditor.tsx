@@ -4,6 +4,7 @@ import type { Dispatch, SetStateAction } from "react";
 import MapaCoordenadas from "@/app/components/MapaCoordenadas";
 import {
   calcularAllocacao,
+  calcularRaioPublicoZona,
   createEmptyLinha,
   createEmptyZona,
   formatQuantidadeDisplay,
@@ -111,6 +112,7 @@ export default function ZonasLancamentoEditor({
             <thead>
               <tr className="border-b border-[#e7e5e4] bg-[#fafaf9] dark:border-[#333] dark:bg-[#141414]">
                 <th className="px-3 py-2 font-semibold">Produto</th>
+                <th className="px-3 py-2 text-right font-semibold">Dist. público</th>
                 <th className="px-3 py-2 text-right font-semibold">Pedido</th>
                 <th className="px-3 py-2 text-right font-semibold">Alocado</th>
                 <th className="px-3 py-2 text-right font-semibold">Restante</th>
@@ -124,6 +126,9 @@ export default function ZonasLancamentoEditor({
                 return (
                   <tr key={item.produtoId} className="border-b border-[#f5f5f4] dark:border-[#1a1a1a]">
                     <td className="px-3 py-2">{item.produtoNome}</td>
+                    <td className="px-3 py-2 text-right text-[#57534e] dark:text-gray-400">
+                      {item.distanciaSegurancaPublico_m != null ? `${item.distanciaSegurancaPublico_m} m` : "—"}
+                    </td>
                     <td className="px-3 py-2 text-right">{formatQuantidadeDisplay(item.quantidadePedida)}</td>
                     <td
                       className={`px-3 py-2 text-right ${linhaExcede ? "font-semibold text-red-600 dark:text-red-400" : ""}`}
@@ -154,7 +159,9 @@ export default function ZonasLancamentoEditor({
           </button>
         </div>
 
-        {zonas.map((zona, zonaIndex) => (
+        {zonas.map((zona, zonaIndex) => {
+          const raioCalculado = calcularRaioPublicoZona(zona, itensEncomenda);
+          return (
           <div
             key={zona.key}
             className="rounded-xl border border-[#e7e5e4] bg-[#fafaf9]/50 p-4 dark:border-[#333] dark:bg-[#0a0a0a]/50"
@@ -221,12 +228,22 @@ export default function ZonasLancamentoEditor({
                 readOnly={disabled}
                 lat={zona.coordenadasLat}
                 lng={zona.coordenadasLng}
-                raioMetros={zona.raioPublico}
+                raioMetros={raioCalculado ?? ""}
                 onLatChange={(v) => onChange((prev) => updateZona(prev, zona.key, { coordenadasLat: v }))}
                 onLngChange={(v) => onChange((prev) => updateZona(prev, zona.key, { coordenadasLng: v }))}
-                onRaioChange={(v) => onChange((prev) => updateZona(prev, zona.key, { raioPublico: v }))}
                 mapContainerId={`mapa-zona-${zona.key}`}
               />
+              {raioCalculado != null ? (
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                  Área de segurança ao público:{" "}
+                  <span className="font-semibold text-gray-900 dark:text-white">{raioCalculado} m</span> — calculada
+                  automaticamente (máximo entre os produtos desta zona).
+                </p>
+              ) : (
+                <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">
+                  Defina produtos com distância de segurança no catálogo para ver o raio no mapa.
+                </p>
+              )}
             </div>
 
             <div className="mt-4">
@@ -346,7 +363,8 @@ export default function ZonasLancamentoEditor({
               />
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

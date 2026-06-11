@@ -23,6 +23,8 @@ type MapaLeafletProps = {
   lng?: number;
   /** Raio em metros para desenhar um círculo à volta do ponto (ex.: distância ao público) */
   raioMetros?: number;
+  /** Enquadrar o mapa ao círculo de segurança quando `raioMetros` está definido */
+  fitToRadius?: boolean;
   markers?: MarcadorMapa[];
   onMapClick?: (lat: number, lng: number) => void;
   mapId?: string;
@@ -49,8 +51,11 @@ function createIcon(type?: "paiol" | "servico") {
 
 function heightCanvasClass(height: string, isFullscreen: boolean): string {
   if (isFullscreen) return "mapa-leaflet-canvas mapa-leaflet-canvas--fullscreen";
+  if (height === "100%") return "mapa-leaflet-canvas mapa-leaflet-canvas--fullscreen";
   if (height === "500px") return "mapa-leaflet-canvas mapa-leaflet-canvas--h-500";
   if (height === "280px") return "mapa-leaflet-canvas mapa-leaflet-canvas--h-280";
+  if (height === "220px") return "mapa-leaflet-canvas mapa-leaflet-canvas--h-220";
+  if (height === "200px") return "mapa-leaflet-canvas mapa-leaflet-canvas--h-200";
   return "mapa-leaflet-canvas mapa-leaflet-canvas--h-300";
 }
 
@@ -67,6 +72,7 @@ export default function MapaLeaflet({
   lat,
   lng,
   raioMetros,
+  fitToRadius = false,
   markers = [],
   onMapClick,
   mapId = "mapa-leaflet",
@@ -188,16 +194,20 @@ export default function MapaLeaflet({
         fillOpacity: 0.15,
         weight: 2,
       }).addTo(mapRef.current);
+      if (fitToRadius) {
+        mapRef.current.fitBounds(circleRef.current.getBounds(), { padding: [28, 28], maxZoom: 17 });
+      }
     }
-  }, [lat, lng, raioMetros]);
+  }, [lat, lng, raioMetros, fitToRadius]);
 
   useEffect(() => {
     if (!mapRef.current) return;
+    if (fitToRadius && raioMetros != null && raioMetros > 0) return;
     if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
     const map = mapRef.current;
     const targetZoom = Math.max(map.getZoom(), 15);
     map.setView([lat, lng], targetZoom, { animate: true });
-  }, [lat, lng]);
+  }, [lat, lng, fitToRadius, raioMetros]);
 
   const wrapClass = isFullscreen
     ? `mapa-leaflet-wrap mapa-leaflet-wrap--fullscreen relative ${className}`

@@ -6,7 +6,6 @@ public interface IGestorAnalyticsService
 {
     Task<VolumeResponseDto> GetVolumeAsync(string granularidade, int dias, CancellationToken cancellationToken = default);
     Task<ComparacaoAnualResponseDto> GetComparacaoAnualAsync(
-        string periodoId,
         int? produtoId,
         int? clienteId,
         CancellationToken cancellationToken = default);

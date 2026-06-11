@@ -5,7 +5,6 @@ using Finalproj.Domain.Interfaces;
 namespace Finalproj.Application.Features.Paiols.Services;
 
 public sealed class SaidaPaiolApplicationService(
-    IPaiolAcessoRepository acessos,
     IPaiolRepository paiois,
     IProdutoRepository produtos,
     IEntradaPaiolRepository entradas,
@@ -14,10 +13,9 @@ public sealed class SaidaPaiolApplicationService(
 {
     public async Task<(Paiol? Paiol, Produto? Produto, decimal StockDisponivel, bool TemAcesso)> GetFormularioAsync(int paiolId, int produtoId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken = default)
     {
-        var idsAcesso = await acessos.ListPaiolIdsByRoleNamesAsync(roles, cancellationToken);
         var paiol = await paiois.GetByIdAsync(paiolId, cancellationToken);
         var produto = await produtos.GetByIdAsync(produtoId, cancellationToken);
-        return (paiol, produto, await StockAsync(paiolId, produtoId, cancellationToken), idsAcesso.Contains(paiolId));
+        return (paiol, produto, await StockAsync(paiolId, produtoId, cancellationToken), paiol != null);
     }
 
     public async Task<(SaidaPaiol? Saida, Paiol? Paiol, Produto? Produto, string? Erro, decimal StockDisponivel, bool TemAcesso)> RegistarAsync(SaidaPaiolViewModel model, string? userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken = default)

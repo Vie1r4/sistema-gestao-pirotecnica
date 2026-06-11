@@ -27,7 +27,6 @@ function mapApiToPaiolDetalhe(data: Record<string, unknown> | null, id: string):
   if (!p) return null;
   const get = (key: string) => p[key] ?? p[key.charAt(0).toUpperCase() + key.slice(1)];
   const docExtras = (get("documentosExtras") ?? get("DocumentosExtras") ?? []) as Array<Record<string, unknown>>;
-  const cargos = (get("cargosAcesso") ?? data.cargosAcesso ?? data.CargosAcesso ?? []) as string[];
   const paiol: Paiol = {
     id: String(get("id") ?? get("Id") ?? id),
     nome: String(get("nome") ?? get("Nome") ?? ""),
@@ -40,7 +39,6 @@ function mapApiToPaiolDetalhe(data: Record<string, unknown> | null, id: string):
     dataValidadeLicenca: (get("dataValidadeLicenca") ?? get("DataValidadeLicenca")) as string | undefined,
     numeroLicenca: (get("numeroLicenca") ?? get("NumeroLicenca")) as string | undefined,
     divisaoDominante: (get("divisaoDominante") ?? get("DivisaoDominante")) as string | undefined,
-    cargosAcesso: Array.isArray(cargos) ? (cargos as Paiol["cargosAcesso"]) : [],
     documentosExtras: docExtras.map((d) => ({
       id: String(d.id ?? d.Id ?? ""),
       nome: String(d.nome ?? d.Nome ?? ""),
@@ -235,12 +233,6 @@ export default function PaiolDetalhePage() {
                 <div>
                   <dt className={labelClass}>Estado</dt>
                   <dd className="mt-1 text-gray-600 dark:text-gray-400">{paiol.estado}</dd>
-                </div>
-                <div>
-                  <dt className={labelClass}>Cargos com acesso</dt>
-                  <dd className="mt-1 text-gray-600 dark:text-gray-400">
-                    {paiol.cargosAcesso?.length ? paiol.cargosAcesso.join(", ") : "—"}
-                  </dd>
                 </div>
               </dl>
             </motion.section>

@@ -75,6 +75,9 @@ artifacts/
 
 # Saída local de testes (ex.: dotnet build -o _build_test_out)
 _build_test_out/
+_build_verify/
+build_tmp/
+client-eslint.json
 
 # Tye
 .tye/

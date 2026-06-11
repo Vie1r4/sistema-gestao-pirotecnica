@@ -11,11 +11,9 @@ import { getToken } from "@/app/lib/auth";
 import {
   PERFIS_RISCO,
   ESTADOS_PAIOL,
-  CARGOS_ACESSO_PAIOL,
   labelPerfilRisco,
   validarLimiteMLE,
   type PaiolDocumentoExtra,
-  type CargoAcessoPaiol,
   type PerfilRiscoPaiol,
   type EstadoPaiol,
 } from "@/app/lib/armazem";
@@ -56,7 +54,6 @@ export default function NovoPaiolPage() {
     numeroLicenca: "",
     dataValidadeLicenca: "",
   });
-  const [cargosAcesso, setCargosAcesso] = useState<CargoAcessoPaiol[]>([]);
   const [extras, setExtras] = useState<PaiolDocumentoExtra[]>([]);
   const [extrasFiles, setExtrasFiles] = useState<(File | null)[]>([]);
   const submittingRef = useRef(false);
@@ -95,12 +92,6 @@ export default function NovoPaiolPage() {
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  const toggleCargo = (c: CargoAcessoPaiol) => {
-    setCargosAcesso((prev) =>
-      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]
-    );
-  };
 
   const addDocExtra = () => {
     setExtras((e) => [...e, { id: `ex-${Date.now()}`, nome: "" }]);
@@ -163,8 +154,6 @@ export default function NovoPaiolPage() {
     if (form.numeroLicenca?.trim()) fd.append("Paiol.NumeroLicenca", form.numeroLicenca.trim());
     if (lat != null) fd.append("Paiol.CoordenadasLat", String(lat));
     if (lng != null) fd.append("Paiol.CoordenadasLng", String(lng));
-    const cargosParaEnviar = cargosAcesso.length > 0 ? cargosAcesso : ["Admin"];
-    cargosParaEnviar.forEach((c) => fd.append("CargosAcesso", c));
     extras.forEach((ex, i) => {
       const file = extrasFiles[i];
       if (file) {
@@ -354,33 +343,6 @@ export default function NovoPaiolPage() {
                     className={inputClass}
                   />
                 </div>
-              </div>
-            </motion.section>
-
-            <motion.section
-              initial={fadeInUp.initial}
-              animate={fadeInUp.animate}
-              transition={{ ...transitionSmooth, delay: 0.1 }}
-              className={cardClass}
-            >
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Cargos com acesso
-              </h2>
-              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                Seleccione os cargos (roles) que podem aceder a este paiol.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-4">
-                {CARGOS_ACESSO_PAIOL.map((c) => (
-                  <label key={c} className="flex cursor-pointer items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={cargosAcesso.includes(c)}
-                      onChange={() => toggleCargo(c)}
-                      className="h-4 w-4 rounded border-gray-300 text-[#f97316] focus:ring-[#f97316]"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{c}</span>
-                  </label>
-                ))}
               </div>
             </motion.section>
 

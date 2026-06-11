@@ -7,6 +7,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import MapaCoordenadas from "@/app/components/MapaCoordenadas";
+import MapaZonaPreview from "@/app/components/MapaZonaPreview";
+import ReferenciaIndisponivel from "@/app/components/ReferenciaIndisponivel";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { fetchServicoDetalheFromApi, servicosApi } from "@/app/lib/servicos";
@@ -42,6 +44,8 @@ export default function ServicoDetalhePage() {
   const canGerirServicos = permissions.includes("servicos.gerir");
   const canApagarServicos = permissions.includes("servicos.apagar");
   const canDocumentacao = permissions.includes("documentacao.gerir");
+  const canGerirClientes = permissions.includes("clientes.gerir");
+  const canGerirFuncionarios = permissions.includes("funcionarios.gerir");
   const [coordsCopied, setCoordsCopied] = useState(false);
   const [docNome, setDocNome] = useState("");
   const [docFicheiro, setDocFicheiro] = useState<File | null>(null);
@@ -300,7 +304,20 @@ export default function ServicoDetalhePage() {
               <div className="min-w-0 flex-1 px-5 py-5 sm:px-6 sm:py-6">
                 <dl className="grid gap-x-6 gap-y-3.5 text-sm sm:grid-cols-[minmax(0,7.5rem)_1fr] sm:gap-y-3">
                   <dt className="text-[#57534e] dark:text-gray-400 sm:pt-0.5">Cliente</dt>
-                  <dd className="text-[#1c1917] dark:text-gray-100">{servico.cliente?.nome ?? servico.clienteId}</dd>
+                  <dd className="text-[#1c1917] dark:text-gray-100">
+                    {servico.cliente ? (
+                      <ReferenciaIndisponivel
+                        href={`/clientes/${servico.clienteId}`}
+                        nome={servico.cliente.nome}
+                        disponivel={servico.cliente.disponivel !== false}
+                        navegavel={canGerirClientes}
+                        tipo="cliente"
+                        className="text-[#1c1917] dark:text-gray-100"
+                      />
+                    ) : (
+                      servico.clienteId
+                    )}
+                  </dd>
                   {servico.nomeEvento && (
                     <>
                       <dt className="text-[#57534e] dark:text-gray-400 sm:pt-0.5">Evento</dt>
@@ -317,12 +334,14 @@ export default function ServicoDetalhePage() {
                     <>
                       <dt className="text-[#57534e] dark:text-gray-400 sm:pt-0.5">Coordenador pirotécnico</dt>
                       <dd className="text-[#1c1917] dark:text-gray-100">
-                        <Link
+                        <ReferenciaIndisponivel
                           href={`/funcionarios/${servico.coordenadorPirotecnico.id}`}
-                          className="text-[#f97316] hover:underline"
-                        >
-                          {servico.coordenadorPirotecnico.nomeCompleto}
-                        </Link>
+                          nome={servico.coordenadorPirotecnico.nomeCompleto}
+                          disponivel={servico.coordenadorPirotecnico.disponivel !== false}
+                          navegavel={canGerirFuncionarios}
+                          tipo="funcionário"
+                          className="text-[#1c1917] dark:text-gray-100"
+                        />
                         {servico.coordenadorPirotecnico.numeroCredencial
                           ? ` — CRED n.º ${servico.coordenadorPirotecnico.numeroCredencial}`
                           : " — CRED por preencher na ficha do funcionário"}
@@ -399,12 +418,14 @@ export default function ServicoDetalhePage() {
                         key={`equipa-${equipaIndex}-${m.funcionarioId || m.funcionario?.id || "x"}`}
                         className="flex flex-wrap items-center gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-white/80 dark:hover:bg-[#1f1f1f]/80"
                       >
-                        <Link
+                        <ReferenciaIndisponivel
                           href={`/funcionarios/${m.funcionarioId}`}
-                          className="min-w-0 flex-1 font-medium text-[#1c1917] hover:text-[#f97316] hover:underline dark:text-white dark:hover:text-[#fdba74]"
-                        >
-                          {m.funcionario?.nomeCompleto ?? (m.funcionarioId ? `Funcionário #${m.funcionarioId}` : "—")}
-                        </Link>
+                          nome={m.funcionario?.nomeCompleto ?? (m.funcionarioId ? `Funcionário #${m.funcionarioId}` : "—")}
+                          disponivel={m.funcionario?.disponivel !== false}
+                          navegavel={canGerirFuncionarios}
+                          tipo="funcionário"
+                          className="min-w-0 flex-1 font-medium text-[#1c1917] dark:text-white"
+                        />
                       </li>
                     ))}
                   </ul>
@@ -534,6 +555,15 @@ export default function ServicoDetalhePage() {
                         </>
                       )}
                     </dl>
+                    {zona.coordenadasLat != null && zona.coordenadasLng != null && (
+                      <MapaZonaPreview
+                        lat={Number(zona.coordenadasLat)}
+                        lng={Number(zona.coordenadasLng)}
+                        raioMetros={zona.raioPublico}
+                        mapId={`mapa-zona-${zona.id}`}
+                        nome={zona.designacao || `Zona #${zona.id}`}
+                      />
+                    )}
                     {zona.linhas.length > 0 && (
                       <div className="mt-3 overflow-x-auto">
                         <table className="w-full text-left text-sm">
@@ -580,52 +610,8 @@ export default function ServicoDetalhePage() {
                         )}
                       </div>
                     )}
-                    {zona.distanciasSeguranca.length > 0 && (
-                      <div className="mt-3">
-                        <p className="text-sm font-medium text-[#57534e] dark:text-gray-400">Distâncias de segurança (zona)</p>
-                        <ul className="mt-1 space-y-1 text-sm">
-                          {zona.distanciasSeguranca.map((d) => (
-                            <li key={d.id}>
-                              {d.descricaoReferencia}: mín. {d.distanciaMinima_m} m
-                              {d.distanciaMedida_m != null ? ` · medida ${d.distanciaMedida_m} m` : ""}
-                              {d.cumpre != null ? (d.cumpre ? " · cumpre" : " · não cumpre") : ""}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
                   </div>
                 ))}
-              </div>
-            </motion.section>
-          )}
-
-          {/* Distâncias de segurança */}
-          {servico.distanciasSeguranca.length > 0 && (
-            <motion.section
-              initial={fadeInUp.initial}
-              animate={fadeInUp.animate}
-              transition={{ ...transitionSmooth, delay: 0.1 }}
-              className="mt-6 rounded-2xl border border-[#e7e5e4] bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111]"
-            >
-              <h2 className="mb-4 text-lg font-semibold">Distâncias de segurança</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-[#e7e5e4] dark:border-[#222]">
-                      <th className="pb-2 pr-4 font-semibold">Tipo</th>
-                      <th className="pb-2 pr-4 text-right font-semibold">Mínimo (m)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {servico.distanciasSeguranca.map((d) => (
-                      <tr key={d.id} className="border-b border-[#f5f5f4] dark:border-[#1a1a1a]">
-                        <td className="py-2 pr-4">{d.descricaoReferencia}</td>
-                        <td className="py-2 pr-4 text-right">{d.distanciaMinima_m}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
             </motion.section>
           )}

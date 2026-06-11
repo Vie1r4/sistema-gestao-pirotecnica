@@ -40,7 +40,7 @@ Seed: `SeedRoles` no arranque da API.
 | `PodeGerirFuncionarios` | Admin, Gestor |
 | `PodeGerirDocumentacaoRegulatoria` | Admin, Gestor (geração/download declaração PSP **PedidoGerado**; outros perfis recebem **404**) |
 
-**GET sensíveis:** funcionários, clientes e encomendas exigem as políticas de gestão respetivas. **Paióis:** também `PaiolAcesso` por role.
+**GET sensíveis:** funcionários, clientes e encomendas exigem as políticas de gestão respetivas. **Paióis:** visíveis para quem tem `PodeVerArmazemStock` (todos os paióis são iguais para todos os perfis autorizados).
 
 Usar `[Authorize(Policy = "...")]` nos controllers; validação **sempre** no servidor.
 

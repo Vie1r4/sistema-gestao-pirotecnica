@@ -17,6 +17,13 @@ public interface IGestorAnalyticsRepository
         DateTime desdeUtc,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<(DateTime DataCriacao, int EncomendaId, string ClienteNome, string ProdutoPrincipal)>> ListYoYEncomendaDetalheAsync(
+        DateTime desdeUtc,
+        DateTime ateUtc,
+        CancellationToken cancellationToken = default,
+        int? clienteId = null,
+        int? produtoId = null);
+
     Task<int> CountClientesRegistadosDesdeAsync(DateTime desdeUtc, CancellationToken cancellationToken = default);
 
     Task<int> CountEncomendasCreatedBetweenAsync(DateTime desdeUtc, DateTime ateUtc, CancellationToken cancellationToken = default);

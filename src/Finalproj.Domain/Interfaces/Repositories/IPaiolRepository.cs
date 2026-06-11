@@ -9,6 +9,7 @@ public interface IPaiolRepository
     Task DeleteAsync(Paiol entity, CancellationToken cancellationToken = default);
 
     Task<int> CountByEstadoAsync(string estado, CancellationToken cancellationToken = default);
+    Task<int> CountAtivosExistentesEmAsync(DateTime ateUtcExclusive, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Paiol>> ListByIdsOrderedAsync(IReadOnlyCollection<int> ids, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Paiol>> ListAllOrderedAsync(CancellationToken cancellationToken = default);
     Task<Paiol?> FindTrackedByIdAsync(int id, CancellationToken cancellationToken = default);

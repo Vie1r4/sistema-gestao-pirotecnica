@@ -191,12 +191,12 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | GET | `/{id}/upload-licenca` | Dados para upload de licença |
 | POST | `/{id}/upload-licenca` | Upload de licença |
 | GET | `/{id}/licenca/{licencaId}/ficheiro` | Ficheiro de licença |
-| PUT | `/{id}/distancia-seguranca/{distanciaId}` | Atualizar distância de segurança |
+| PUT | `/{id}/distancia-seguranca/{distanciaId}` | **Legado** — atualizar distância medida manualmente; valores são recalculados ao gravar zonas (fonte: MAX de `distanciaSegurancaPublico_m` do catálogo). Não exposto na UI. |
 | POST | `/{id}/licenca/gerar` | Gerar declaração PSP (PDF, Admin/Gestor; 404 para restantes) |
 
 **Documentação regulatória:** ver [documentacao-regulatoria/README.md](./documentacao-regulatoria/README.md).
 
-**DTOs:** lista e **`servico`** em create/edit/delete/detalhe como **ServicoResponseDto** (inclui **`nomeEvento`**, **`coordenadorPirotecnicoId`**, **`zonasLancamento`** com linhas e distâncias por zona). POST/PUT usam **`ServicoSaveRequestDto`** (`equipaIds` histórico; **`responsavelPirotecnicoId`** por zona tem de pertencer à equipa). GET **`/create`** e **`/{id}/edit`** devolvem **`funcionarios`** (todos, para coordenador/equipa/responsáveis de zona). No GET **`/{id}`**, **`itensEncomenda`** são DTOs de item+produto, **`paiolParaRota`** usa coordenadas da primeira zona (fallback: serviço), licenças sem caminho de ficheiro no JSON (**`hasFicheiro`**). Ver [CONTRATOS-API-DTOs.md](./CONTRATOS-API-DTOs.md).
+**DTOs:** lista e **`servico`** em create/edit/delete/detalhe como **ServicoResponseDto** (inclui **`nomeEvento`**, **`coordenadorPirotecnicoId`**, **`zonasLancamento`** com linhas e distâncias por zona). POST/PUT usam **`ServicoSaveRequestDto`** (`equipaIds` histórico; **`responsavelPirotecnicoId`** por zona tem de pertencer à equipa; **`raioPublico`** ignorado — calculado a partir dos produtos). **Distâncias de segurança** (serviço e por zona): sincronizadas no servidor como o **máximo** de `distanciaSegurancaPublico_m` dos produtos alocados (por zona; serviço = máximo entre zonas); todas as linhas por tipo de referência recebem o mesmo valor (`distanciaMinima_m` = `distanciaMedida_m`). GET **`/create`** e **`/{id}/edit`** devolvem **`funcionarios`** (todos, para coordenador/equipa/responsáveis de zona). No GET **`/{id}`**, **`itensEncomenda`** são DTOs de item+produto (incl. **`distanciaSegurancaPublico_m`** no produto), **`paiolParaRota`** usa coordenadas da primeira zona (fallback: serviço), licenças sem caminho de ficheiro no JSON (**`hasFicheiro`**). Ver [CONTRATOS-API-DTOs.md](./CONTRATOS-API-DTOs.md).
 
 ### Paiol / Armazém — `/api/paiol`
 
@@ -216,6 +216,8 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | DELETE | `/{id}` | Eliminar |
 | GET | `/{id}/documentos/{extraId}` | Documento extra |
 
+**Visibilidade:** todos os paióis são visíveis para utilizadores com permissão de armazém (`PodeVerArmazemStock`); não existe filtro por cargo na criação/edição. POST/PUT não recebem `CargosAcesso`.
+
 ### Entrada / Saída Paiol — `/api/entrada-paiol`, `/api/saida-paiol`
 
 | Método | Endpoint | Descrição |
@@ -234,9 +236,11 @@ Resumo dos módulos. A listagem completa e os schemas estão no Swagger.
 | GET | `/create` | Dados para criar |
 | POST | `/` | Criar |
 | GET | `/{id}/edit` | Dados para edição |
-| PUT | `/{id}` | Atualizar (`UpdateProdutoRequestDto`; `dataRegisto` só no GET, read-only) |
+| PUT | `/{id}` | Atualizar (`UpdateProdutoRequestDto`; inclui **`distanciaSegurancaPublico_m`** — metros; `dataRegisto` só no GET, read-only) |
 | GET | `/{id}/delete` | Confirmação |
 | DELETE | `/{id}` | Eliminar |
+
+**Campo de catálogo:** cada produto tem **`distanciaSegurancaPublico_m`** (int, metros, obrigatório ao criar/editar). O **`raioPublico`** das zonas de serviço e do serviço é **calculado no servidor** como o **máximo** entre os produtos alocados em cada zona (ex.: bombas 100 m + caixas 50 m → 100 m); o cliente **não envia** `raioPublico` no POST/PUT.
 
 ### Compilados — `/api/compilados`
 
@@ -313,7 +317,7 @@ Autorização: **Admin**, **Gestor** (JWT).
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
 | GET | `/volume` | Volume de encomendas. Query: `granularidade` = `dia` \| `semana` \| `mes` \| `ano`, `dias` (7–1095, default 90). A consulta inclui +1 ano para comparação homóloga. Variação % no client (homóloga). No painel: **Ctrl+scroll** no gráfico altera agrupamento (ano→mês→semana→dia). |
-| GET | `/comparacao-anual` | Ano civil **atual vs anterior** (ex.: 2026 vs 2025), slots fixos no eixo X. Query: `periodoId` (`7`, `30`, `90`, `180`, `365`, `730`, `1095`; default `365`), `produtoId`, `clienteId` (opcionais). `730` = Jan–Dez; `1095` = 52 semanas ISO. Cada slot: `chave`, `rotulo`, `futuro`, `atual`, `anoAnterior`. Com `produtoId`, totais em unidades. Resposta: `ano`, `anoAnterior`, `semanas[]`, `zonasPico[]`, `materiais[]`, `clientes[]`. |
+| GET | `/comparacao-anual` | Comparação **multi-ano** por mês civil (Jan–Dez). Query opcional: `produtoId`, `clienteId`. Resposta: `anoAtual`, `anosDisponiveis[]` (só anos com encomendas), `series[]` (`ano`, `pontos[]` com `mes`, `rotulo`, `total`, `futuro`, `encomendas[]`). O ano corrente termina no mês actual; anos completos vão até Dezembro. Com `produtoId`, totais em unidades. |
 | GET | `/consumo-cliente` | O que o cliente encomendou no intervalo. Query obrigatória: `clienteId`, `desde`, `ate` (yyyy-MM-dd, inclusivos; ex. `2025-04-15` e `2025-04-20`); opcional: `produtoId`. Resposta: `desde`, `ate`, `linhas[]`, totais, `materiais`/`clientes`. |
 | GET | `/previsao` | *(legado — removido do painel)* Previsão 30/60/90 dias. Query: `dias`, `crescimentoPct`. |
 | GET | `/top-clientes` | Top por encomendas e por serviços. Query: `limite`. Campo `risco` (volume em queda vs 90 dias anteriores). |

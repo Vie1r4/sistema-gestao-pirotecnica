@@ -38,6 +38,9 @@ public class UpdateProdutoRequestDto
     [Required(ErrorMessage = "O grupo de compatibilidade é obrigatório.")]
     [StringLength(5)]
     public string? GrupoCompatibilidade { get; set; }
+
+    [Range(1, 100_000, ErrorMessage = "A distância de segurança ao público deve ser entre 1 e 100000 metros.")]
+    public int DistanciaSegurancaPublico_m { get; set; }
 }
 
 public static class UpdateProdutoRequestDtoMapping
@@ -54,5 +57,6 @@ public static class UpdateProdutoRequestDtoMapping
             Calibre = request.Calibre,
             Categoria = request.Categoria,
             GrupoCompatibilidade = request.GrupoCompatibilidade,
+            DistanciaSegurancaPublico_m = request.DistanciaSegurancaPublico_m,
         };
 }

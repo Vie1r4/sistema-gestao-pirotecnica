@@ -14,6 +14,7 @@ public interface IServicoRepository
 
     Task<int> CountAsync(CancellationToken cancellationToken = default);
     Task<int> CountCreatedSinceAsync(DateTime utcInclusiveStart, CancellationToken cancellationToken = default);
+    Task<int> CountExistentesEmAsync(DateTime ateUtcExclusive, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<Servico> Items, int Total)> ListPagedWithIncludesAsync(
         int? clienteId,
         DateTime? dataDesde,

@@ -35,6 +35,7 @@ public sealed class ProdutoApplicationService(IProdutoRepository produtos, IUnit
         existente.Calibre = request.Calibre;
         existente.Categoria = request.Categoria;
         existente.GrupoCompatibilidade = request.GrupoCompatibilidade;
+        existente.DistanciaSegurancaPublico_m = request.DistanciaSegurancaPublico_m;
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return existente;
     }

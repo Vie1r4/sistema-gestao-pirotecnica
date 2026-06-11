@@ -11,6 +11,7 @@ public static class TestProdutoDefaults
     public const string Calibre = "BateriasPadrao";
     public const string Categoria = "F2";
     public const string GrupoCompatibilidade = "G";
+    public const int DistanciaSegurancaPublico_m = 50;
 
     public static void ApplyRequiredFields(Produto produto)
     {
@@ -18,5 +19,7 @@ public static class TestProdutoDefaults
         produto.Calibre ??= Calibre;
         produto.Categoria ??= Categoria;
         produto.GrupoCompatibilidade ??= GrupoCompatibilidade;
+        if (produto.DistanciaSegurancaPublico_m <= 0)
+            produto.DistanciaSegurancaPublico_m = DistanciaSegurancaPublico_m;
     }
 }

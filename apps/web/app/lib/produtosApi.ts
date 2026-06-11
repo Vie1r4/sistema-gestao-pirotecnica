@@ -23,6 +23,7 @@ export type ProdutoApiPayload = {
   calibre?: string | null;
   grupoCompatibilidade?: string | null;
   categoria?: string | null;
+  distanciaSegurancaPublico_m: number;
 };
 
 type ListFilters = {
@@ -110,6 +111,7 @@ export async function postCreate(token: string, payload: ProdutoApiPayload): Pro
     Calibre: payload.calibre ?? null,
     GrupoCompatibilidade: payload.grupoCompatibilidade ?? null,
     Categoria: payload.categoria ?? null,
+    DistanciaSegurancaPublico_m: payload.distanciaSegurancaPublico_m,
   };
   const res = await fetch(apiPath("api/produtos"), {
     method: "POST",
@@ -146,6 +148,7 @@ export async function putEdit(token: string, id: number, payload: ProdutoApiPayl
     Calibre: payload.calibre ?? null,
     GrupoCompatibilidade: payload.grupoCompatibilidade ?? null,
     Categoria: payload.categoria ?? null,
+    DistanciaSegurancaPublico_m: payload.distanciaSegurancaPublico_m,
   };
   const res = await fetch(`${apiPath("api/produtos")}/${id}`, {
     method: "PUT",
@@ -181,8 +184,10 @@ export function mapApiToProduto(p: Record<string, unknown>): {
   calibre?: string;
   grupoCompatibilidade?: string;
   categoria?: string;
+  distanciaSegurancaPublico_m?: number;
 } {
   const get = (k: string) => p[k] ?? p[k.charAt(0).toUpperCase() + k.slice(1)];
+  const distRaw = get("distanciaSegurancaPublico_m") ?? get("DistanciaSegurancaPublico_m");
   return {
     id: String(get("id") ?? get("Id") ?? ""),
     nome: String(get("nome") ?? get("Nome") ?? ""),
@@ -193,5 +198,6 @@ export function mapApiToProduto(p: Record<string, unknown>): {
     calibre: (get("calibre") ?? get("Calibre")) as string | undefined,
     grupoCompatibilidade: (get("grupoCompatibilidade") ?? get("GrupoCompatibilidade")) as string | undefined,
     categoria: (get("categoria") ?? get("Categoria")) as string | undefined,
+    distanciaSegurancaPublico_m: distRaw != null && distRaw !== "" ? Number(distRaw) : undefined,
   };
 }

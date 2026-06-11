@@ -274,6 +274,8 @@ builder.Services.AddAuthentication(options =>
     });
 
 builder.Services.AddAuthorization(options => Finalproj.Authorization.PoliticasAutorizacao.ConfigurarPoliticas(options));
+builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationMiddlewareResultHandler, Finalproj.Authorization.NotFoundWhenForbiddenHandler>();
+builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, Finalproj.Authorization.DocumentacaoRegulatoriaRequirementHandler>();
 
 // Swagger apenas em Development — em produção não expor documentação nem UI interativa.
 if (builder.Environment.IsDevelopment())
@@ -366,8 +368,13 @@ static async Task InicializarAsync(WebApplication app)
     await GarantirColunaOrigemRegistoServicoLicencaAsync(context);
     await GarantirColunaCargoFuncionarioAsync(context);
     await GarantirColunaTemaPerfilAsync(context);
+    await GarantirColunaDistanciaSegurancaPublicoProdutoAsync(context);
+    await GarantirColunasSoftDeleteClienteFuncionarioAsync(context);
+    await GarantirColunasDataRegistoServicoPaiolAsync(context);
     DbInitializer.Initialize(context);
     await SeedRoles.InitializeAsync(scope.ServiceProvider);
+    if (app.Environment.IsDevelopment())
+        await DemoAnalyticsSeeder.SeedYoY2025Async(context);
 }
 
 static async Task GarantirColunaOrigemRegistoServicoLicencaAsync(FinalprojContext context)
@@ -402,6 +409,77 @@ static async Task GarantirColunaTemaPerfilAsync(FinalprojContext context)
            AND COL_LENGTH(N'Perfis', N'Tema') IS NULL
         BEGIN
             ALTER TABLE [Perfis] ADD [Tema] NVARCHAR(10) NULL;
+        END
+        """);
+}
+
+static async Task GarantirColunaDistanciaSegurancaPublicoProdutoAsync(FinalprojContext context)
+{
+    await context.Database.ExecuteSqlRawAsync(
+        """
+        IF OBJECT_ID(N'[dbo].[Produtos]', N'U') IS NOT NULL
+           AND COL_LENGTH(N'Produtos', N'DistanciaSegurancaPublico_m') IS NULL
+        BEGIN
+            ALTER TABLE [Produtos] ADD [DistanciaSegurancaPublico_m] INT NOT NULL CONSTRAINT DF_Produtos_DistanciaSegurancaPublico DEFAULT 50;
+        END
+        """);
+}
+
+static async Task GarantirColunasSoftDeleteClienteFuncionarioAsync(FinalprojContext context)
+{
+    await context.Database.ExecuteSqlRawAsync(
+        """
+        IF OBJECT_ID(N'[dbo].[Clientes]', N'U') IS NOT NULL
+           AND COL_LENGTH(N'Clientes', N'EliminadoEm') IS NULL
+        BEGIN
+            ALTER TABLE [Clientes] ADD [EliminadoEm] DATETIME2 NULL;
+        END
+        IF OBJECT_ID(N'[dbo].[Funcionarios]', N'U') IS NOT NULL
+           AND COL_LENGTH(N'Funcionarios', N'EliminadoEm') IS NULL
+        BEGIN
+            ALTER TABLE [Funcionarios] ADD [EliminadoEm] DATETIME2 NULL;
+        END
+        """);
+}
+
+static async Task GarantirColunasDataRegistoServicoPaiolAsync(FinalprojContext context)
+{
+    // Cada ALTER/UPDATE num batch separado: o SQL Server valida referências à coluna
+    // antes de executar o batch (UPDATE falha se DataRegisto ainda não existir no mesmo batch).
+    await context.Database.ExecuteSqlRawAsync(
+        """
+        IF OBJECT_ID(N'[dbo].[Servicos]', N'U') IS NOT NULL
+           AND COL_LENGTH(N'Servicos', N'DataRegisto') IS NULL
+        BEGIN
+            ALTER TABLE [Servicos] ADD [DataRegisto] DATETIME2 NULL;
+        END
+        """);
+    await context.Database.ExecuteSqlRawAsync(
+        """
+        IF OBJECT_ID(N'[dbo].[Servicos]', N'U') IS NOT NULL
+           AND COL_LENGTH(N'Servicos', N'DataRegisto') IS NOT NULL
+        BEGIN
+            UPDATE [Servicos]
+            SET [DataRegisto] = CAST([DataServico] AS DATETIME2)
+            WHERE [DataRegisto] IS NULL;
+        END
+        """);
+    await context.Database.ExecuteSqlRawAsync(
+        """
+        IF OBJECT_ID(N'[dbo].[Paiol]', N'U') IS NOT NULL
+           AND COL_LENGTH(N'Paiol', N'DataRegisto') IS NULL
+        BEGIN
+            ALTER TABLE [Paiol] ADD [DataRegisto] DATETIME2 NULL;
+        END
+        """);
+    await context.Database.ExecuteSqlRawAsync(
+        """
+        IF OBJECT_ID(N'[dbo].[Paiol]', N'U') IS NOT NULL
+           AND COL_LENGTH(N'Paiol', N'DataRegisto') IS NOT NULL
+        BEGIN
+            UPDATE [Paiol]
+            SET [DataRegisto] = CAST('2000-01-01' AS DATETIME2)
+            WHERE [DataRegisto] IS NULL;
         END
         """);
 }

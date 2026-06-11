@@ -167,10 +167,10 @@ function NovaEncomendaContent() {
               {clientes.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-[#e7e5e4] bg-[#fafaf9] py-10 text-center dark:border-[#333] dark:bg-[#0a0a0a]">
                   <p className="text-[#57534e] dark:text-gray-400">
-                    Não existem clientes. Crie um cliente antes de criar uma encomenda.
+                    Não existem clientes registados. Peça a um Gestor ou Admin para registar clientes antes de criar encomendas.
                   </p>
-                  <Link href="/clientes/novo" className={btnPrimary + " mt-4 inline-block"}>
-                    Criar cliente
+                  <Link href="/encomendas" className={btnPrimary + " mt-4 inline-block"}>
+                    Voltar às encomendas
                   </Link>
                 </div>
               ) : (

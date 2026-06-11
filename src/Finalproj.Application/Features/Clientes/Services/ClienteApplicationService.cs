@@ -9,6 +9,8 @@ public sealed class ClienteApplicationService(
     IClienteRepository clientes,
     IEncomendaRepository encomendas,
     IClienteDocumentoExtraRepository documentos,
+    IPerfilRepository perfis,
+    IRefreshTokenRepository refreshTokens,
     IUnitOfWork unitOfWork) : IClienteApplicationService
 {
     public Task<IReadOnlyList<Cliente>> SearchAsync(string? pesquisa, string? ordenar, CancellationToken cancellationToken = default) =>
@@ -97,7 +99,17 @@ public sealed class ClienteApplicationService(
         var cliente = await clientes.GetByIdWithDocumentosTrackedAsync(id, cancellationToken);
         if (cliente == null)
             return false;
-        await clientes.DeleteAsync(cliente, cancellationToken);
+
+        if (!string.IsNullOrEmpty(cliente.UserId))
+        {
+            var userId = cliente.UserId;
+            cliente.UserId = null;
+            perfis.RemoveRange(await perfis.ListByUserIdTrackedAsync(userId, cancellationToken));
+            foreach (var rt in await refreshTokens.ListActiveByUserIdTrackedAsync(userId, cancellationToken))
+                rt.RevokedAtUtc = DateTime.UtcNow;
+        }
+
+        cliente.EliminadoEm = DateTime.UtcNow;
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }

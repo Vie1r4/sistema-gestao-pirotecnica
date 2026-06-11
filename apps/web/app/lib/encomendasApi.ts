@@ -417,7 +417,15 @@ export async function fetchEncomendaDetalheParaPagina(
   const res = await fetch(`${apiPath("api/encomendas")}/${id}`, { headers: authHeaders(token) });
   if (res.status === 401) throw new Error("UNAUTHORIZED");
   if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`Erro ${res.status}`);
+  if (!res.ok) {
+    const body = (await safeParseJson(res)) as Record<string, unknown> | null;
+    const detail = body?.detail ?? body?.Detail;
+    const msg =
+      typeof detail === "string" && detail.trim()
+        ? `Erro ${res.status}: ${detail}`
+        : `Erro ${res.status}`;
+    throw new Error(msg);
+  }
   return safeParseJson(res) as Promise<Record<string, unknown>>;
 }
 

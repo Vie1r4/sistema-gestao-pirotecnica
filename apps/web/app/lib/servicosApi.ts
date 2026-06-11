@@ -488,7 +488,7 @@ export async function postUploadLicenca(
   return data;
 }
 
-/** PUT api/servicos/{id}/distancia-seguranca/{distanciaId} — atualizar distância medida */
+/** PUT api/servicos/{id}/distancia-seguranca/{distanciaId} — legado; distâncias são recalculadas ao gravar zonas. */
 export async function putDistanciaSeguranca(
   token: string,
   id: number | string,

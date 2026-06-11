@@ -45,24 +45,24 @@ public class IdorTests : IntegrationTestBase
     }
 
     [Fact]
-    public async Task Paiol_SemAcesso_Armazem_Returns403()
+    public async Task Paiol_Armazem_Returns200_QuandoExiste()
     {
         await using var scope = Factory.Services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<FinalprojContext>();
-        var paiolSemAcesso = new Paiol
+        var paiol = new Paiol
         {
-            Nome = "Paiol IDOR",
+            Nome = "Paiol Partilhado",
             Localizacao = "Teste",
             LimiteMLE = 100m,
             PerfilRisco = "1.1G",
             Estado = ConstantesPaiol.EstadoAtivo
         };
-        context.Paiol.Add(paiolSemAcesso);
+        context.Paiol.Add(paiol);
         await context.SaveChangesAsync();
 
         var client = await Factory.CreateAuthenticatedClientAsync(ConstantesRoles.Armazem);
-        var response = await client.GetAsync($"/api/paiol/{paiolSemAcesso.Id}");
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        var response = await client.GetAsync($"/api/paiol/{paiol.Id}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]

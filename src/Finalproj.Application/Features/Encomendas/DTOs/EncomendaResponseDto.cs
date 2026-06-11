@@ -26,6 +26,8 @@ public class EncomendaClienteResumoDto
 {
     public int Id { get; set; }
     public string Nome { get; set; } = string.Empty;
+    /// <summary>False quando a ficha foi eliminada (soft delete); o nome mantém-se no histórico.</summary>
+    public bool Disponivel { get; set; } = true;
 }
 
 /// <summary>
@@ -86,7 +88,12 @@ public static class EncomendaResponseDtoMapping
             DataConclusao = e.DataConclusao,
             Observacoes = e.Observacoes,
             MotivoRejeicao = e.MotivoRejeicao,
-            Cliente = e.Cliente != null ? new EncomendaClienteResumoDto { Id = e.Cliente.Id, Nome = e.Cliente.Nome } : null
+            Cliente = e.Cliente != null ? new EncomendaClienteResumoDto
+            {
+                Id = e.Cliente.Id,
+                Nome = e.Cliente.Nome,
+                Disponivel = e.Cliente.EstaDisponivel
+            } : null
         };
     }
 

@@ -22,10 +22,26 @@ public sealed class GestorAnalyticsRepository(FinalprojContext context) : IGesto
     public async Task<IReadOnlyList<(DateTime DataCriacao, int EncomendaId, string ClienteNome, string ProdutoPrincipal)>> ListEncomendaVolumeDetalheAsync(
         DateTime desdeUtc,
         CancellationToken cancellationToken = default) =>
-        await _context.Encomendas.AsNoTracking()
+        await ListYoYEncomendaDetalheAsync(desdeUtc, DateTime.UtcNow.Date.AddDays(1), cancellationToken);
+
+    public async Task<IReadOnlyList<(DateTime DataCriacao, int EncomendaId, string ClienteNome, string ProdutoPrincipal)>> ListYoYEncomendaDetalheAsync(
+        DateTime desdeUtc,
+        DateTime ateUtc,
+        CancellationToken cancellationToken = default,
+        int? clienteId = null,
+        int? produtoId = null)
+    {
+        var query = _context.Encomendas.AsNoTracking()
             .Include(e => e.Cliente)
             .Include(e => e.Itens).ThenInclude(i => i.Produto)
-            .Where(e => e.DataCriacao >= desdeUtc && e.Estado != ConstantesEncomenda.REJEITADA)
+            .Where(e => e.DataCriacao >= desdeUtc && e.DataCriacao < ateUtc
+                && e.Estado != ConstantesEncomenda.REJEITADA
+                && (!clienteId.HasValue || e.ClienteId == clienteId.Value));
+
+        if (produtoId.HasValue)
+            query = query.Where(e => e.Itens.Any(i => i.ProdutoId == produtoId.Value));
+
+        return await query
             .OrderByDescending(e => e.DataCriacao)
             .Select(e => new ValueTuple<DateTime, int, string, string>(
                 e.DataCriacao,
@@ -33,6 +49,7 @@ public sealed class GestorAnalyticsRepository(FinalprojContext context) : IGesto
                 e.Cliente.Nome,
                 e.Itens.OrderByDescending(i => i.QuantidadePedida).Select(i => i.Produto.Nome).FirstOrDefault() ?? "—"))
             .ToListAsync(cancellationToken);
+    }
 
     public Task<int> CountClientesRegistadosDesdeAsync(DateTime desdeUtc, CancellationToken cancellationToken = default) =>
         _context.Clientes.AsNoTracking()

@@ -145,6 +145,14 @@ body {
   min-height: 200px;
 }
 
+.mapa-leaflet-canvas--h-200 {
+  height: 200px;
+}
+
+.mapa-leaflet-canvas--h-220 {
+  height: 220px;
+}
+
 .mapa-leaflet-canvas--h-280 {
   height: 280px;
 }

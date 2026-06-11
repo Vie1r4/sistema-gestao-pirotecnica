@@ -21,11 +21,10 @@ public class GestorAnalyticsController(IGestorAnalyticsService analytics) : Cont
 
     [HttpGet("comparacao-anual")]
     public Task<IActionResult> ComparacaoAnual(
-        [FromQuery] string periodoId = "365",
         [FromQuery] int? produtoId = null,
         [FromQuery] int? clienteId = null,
         CancellationToken cancellationToken = default) =>
-        OkResult(analytics.GetComparacaoAnualAsync(periodoId, produtoId, clienteId, cancellationToken));
+        OkResult(analytics.GetComparacaoAnualAsync(produtoId, clienteId, cancellationToken));
 
     [HttpGet("previsao")]
     public Task<IActionResult> Previsao(

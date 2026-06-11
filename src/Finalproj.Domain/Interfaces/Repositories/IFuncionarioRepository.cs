@@ -24,5 +24,6 @@ public interface IFuncionarioRepository
 
     Task<int> CountAsync(CancellationToken cancellationToken = default);
     Task<int> CountRegistadosDesdeAsync(DateTime desdeUtc, CancellationToken cancellationToken = default);
+    Task<int> CountDisponiveisEmAsync(DateTime ateUtcExclusive, CancellationToken cancellationToken = default);
 }
 

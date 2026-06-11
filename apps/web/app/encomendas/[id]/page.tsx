@@ -6,6 +6,7 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import ReferenciaIndisponivel from "@/app/components/ReferenciaIndisponivel";
 import {
   podeEditarEncomenda,
   corEstado,
@@ -59,7 +60,8 @@ function mapApiToEncomendaDetalhe(data: Record<string, unknown>): EncomendaComCl
           tipoCliente: "Empresa" as const,
           dataRegisto: new Date().toISOString(),
           documentosExtras: [],
-        } as Cliente)
+          disponivel: (clienteObj.disponivel ?? clienteObj.Disponivel ?? true) as boolean,
+        } as Cliente & { disponivel?: boolean })
       : null,
     itens: itensArr.map((i: Record<string, unknown>) => {
       const gi = (k: string) => i[k] ?? i[k.charAt(0).toUpperCase() + k.slice(1)];
@@ -100,6 +102,7 @@ export default function EncomendaDetalhePage() {
   const userId = user?.id ?? user?.email ?? "";
   const canGerirEncomendas = (user?.permissions ?? []).includes("encomendas.gerir");
   const canGerirServicos = (user?.permissions ?? []).includes("servicos.gerir");
+  const canGerirClientes = (user?.permissions ?? []).includes("clientes.gerir");
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const aceitarRef = useRef(false);
   const concluirRef = useRef(false);
@@ -279,9 +282,13 @@ export default function EncomendaDetalhePage() {
               <p className="mt-1 flex flex-wrap items-center gap-2 text-[#57534e] dark:text-gray-400">
                 Cliente:{" "}
                 {cliente ? (
-                  <Link href={`/clientes/${encomenda.clienteId}`} className="text-[#f97316] hover:underline">
-                    {cliente.nome}
-                  </Link>
+                  <ReferenciaIndisponivel
+                    href={`/clientes/${encomenda.clienteId}`}
+                    nome={cliente.nome}
+                    disponivel={(cliente as Cliente & { disponivel?: boolean }).disponivel !== false}
+                    navegavel={canGerirClientes}
+                    tipo="cliente"
+                  />
                 ) : (
                   encomenda.clienteId
                 )}
@@ -325,9 +332,13 @@ export default function EncomendaDetalhePage() {
                 <dt className={labelClass}>Cliente</dt>
                 <dd className={valueClass}>
                   {cliente ? (
-                    <Link href={`/clientes/${encomenda.clienteId}`} className="text-[#f97316] hover:underline">
-                      {cliente.nome}
-                    </Link>
+                    <ReferenciaIndisponivel
+                      href={`/clientes/${encomenda.clienteId}`}
+                      nome={cliente.nome}
+                      disponivel={(cliente as Cliente & { disponivel?: boolean }).disponivel !== false}
+                      navegavel={canGerirClientes}
+                      tipo="cliente"
+                    />
                   ) : (
                     encomenda.clienteId
                   )}

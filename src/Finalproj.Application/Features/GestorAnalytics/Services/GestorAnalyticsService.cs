@@ -95,21 +95,17 @@ public sealed class GestorAnalyticsService(IGestorAnalyticsRepository repo) : IG
     }
 
     public async Task<ComparacaoAnualResponseDto> GetComparacaoAnualAsync(
-        string periodoId,
         int? produtoId,
         int? clienteId,
         CancellationToken cancellationToken = default)
     {
         var hoje = DateTime.UtcNow.Date;
         var anoAtual = hoje.Year;
-        var anoAnt = anoAtual - 1;
-        var pid = string.IsNullOrWhiteSpace(periodoId) ? "365" : periodoId.Trim();
-
-        var desde = new DateTime(anoAnt, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var desde = new DateTime(anoAtual - 15, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var ate = hoje.AddDays(1);
 
         var contagens = await repo.ListYoYContagemAsync(desde, ate, cancellationToken, clienteId, produtoId);
-        var produtosAnt = await repo.TopProdutosPorSemanaAnoAsync(anoAnt, cancellationToken, clienteId, produtoId);
+        var detalhes = await repo.ListYoYEncomendaDetalheAsync(desde, ate, cancellationToken, clienteId, produtoId);
         var materiais = (await repo.ListProdutosFiltroYoYAsync(anoAtual, cancellationToken))
             .Select(p => new FiltroOpcaoDto { Id = p.Id, Nome = p.Nome })
             .ToList();
@@ -117,10 +113,9 @@ public sealed class GestorAnalyticsService(IGestorAnalyticsRepository repo) : IG
             .Select(c => new FiltroOpcaoDto { Id = c.Id, Nome = c.Nome })
             .ToList();
 
-        return YoYHomologaBuilder.Build(
-            pid,
+        return YoYMultiAnoBuilder.Build(
             contagens,
-            produtosAnt,
+            detalhes,
             materiais.Select(m => (m.Id, m.Nome)).ToList(),
             clientes.Select(c => (c.Id, c.Nome)).ToList(),
             produtoId,

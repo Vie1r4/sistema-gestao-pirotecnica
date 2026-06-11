@@ -14,5 +14,6 @@ public interface IClienteRepository
     Task<IReadOnlyList<Cliente>> ListOrderedForSelectAsync(CancellationToken cancellationToken = default);
 
     Task<int> CountAsync(CancellationToken cancellationToken = default);
+    Task<int> CountDisponiveisEmAsync(DateTime ateUtcExclusive, CancellationToken cancellationToken = default);
 }
 

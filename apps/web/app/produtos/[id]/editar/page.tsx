@@ -44,6 +44,7 @@ type PutEditPayload = {
   filtroTecnico: string;
   calibre: string;
   categoria: string;
+  distanciaSegurancaPublico_m: number;
 };
 
 export default function EditarProdutoPage() {
@@ -63,6 +64,7 @@ export default function EditarProdutoPage() {
     filtroTecnico: "",
     calibre: "",
     categoria: "",
+    distanciaSegurancaPublico_m: "",
   });
 
   const {
@@ -101,6 +103,8 @@ export default function EditarProdutoPage() {
       filtroTecnico: produto.filtroTecnico ?? "",
       calibre: produto.calibre ?? "",
       categoria: produto.categoria ?? "",
+      distanciaSegurancaPublico_m:
+        produto.distanciaSegurancaPublico_m != null ? String(produto.distanciaSegurancaPublico_m) : "",
     });
   }, [produto]);
 
@@ -160,6 +164,7 @@ export default function EditarProdutoPage() {
       filtroTecnico: form.filtroTecnico.trim(),
       calibre: form.calibre.trim(),
       categoria: form.categoria.trim(),
+      distanciaSegurancaPublico_m: parseInt(String(form.distanciaSegurancaPublico_m), 10),
     });
   };
 
@@ -238,6 +243,26 @@ export default function EditarProdutoPage() {
                     onChange={(e) => setForm((f) => ({ ...f, nemPorUnidade: e.target.value }))}
                     className={inputClass}
                   />
+                </div>
+                <div>
+                  <label htmlFor="distanciaSegurancaPublico_m" className={labelClass}>
+                    Distância de segurança ao público (m) *
+                  </label>
+                  <input
+                    id="distanciaSegurancaPublico_m"
+                    type="number"
+                    min="1"
+                    max="100000"
+                    step="1"
+                    required
+                    value={form.distanciaSegurancaPublico_m}
+                    onChange={(e) => setForm((f) => ({ ...f, distanciaSegurancaPublico_m: e.target.value }))}
+                    className={inputClass}
+                    placeholder="Ex.: 100"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Usada para calcular automaticamente a área de segurança nas zonas de serviço.
+                  </p>
                 </div>
                 <div>
                   <label htmlFor="familiaRisco" className={labelClass}>Classificação de risco *</label>

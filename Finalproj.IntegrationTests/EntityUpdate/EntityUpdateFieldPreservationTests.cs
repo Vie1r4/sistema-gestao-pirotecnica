@@ -41,7 +41,6 @@ public class EntityUpdateFieldPreservationTests : IntegrationTestBase
             { new StringContent("500"), "Paiol.LimiteMLE" },
             { new StringContent("1.3"), "Paiol.PerfilRisco" },
             { new StringContent(ConstantesPaiol.EstadoAtivo), "Paiol.Estado" },
-            { new StringContent("Admin"), "CargosAcesso" },
         };
 
         var putResponse = await client.PutAsync($"/api/paiol/{paiol.Id}", fd);
@@ -88,6 +87,7 @@ public class EntityUpdateFieldPreservationTests : IntegrationTestBase
             calibre = TestProdutoDefaults.Calibre,
             categoria = TestProdutoDefaults.Categoria,
             grupoCompatibilidade = "G",
+            distanciaSegurancaPublico_m = 100,
         };
 
         var putResponse = await client.PutAsJsonAsync($"/api/produtos/{produto.Id}", body);
@@ -135,6 +135,7 @@ public class EntityUpdateFieldPreservationTests : IntegrationTestBase
             calibre = TestProdutoDefaults.Calibre,
             categoria = TestProdutoDefaults.Categoria,
             grupoCompatibilidade = "G",
+            distanciaSegurancaPublico_m = 100,
             dataRegisto = "1900-01-01T00:00:00Z",
         };
 

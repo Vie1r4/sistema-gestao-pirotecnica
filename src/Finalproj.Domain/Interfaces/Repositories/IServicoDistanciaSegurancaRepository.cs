@@ -7,5 +7,7 @@ public interface IServicoDistanciaSegurancaRepository
 
     Task<ServicoDistanciaSeguranca?> FindTrackedByIdAsync(int id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ServicoDistanciaSeguranca>> ListByServicoIdOrderedNoTrackingAsync(int servicoId, CancellationToken cancellationToken = default);
+    /// <summary>Sincroniza distâncias do serviço com o máximo entre zonas; remove se null.</summary>
+    Task SyncDistanciasSegurancaServicoAsync(int servicoId, int? distanciaExigida_m, CancellationToken cancellationToken = default);
 }
 

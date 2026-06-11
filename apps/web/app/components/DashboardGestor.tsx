@@ -99,6 +99,7 @@ export default function DashboardGestor({
       {
         title: "Paióis ativos",
         value: data.totalPaioisAtivos,
+        trendDelta: kpiTrendDelta(k?.paiois),
         href: "/armazem/gestao",
         icon: (
           <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -265,7 +266,7 @@ export default function DashboardGestor({
         >
           {tab === "atividade" && (
             <div className="space-y-5">
-              {/* Gráfico herói — 2 linhas + legenda (este ano vs ano passado) */}
+              {/* Gráfico herói — comparação anual multi-ano (Jan–Dez) */}
               <YoYChart token={token} />
               <VolumeChart token={token} />
             </div>
@@ -624,7 +625,7 @@ function StatCard({ card, index }: { card: CardStat; index: number }) {
           {trend === "up" && (
             <span
               className="text-sm font-bold text-emerald-600 dark:text-emerald-400"
-              title="Aumentou nos últimos 7 dias vs 7 dias anteriores"
+              title="Total superior ao de há 7 dias"
               aria-hidden
             >
               ▲
@@ -633,7 +634,7 @@ function StatCard({ card, index }: { card: CardStat; index: number }) {
           {trend === "down" && (
             <span
               className="text-sm font-bold text-red-500 dark:text-red-400"
-              title="Desceu nos últimos 7 dias vs 7 dias anteriores"
+              title="Total inferior ao de há 7 dias"
               aria-hidden
             >
               ▼

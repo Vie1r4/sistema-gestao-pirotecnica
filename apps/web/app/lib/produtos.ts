@@ -49,11 +49,18 @@ export type Produto = {
   grupoCompatibilidade?: string;
   /** Categoria pirotécnica (F1–F4, FP) para documentação regulatória. */
   categoria?: string;
+  /** Distância mínima ao público (m) — usada para calcular o raio nas zonas de serviço. */
+  distanciaSegurancaPublico_m?: number;
 };
 
 /** Valida NEM por unidade: número positivo (mínimo 0.0001) */
 export function validarNemPorUnidade(val: number): boolean {
   return typeof val === "number" && !Number.isNaN(val) && val >= 0.0001;
+}
+
+/** Valida distância de segurança ao público: inteiro positivo (1–100000 m). */
+export function validarDistanciaSegurancaPublico(val: number): boolean {
+  return Number.isInteger(val) && val >= 1 && val <= 100_000;
 }
 
 /** Campos de catálogo obrigatórios ao criar/editar produto. Devolve mensagem de erro ou null se válido. */
@@ -62,11 +69,19 @@ export function validarCamposCatalogoProduto(campos: {
   grupoCompatibilidade?: string;
   filtroTecnico?: string;
   calibre?: string;
+  distanciaSegurancaPublico_m?: number | string;
 }): string | null {
   if (!campos.categoria?.trim()) return "A categoria pirotécnica é obrigatória.";
   if (!campos.grupoCompatibilidade?.trim()) return "O grupo de compatibilidade é obrigatório.";
   if (!campos.filtroTecnico?.trim()) return "O filtro técnico é obrigatório.";
   if (!campos.calibre?.trim()) return "O calibre é obrigatório.";
+  const dist =
+    typeof campos.distanciaSegurancaPublico_m === "string"
+      ? parseInt(campos.distanciaSegurancaPublico_m, 10)
+      : campos.distanciaSegurancaPublico_m;
+  if (dist == null || !validarDistanciaSegurancaPublico(dist)) {
+    return "A distância de segurança ao público deve ser um número inteiro entre 1 e 100000 metros.";
+  }
   return null;
 }
 

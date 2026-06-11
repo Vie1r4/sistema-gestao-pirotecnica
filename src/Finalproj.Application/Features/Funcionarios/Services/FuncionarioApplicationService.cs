@@ -85,7 +85,11 @@ public sealed class FuncionarioApplicationService(
         var funcionario = await funcionarios.FindTrackedByIdAsync(id, cancellationToken);
         if (funcionario == null)
             return false;
-        await funcionarios.DeleteAsync(funcionario, cancellationToken);
+
+        if (!string.IsNullOrEmpty(funcionario.UserId))
+            await DesassociarUserIdInternoAsync(funcionario.UserId, revogarRefreshTokens: true, cancellationToken);
+
+        funcionario.EliminadoEm = DateTime.UtcNow;
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }

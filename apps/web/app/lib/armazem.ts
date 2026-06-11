@@ -11,10 +11,6 @@ export type PerfilRiscoPaiol = (typeof PERFIS_RISCO)[number];
 export const ESTADOS_PAIOL = ["Ativo", "Em Manutenção"] as const;
 export type EstadoPaiol = (typeof ESTADOS_PAIOL)[number];
 
-/** Cargos que podem ter acesso ao paiol (roles) */
-export const CARGOS_ACESSO_PAIOL = ["Admin", "Armazém", "Gestor", "Comercial"] as const;
-export type CargoAcessoPaiol = (typeof CARGOS_ACESSO_PAIOL)[number];
-
 export type PaiolDocumentoExtra = {
   id: string;
   nome: string;
@@ -36,8 +32,6 @@ export type Paiol = {
   numeroLicenca?: string;
   /** Divisão dominante (preenchido pelo motor no backend; opcional no frontend) */
   divisaoDominante?: string;
-  /** Roles com acesso a este paiol */
-  cargosAcesso: CargoAcessoPaiol[];
   documentosExtras: PaiolDocumentoExtra[];
   dataRegisto: string;
 };

@@ -14,6 +14,7 @@ public class ProdutoResponseDto
     public string? Calibre { get; set; }
     public string? Categoria { get; set; }
     public string? GrupoCompatibilidade { get; set; }
+    public int DistanciaSegurancaPublico_m { get; set; }
     public DateTime? DataRegisto { get; set; }
 }
 
@@ -32,6 +33,7 @@ public static class ProdutoResponseDtoMapping
             Calibre = p.Calibre,
             Categoria = p.Categoria,
             GrupoCompatibilidade = p.GrupoCompatibilidade,
+            DistanciaSegurancaPublico_m = p.DistanciaSegurancaPublico_m,
             DataRegisto = p.DataRegisto,
         };
     }

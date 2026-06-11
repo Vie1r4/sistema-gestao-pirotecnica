@@ -29,6 +29,8 @@ export type Funcionario = {
   userId?: string;
   /** Definido no GET detalhe quando a API indica conta do utilizador atual (sem depender do UserId no JSON). */
   associadoAoUtilizadorAtual?: boolean;
+  /** False após eliminação lógica da ficha (nome mantém-se no histórico). */
+  disponivel?: boolean;
   documentos?: DocumentosFuncionario;
 };
 

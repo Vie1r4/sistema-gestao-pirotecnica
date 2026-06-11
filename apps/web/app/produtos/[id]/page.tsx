@@ -137,6 +137,12 @@ export default function ProdutoDetalhePage() {
                 <dd className="mt-1 text-gray-600 dark:text-gray-400">{produto.nemPorUnidade}</dd>
               </div>
               <div>
+                <dt className={labelClass}>Distância de segurança ao público</dt>
+                <dd className="mt-1 text-gray-600 dark:text-gray-400">
+                  {produto.distanciaSegurancaPublico_m != null ? `${produto.distanciaSegurancaPublico_m} m` : "—"}
+                </dd>
+              </div>
+              <div>
                 <dt className={labelClass}>Categoria pirotécnica</dt>
                 <dd className="mt-1 text-gray-600 dark:text-gray-400">{produto.categoria?.trim() || "—"}</dd>
               </div>

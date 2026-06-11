@@ -23,6 +23,9 @@ public class Servico
     [DataType(DataType.Date)]
     public DateTime DataServico { get; set; }
 
+    [Display(Name = "Data de registo")]
+    public DateTime? DataRegisto { get; set; }
+
     [StringLength(300)]
     [Display(Name = "Local")]
     public string? Local { get; set; }

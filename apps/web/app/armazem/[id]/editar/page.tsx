@@ -10,12 +10,10 @@ import MapaCoordenadas from "@/app/components/MapaCoordenadas";
 import {
   PERFIS_RISCO,
   ESTADOS_PAIOL,
-  CARGOS_ACESSO_PAIOL,
   labelPerfilRisco,
   validarLimiteMLE,
   type Paiol,
   type PaiolDocumentoExtra,
-  type CargoAcessoPaiol,
   type PerfilRiscoPaiol,
   type EstadoPaiol,
 } from "@/app/lib/armazem";
@@ -44,7 +42,6 @@ function mapApiToPaiol(data: Record<string, unknown>, id: string): Paiol {
   const p = (data.paiol ?? data.Paiol ?? data) as Record<string, unknown>;
   const get = (key: string) => p[key] ?? p[key.charAt(0).toUpperCase() + key.slice(1)];
   const docExtras = (get("documentosExtras") ?? get("DocumentosExtras") ?? []) as Array<Record<string, unknown>>;
-  const cargos = (get("cargosAcesso") ?? data.cargosAcesso ?? data.CargosAcesso ?? []) as string[];
   return {
     id: String(get("id") ?? get("Id") ?? id),
     nome: String(get("nome") ?? get("Nome") ?? ""),
@@ -57,7 +54,6 @@ function mapApiToPaiol(data: Record<string, unknown>, id: string): Paiol {
     dataValidadeLicenca: (get("dataValidadeLicenca") ?? get("DataValidadeLicenca")) as string | undefined,
     numeroLicenca: (get("numeroLicenca") ?? get("NumeroLicenca")) as string | undefined,
     divisaoDominante: (get("divisaoDominante") ?? get("DivisaoDominante")) as string | undefined,
-    cargosAcesso: Array.isArray(cargos) ? (cargos as Paiol["cargosAcesso"]) : [],
     documentosExtras: docExtras.map((d) => ({
       id: String(d.id ?? d.Id ?? ""),
       nome: String(d.nome ?? d.Nome ?? ""),
@@ -86,7 +82,6 @@ export default function EditarPaiolPage() {
     numeroLicenca: "",
     dataValidadeLicenca: "",
   });
-  const [cargosAcesso, setCargosAcesso] = useState<CargoAcessoPaiol[]>([]);
   const [removerDocIds, setRemoverDocIds] = useState<Set<string>>(new Set());
   const [novosExtras, setNovosExtras] = useState<PaiolDocumentoExtra[]>([]);
   const [novosExtrasFiles, setNovosExtrasFiles] = useState<(File | null)[]>([]);
@@ -114,11 +109,11 @@ export default function EditarPaiolPage() {
     enabled: validId && !!getToken(),
   });
 
-  const paiol = editData ? mapApiToPaiol({ paiol: editData.paiol, cargosAcesso: editData.cargosSelecionados }, id) : null;
+  const paiol = editData ? mapApiToPaiol({ paiol: editData.paiol }, id) : null;
 
   useEffect(() => {
     if (!editData) return;
-    const mapped = mapApiToPaiol({ paiol: editData.paiol, cargosAcesso: editData.cargosSelecionados }, id);
+    const mapped = mapApiToPaiol({ paiol: editData.paiol }, id);
     setForm({
       nome: mapped.nome,
       localizacao: mapped.localizacao ?? "",
@@ -130,7 +125,6 @@ export default function EditarPaiolPage() {
       numeroLicenca: mapped.numeroLicenca ?? "",
       dataValidadeLicenca: mapped.dataValidadeLicenca ? mapped.dataValidadeLicenca.slice(0, 10) : "",
     });
-    setCargosAcesso((editData.cargosSelecionados ?? []) as CargoAcessoPaiol[]);
   }, [editData, id]);
 
   const mutation = useMutation({
@@ -152,12 +146,6 @@ export default function EditarPaiolPage() {
       if (error) releaseSubmitLock();
     },
   });
-
-  const toggleCargo = (c: CargoAcessoPaiol) => {
-    setCargosAcesso((prev) =>
-      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]
-    );
-  };
 
   const addNovoDoc = () => {
     setNovosExtras((e) => [...e, { id: `ex-${Date.now()}`, nome: "" }]);
@@ -240,7 +228,6 @@ export default function EditarPaiolPage() {
     if (form.dataValidadeLicenca?.trim()) fd.append("Paiol.DataValidadeLicenca", form.dataValidadeLicenca.trim());
     if (lat != null && !Number.isNaN(lat)) fd.append("Paiol.CoordenadasLat", String(lat));
     if (lng != null && !Number.isNaN(lng)) fd.append("Paiol.CoordenadasLng", String(lng));
-    (cargosAcesso.length > 0 ? cargosAcesso : ["Admin"]).forEach((c) => fd.append("CargosAcesso", c));
     Array.from(removerDocIds).forEach((docId, i) => {
       const n = parseInt(docId, 10);
       if (!Number.isNaN(n)) fd.append(`RemoverDocumentoExtraIds[${i}]`, String(n));
@@ -297,7 +284,7 @@ export default function EditarPaiolPage() {
               Editar paiol
             </h1>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Altere os dados do paiol. Pode remover ou adicionar documentos e alterar cargos com acesso.
+              Altere os dados do paiol. Pode remover ou adicionar documentos.
             </p>
           </motion.div>
 
@@ -427,28 +414,6 @@ export default function EditarPaiolPage() {
                     className={inputClass}
                   />
                 </div>
-              </div>
-            </motion.section>
-
-            <motion.section
-              initial={fadeInUp.initial}
-              animate={fadeInUp.animate}
-              transition={{ ...transitionSmooth, delay: 0.1 }}
-              className={cardClass}
-            >
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Cargos com acesso</h2>
-              <div className="mt-4 flex flex-wrap gap-4">
-                {CARGOS_ACESSO_PAIOL.map((c) => (
-                  <label key={c} className="flex cursor-pointer items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={cargosAcesso.includes(c)}
-                      onChange={() => toggleCargo(c)}
-                      className="h-4 w-4 rounded border-gray-300 text-[#f97316] focus:ring-[#f97316]"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{c}</span>
-                  </label>
-                ))}
               </div>
             </motion.section>
 

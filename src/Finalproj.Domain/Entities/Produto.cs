@@ -43,6 +43,11 @@ public class Produto
     [Display(Name = "Grupo de compatibilidade")]
     public string? GrupoCompatibilidade { get; set; }
 
+    [Required(ErrorMessage = "A distância de segurança ao público é obrigatória.")]
+    [Display(Name = "Distância de segurança ao público (m)")]
+    [Range(1, 100_000, ErrorMessage = "A distância de segurança ao público deve ser entre 1 e 100000 metros.")]
+    public int DistanciaSegurancaPublico_m { get; set; }
+
     [Display(Name = "Data de registo")]
     [DataType(DataType.DateTime)]
     public DateTime? DataRegisto { get; set; }

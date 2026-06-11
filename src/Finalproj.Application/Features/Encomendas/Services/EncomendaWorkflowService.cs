@@ -51,7 +51,7 @@ public sealed class EncomendaWorkflowService(
 
     public async Task<object> GetCreateDataAsync(int? clienteId, CancellationToken cancellationToken = default) => new
     {
-        clientes = (await clientes.ListOrderedForSelectAsync(cancellationToken)).Select(c => new EncomendaClienteResumoDto { Id = c.Id, Nome = c.Nome }).ToList(),
+        clientes = (await clientes.ListOrderedForSelectAsync(cancellationToken)).Select(c => new EncomendaClienteResumoDto { Id = c.Id, Nome = c.Nome, Disponivel = true }).ToList(),
         model = new EncomendaCriarViewModel { ClienteId = clienteId ?? 0 }
     };
 
@@ -176,8 +176,8 @@ public sealed class EncomendaWorkflowService(
             return null;
         if (encomenda.Estado != ConstantesEncomenda.ACEITE)
             return new { error = "Apenas encomendas aceites podem ser preparadas." };
-        var idsPaiois = await acessos.ListPaiolIdsByRoleNamesAsync(rolesDoUtilizador, cancellationToken);
-        var paioisComAcesso = await paiois.ListByIdsOrderedAsync(idsPaiois, cancellationToken);
+        var paioisComAcesso = await paiois.ListAllOrderedAsync(cancellationToken);
+        var idsPaiois = paioisComAcesso.Select(p => p.Id).ToList();
         return new
         {
             encomenda = EncomendaResponseDtoMapping.MapToDetail(encomenda),
@@ -188,7 +188,7 @@ public sealed class EncomendaWorkflowService(
     }
 
     public Task<IReadOnlyList<int>> GetPaiolIdsComAcessoAsync(IReadOnlyCollection<string> rolesDoUtilizador, CancellationToken cancellationToken = default) =>
-        acessos.ListPaiolIdsByRoleNamesAsync(rolesDoUtilizador, cancellationToken);
+        acessos.ListAllPaiolIdsAsync(cancellationToken);
 
     private async Task<Dictionary<string, decimal>> GetStockPaiolProdutoAsync(IReadOnlyCollection<int> paiolIds, CancellationToken cancellationToken)
     {

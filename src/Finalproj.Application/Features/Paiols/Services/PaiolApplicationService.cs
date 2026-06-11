@@ -15,7 +15,7 @@ public sealed class PaiolApplicationService(
     IUnitOfWork unitOfWork) : IPaiolApplicationService
 {
     public Task<IReadOnlyList<int>> GetPaiolIdsComAcessoAsync(bool podeVerTodos, IReadOnlyCollection<string> roles, CancellationToken cancellationToken = default) =>
-        podeVerTodos ? acessos.ListAllPaiolIdsAsync(cancellationToken) : acessos.ListPaiolIdsByRoleNamesAsync(roles, cancellationToken);
+        acessos.ListAllPaiolIdsAsync(cancellationToken);
 
     public Task<IReadOnlyList<Paiol>> ListByAccessAsync(IReadOnlyCollection<int> paiolIds, CancellationToken cancellationToken = default) =>
         paiois.ListByIdsOrderedAsync(paiolIds, cancellationToken);
@@ -99,8 +99,7 @@ public sealed class PaiolApplicationService(
         if (paiol == null)
             return null;
         var carga = await GetCargaAsync(id, cancellationToken);
-        var cargosAcesso = await acessos.ListRoleNamesByPaiolIdAsync(id, cancellationToken);
-        return new { paiol = PaiolResponseDtoMapping.Map(paiol), nemAtual = carga.Sum(x => x.NEMTotal), carga, cargosAcesso };
+        return new { paiol = PaiolResponseDtoMapping.Map(paiol), nemAtual = carga.Sum(x => x.NEMTotal), carga };
     }
 
     public Task<IReadOnlyList<string>> GetCargosAcessoAsync(int paiolId, CancellationToken cancellationToken = default) =>
@@ -108,9 +107,9 @@ public sealed class PaiolApplicationService(
 
     public async Task<Paiol> CreateAsync(Paiol paiol, IReadOnlyCollection<string>? cargosAcesso = null, IEnumerable<PaiolDocumentoExtra>? documentosExtras = null, CancellationToken cancellationToken = default)
     {
+        paiol.DataRegisto ??= DateTime.UtcNow;
         await paiois.AddAsync(paiol, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        await RecriarAcessosAsync(paiol.Id, cargosAcesso, cancellationToken);
         foreach (var doc in documentosExtras ?? Enumerable.Empty<PaiolDocumentoExtra>())
         {
             doc.PaiolId = paiol.Id;
@@ -139,7 +138,6 @@ public sealed class PaiolApplicationService(
         // DivisaoDominante é calculada pelo stock — nunca sobrescrever com o payload do formulário.
         if (removerDocumentoIds?.Count > 0)
             documentos.RemoveRange(await documentos.ListByPaiolAndIdsAsync(id, removerDocumentoIds, cancellationToken));
-        await RecriarAcessosAsync(id, cargosAcesso, cancellationToken);
         foreach (var doc in documentosExtras ?? Enumerable.Empty<PaiolDocumentoExtra>())
         {
             doc.PaiolId = id;
@@ -220,14 +218,4 @@ public sealed class PaiolApplicationService(
             .ToList();
     }
 
-    private async Task RecriarAcessosAsync(int paiolId, IReadOnlyCollection<string>? cargosAcesso, CancellationToken cancellationToken)
-    {
-        var existentes = await acessos.ListByPaiolIdTrackedAsync(paiolId, cancellationToken);
-        acessos.RemoveRange(existentes);
-        foreach (var role in cargosAcesso ?? Array.Empty<string>())
-        {
-            if (ConstantesPaiol.CargosDisponiveis.Contains(role))
-                await acessos.AddAsync(new PaiolAcesso { PaiolId = paiolId, RoleName = role }, cancellationToken);
-        }
-    }
 }

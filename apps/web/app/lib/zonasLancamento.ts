@@ -30,6 +30,7 @@ export type ItemEncomendaForm = {
   produtoId: number;
   produtoNome: string;
   quantidadePedida: number;
+  distanciaSegurancaPublico_m?: number;
 };
 
 function newKey(prefix: string): string {
@@ -82,8 +83,19 @@ export function parseItensEncomenda(raw: Array<Record<string, unknown>>): ItemEn
         ? String(prod.nome ?? prod.Nome ?? i.produtoNome ?? i.ProdutoNome ?? "")
         : String(i.produtoNome ?? i.ProdutoNome ?? "");
       const q = Number(i.quantidadePedida ?? i.QuantidadePedida ?? 0);
+      const distRaw = prod
+        ? (prod.distanciaSegurancaPublico_m ?? prod.DistanciaSegurancaPublico_m)
+        : (i.distanciaSegurancaPublico_m ?? i.DistanciaSegurancaPublico_m);
+      const distancia =
+        distRaw != null && distRaw !== "" ? Number(distRaw) : undefined;
       if (!produtoId || q <= 0) return null;
-      return { produtoId, produtoNome: nome || `Produto #${produtoId}`, quantidadePedida: q };
+      return {
+        produtoId,
+        produtoNome: nome || `Produto #${produtoId}`,
+        quantidadePedida: q,
+        distanciaSegurancaPublico_m:
+          distancia != null && !Number.isNaN(distancia) && distancia > 0 ? distancia : undefined,
+      };
     })
     .filter((x): x is ItemEncomendaForm => x != null);
 }
@@ -204,6 +216,21 @@ export function calcularAllocacao(zonas: ZonaForm[], itens: ItemEncomendaForm[])
   return { alocadoPorProduto: alocado, restantePorProduto: restante, excede };
 }
 
+/** Raio ao público (m) = máximo das distâncias dos produtos alocados na zona. */
+export function calcularRaioPublicoZona(zona: ZonaForm, itens: ItemEncomendaForm[]): number | null {
+  const distanciasPorProduto = new Map(itens.map((i) => [i.produtoId, i.distanciaSegurancaPublico_m]));
+  const distancias: number[] = [];
+  for (const l of zona.linhas) {
+    const pid = parseInt(l.produtoId, 10);
+    const q = parseQuantidadeInteira(l.quantidade);
+    if (Number.isNaN(pid) || q == null) continue;
+    const d = distanciasPorProduto.get(pid);
+    if (d != null && d > 0) distancias.push(d);
+  }
+  if (distancias.length === 0) return null;
+  return Math.max(...distancias);
+}
+
 export function validarZonasForm(zonas: ZonaForm[], itens: ItemEncomendaForm[]): string | null {
   if (zonas.length === 0) return "Adicione pelo menos uma zona de lançamento.";
   const produtosEncomenda = new Set(itens.map((i) => i.produtoId));
@@ -245,7 +272,6 @@ export function zonasToApiInput(zonas: ZonaForm[]): ServicoZonaLancamentoInput[]
   return zonas.map((z) => {
     const lat = parseFloat(z.coordenadasLat);
     const lng = parseFloat(z.coordenadasLng);
-    const raio = z.raioPublico.trim() ? parseInt(z.raioPublico, 10) : undefined;
     const respId = z.responsavelPirotecnicoId.trim()
       ? parseInt(z.responsavelPirotecnicoId, 10)
       : undefined;
@@ -254,7 +280,6 @@ export function zonasToApiInput(zonas: ZonaForm[]): ServicoZonaLancamentoInput[]
       designacao: z.designacao.trim() || undefined,
       coordenadasLat: lat,
       coordenadasLng: lng,
-      raioPublico: raio != null && !Number.isNaN(raio) ? raio : undefined,
       responsavelPirotecnicoId: respId != null && !Number.isNaN(respId) ? respId : undefined,
       observacoes: z.observacoes.trim() || undefined,
       linhas: z.linhas

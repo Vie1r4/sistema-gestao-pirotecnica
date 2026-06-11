@@ -118,10 +118,10 @@ function mapKpiContexto(raw: unknown): GestorDashboardResponse["kpiContexto"] {
   };
 }
 
-/** Delta semanal para setas nos cartões KPI (null = sem seta). */
+/** Delta vs total de há 7 dias para setas nos cartões KPI (null = sem seta, incl. quando igual). */
 export function kpiTrendDelta(item?: KpiContextoItem): number | null {
   const d = item?.deltaSemana;
-  if (d === undefined || d === null || Number.isNaN(d)) return null;
+  if (d === undefined || d === null || Number.isNaN(d) || d === 0) return null;
   return d;
 }
 

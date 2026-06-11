@@ -46,5 +46,8 @@ public class Paiol
     [StringLength(10)]
     public string? DivisaoDominante { get; set; }
 
+    [Display(Name = "Data de registo")]
+    public DateTime? DataRegisto { get; set; }
+
     public ICollection<PaiolDocumentoExtra> DocumentosExtras { get; set; } = new List<PaiolDocumentoExtra>();
 }

@@ -37,10 +37,10 @@ const hoje = new Date().toISOString().slice(0, 10);
 
 export default function DashboardComercial({
   token,
-  totalClientes,
+  userName,
 }: {
   token: string;
-  totalClientes: number;
+  userName?: string;
 }) {
   const liveNow = useLiveDateTime();
   const {
@@ -108,13 +108,6 @@ export default function DashboardComercial({
       accent: "emerald",
       description: "Próximos no terreno",
     },
-    {
-      title: "Total de clientes",
-      value: totalClientes,
-      href: "/clientes",
-      accent: "slate",
-      description: "Contexto geral",
-    },
   ];
 
   return (
@@ -128,7 +121,7 @@ export default function DashboardComercial({
         </p>
         <div className="mt-2 h-px w-12 rounded-full bg-[#ea580c]/40 dark:bg-[#f97316]/50" aria-hidden />
         <h2 className="font-heading mt-3 text-2xl font-bold tracking-tight text-[#1c1917] sm:text-3xl dark:text-white">
-          O seu painel
+          {userName ? `Olá, ${userName.split(/\s+/)[0]}` : "O seu painel"}
         </h2>
         <p className="mt-3 text-[#57534e] dark:text-[#888]">
           Encomendas pendentes, em curso e próximos serviços.
@@ -156,7 +149,7 @@ export default function DashboardComercial({
         </div>
 
         {/* Cards */}
-        <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
+        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
           {loadingEncomendas ? (
             cards.map((card) => (
               <div

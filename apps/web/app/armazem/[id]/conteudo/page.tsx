@@ -61,7 +61,6 @@ export default function ConteudoPaiolPage() {
       limiteMLE: Number(get("limiteMLE") ?? get("LimiteMLE") ?? 0),
       perfilRisco: String(get("perfilRisco") ?? get("PerfilRisco") ?? "1.1") as Paiol["perfilRisco"],
       estado: String(get("estado") ?? get("Estado") ?? "Ativo") as Paiol["estado"],
-      cargosAcesso: [],
       documentosExtras: [],
       dataRegisto: new Date().toISOString(),
     };

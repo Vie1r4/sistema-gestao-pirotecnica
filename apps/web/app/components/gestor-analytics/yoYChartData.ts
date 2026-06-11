@@ -1,122 +1,79 @@
 import type {
   ComparacaoAnualResponse,
-  ComparacaoAnualSemana,
-  ZonaPico,
+  VolumeEncomendaDetalhe,
 } from "@/app/lib/gestorAnalytics";
-import {
-  buildYoYSlotDefs,
-  type PeriodoYoYId,
-  type YoYSlotDef,
-} from "./yoYChartSlots";
-
-export type { PeriodoYoYId } from "./yoYChartSlots";
-
-export type PicoHistorico = {
-  indice: number;
-  semanaFim?: number;
-  texto: string;
-};
 
 export type YoYChartRow = {
-  indice: number;
-  chave: string;
+  mes: number;
   rotulo: string;
-  atual: number | null;
-  anoAnterior: number;
-  futuro: boolean;
-  produtoDestaque?: string | null;
-  quantidadeDestaque?: number;
+  detalhes: Record<number, VolumeEncomendaDetalhe[]>;
+  [dataKey: `y${number}`]: number | null | undefined;
 };
 
-function indexarSemanasApi(
-  semanas: ComparacaoAnualSemana[] | undefined
-): {
-  porChave: Map<string, ComparacaoAnualSemana>;
-  porIndice: Map<number, ComparacaoAnualSemana>;
-} {
-  const porChave = new Map<string, ComparacaoAnualSemana>();
-  const porIndice = new Map<number, ComparacaoAnualSemana>();
-  for (const s of semanas ?? []) {
-    if (s.chave?.trim()) porChave.set(s.chave, s);
-    if (s.semana > 0) porIndice.set(s.semana, s);
-  }
-  return { porChave, porIndice };
-}
+const MESES_CURTOS = [
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
+] as const;
 
-function resolverSemanaApi(
-  slot: YoYSlotDef,
-  porChave: Map<string, ComparacaoAnualSemana>,
-  porIndice: Map<number, ComparacaoAnualSemana>
-): ComparacaoAnualSemana | undefined {
-  return porChave.get(slot.chave) ?? porIndice.get(slot.indice);
-}
-
-/**
- * Eixo X = slots do preset; valores fundidos da API por chave/índice.
- * Garante forma distinta em 7d vs 2a vs 3a mesmo se a API devolver outro formato.
- */
+/** Eixo X fixo: 12 meses (Jan–Dez). Uma coluna por ano seleccionado. */
 export function buildYoYChartRows(
   data: ComparacaoAnualResponse | undefined,
-  periodoId: PeriodoYoYId
+  anosVisiveis: number[]
 ): YoYChartRow[] {
-  const slots = buildYoYSlotDefs(periodoId);
-  const { porChave, porIndice } = indexarSemanasApi(data?.semanas);
+  if (!data || anosVisiveis.length === 0) return [];
 
   const rows: YoYChartRow[] = [];
-  const used = new Set<string>();
+  for (let mes = 1; mes <= 12; mes++) {
+    const row: YoYChartRow = {
+      mes,
+      rotulo: MESES_CURTOS[mes - 1],
+      detalhes: {},
+    };
 
-  for (const slot of slots) {
-    if (used.has(slot.chave)) continue;
-    used.add(slot.chave);
-    const api = resolverSemanaApi(slot, porChave, porIndice);
-    const futuro = api?.futuro ?? slot.futuro;
-    rows.push({
-      indice: rows.length + 1,
-      chave: slot.chave,
-      rotulo: slot.rotulo,
-      futuro,
-      atual: futuro ? null : (api?.atual ?? 0),
-      anoAnterior: api?.anoAnterior ?? 0,
-      produtoDestaque: api?.produtoDestaque,
-      quantidadeDestaque: api?.quantidadeDestaque,
-    });
+    for (const ano of anosVisiveis) {
+      const serie = data.series.find((s) => s.ano === ano);
+      const ponto = serie?.pontos.find((p) => p.mes === mes);
+      row[`y${ano}`] = ponto?.futuro ? null : (ponto?.total ?? 0);
+      row.detalhes[ano] = ponto?.encomendas ?? [];
+    }
+
+    rows.push(row);
   }
 
   return rows;
 }
 
-export function mapZonasToPicos(
-  zonas: ZonaPico[] | undefined,
-  indicePorSemanaIso: Map<number, number>
-): PicoHistorico[] {
-  return (zonas ?? [])
-    .filter((z) => z.semanaInicio >= 1 && z.semanaInicio <= 52)
-    .map((z) => ({
-      indice: indicePorSemanaIso.get(z.semanaInicio) ?? z.semanaInicio,
-      semanaFim:
-        z.semanaFim !== z.semanaInicio
-          ? indicePorSemanaIso.get(z.semanaFim) ?? z.semanaFim
-          : undefined,
-      texto: z.texto,
-    }))
-    .filter((p) => p.indice > 0);
+export const CORES_ANOS = [
+  "#f97316",
+  "#64748b",
+  "#3b82f6",
+  "#10b981",
+  "#a855f7",
+  "#eab308",
+  "#ef4444",
+  "#06b6d4",
+  "#ec4899",
+  "#84cc16",
+] as const;
+
+export function corParaAno(ano: number, anoAtual: number, ordemNoArray: number): string {
+  if (ano === anoAtual) return CORES_ANOS[0];
+  const idx = (ordemNoArray % (CORES_ANOS.length - 1)) + 1;
+  return CORES_ANOS[idx] ?? CORES_ANOS[1];
 }
 
-/** Faixa entre categorias do eixo (valores = `indice` do ponto). */
-export function indiceFaixaX(
-  indice: number,
-  indiceFim: number | undefined,
-  maxIndice: number
-): { x1: number; x2: number } | null {
-  if (indice < 1 || indice > maxIndice) return null;
-  const fim = indiceFim ?? indice;
-  const x2 = fim + 1;
-  if (x2 > maxIndice + 1) return null;
-  return { x1: indice, x2: x2 };
-}
-
-export function intervaloLegivel(rows: YoYChartRow[]): string {
-  if (rows.length === 0) return "—";
-  if (rows.length === 1) return rows[0].rotulo;
-  return `${rows[0].rotulo} – ${rows[rows.length - 1].rotulo}`;
+/** Anos por omissão: os dois mais recentes com dados. */
+export function anosSelecionadosIniciais(anosDisponiveis: number[]): number[] {
+  if (anosDisponiveis.length === 0) return [];
+  return anosDisponiveis.slice(-2);
 }

@@ -5,7 +5,6 @@ using Finalproj.Domain.Interfaces;
 namespace Finalproj.Application.Features.Paiols.Services;
 
 public sealed class EntradaPaiolApplicationService(
-    IPaiolAcessoRepository acessos,
     IPaiolRepository paiois,
     IProdutoRepository produtos,
     IEntradaPaiolRepository entradas,
@@ -14,8 +13,7 @@ public sealed class EntradaPaiolApplicationService(
 {
     public async Task<(IReadOnlyList<Paiol> Paiois, IReadOnlyList<Produto> Produtos)> GetFormularioAsync(IReadOnlyCollection<string> roles, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default)
     {
-        var ids = await acessos.ListPaiolIdsByRoleNamesAsync(roles, cancellationToken);
-        var paioisAcesso = (await paiois.ListByIdsOrderedAsync(ids, cancellationToken))
+        var paioisAcesso = (await paiois.ListAllOrderedAsync(cancellationToken))
             .Where(p => p.Estado == ConstantesPaiol.EstadoAtivo)
             .ToList();
         var produtosFiltrados = await produtos.SearchAsync(null, classificacao, grupoCompatibilidade, filtroTecnico, calibre, cancellationToken);

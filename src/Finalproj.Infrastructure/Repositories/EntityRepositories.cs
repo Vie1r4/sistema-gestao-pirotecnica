@@ -34,6 +34,11 @@ public sealed class PaiolRepository(FinalprojContext context) : IPaiolRepository
     public Task<int> CountByEstadoAsync(string estado, CancellationToken cancellationToken = default) =>
         _context.Paiol.CountAsync(p => p.Estado == estado, cancellationToken);
 
+    public Task<int> CountAtivosExistentesEmAsync(DateTime ateUtcExclusive, CancellationToken cancellationToken = default) =>
+        _context.Paiol.CountAsync(p =>
+            p.Estado == ConstantesPaiol.EstadoAtivo
+            && (p.DataRegisto == null || p.DataRegisto < ateUtcExclusive), cancellationToken);
+
     public async Task<IReadOnlyList<Paiol>> ListByIdsOrderedAsync(IReadOnlyCollection<int> ids, CancellationToken cancellationToken = default)
     {
         if (ids.Count == 0)
@@ -114,6 +119,9 @@ public sealed class ProdutoRepository(FinalprojContext context) : IProdutoReposi
 
     public Task<int> CountRegistadosDesdeAsync(DateTime desdeUtc, CancellationToken cancellationToken = default) =>
         _context.Produtos.CountAsync(p => p.DataRegisto != null && p.DataRegisto >= desdeUtc, cancellationToken);
+
+    public Task<int> CountExistentesEmAsync(DateTime ateUtcExclusive, CancellationToken cancellationToken = default) =>
+        _context.Produtos.CountAsync(p => p.DataRegisto == null || p.DataRegisto < ateUtcExclusive, cancellationToken);
 }
 
 public sealed class EncomendaRepository(FinalprojContext context) : IEncomendaRepository
@@ -204,6 +212,7 @@ public sealed class EncomendaRepository(FinalprojContext context) : IEncomendaRe
     public Task<Encomenda?> GetByIdWithClienteItensProdutoServicosNoTrackingAsync(int id, CancellationToken cancellationToken = default) =>
         _context.Encomendas.AsNoTracking()
             .Include(e => e.Cliente)
+            .Include(e => e.CoordenadorPirotecnico)
             .Include(e => e.Itens).ThenInclude(i => i.Produto)
             .Include(e => e.Servicos)
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
@@ -279,11 +288,14 @@ public sealed class ClienteRepository(FinalprojContext context) : IClienteReposi
 {
     private readonly FinalprojContext _context = context;
 
+    private static IQueryable<Cliente> Ativos(IQueryable<Cliente> query) =>
+        query.Where(c => c.EliminadoEm == null);
+
     public Task<Cliente?> GetByIdAsync(int id, CancellationToken cancellationToken = default) =>
-        _context.Clientes.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+        Ativos(_context.Clientes.AsNoTracking()).FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
     public async Task<IReadOnlyList<Cliente>> GetAllAsync(CancellationToken cancellationToken = default) =>
-        await _context.Clientes.AsNoTracking().ToListAsync(cancellationToken);
+        await Ativos(_context.Clientes.AsNoTracking()).ToListAsync(cancellationToken);
 
     public Task AddAsync(Cliente entity, CancellationToken cancellationToken = default) =>
         _context.Clientes.AddAsync(entity, cancellationToken).AsTask();
@@ -302,7 +314,7 @@ public sealed class ClienteRepository(FinalprojContext context) : IClienteReposi
 
     public async Task<IReadOnlyList<Cliente>> SearchOrderedAsync(string? pesquisa, string? ordenar, CancellationToken cancellationToken = default)
     {
-        var query = _context.Clientes.AsNoTracking();
+        var query = Ativos(_context.Clientes.AsNoTracking());
         if (!string.IsNullOrWhiteSpace(pesquisa))
         {
             var termo = pesquisa.Trim();
@@ -324,27 +336,35 @@ public sealed class ClienteRepository(FinalprojContext context) : IClienteReposi
     }
 
     public Task<Cliente?> GetByIdWithDocumentosTrackedAsync(int id, CancellationToken cancellationToken = default) =>
-        _context.Clientes.Include(c => c.DocumentosExtras).FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+        Ativos(_context.Clientes.Include(c => c.DocumentosExtras)).FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
     public Task<Cliente?> GetByIdWithDocumentosNoTrackingAsync(int id, CancellationToken cancellationToken = default) =>
-        _context.Clientes.AsNoTracking().Include(c => c.DocumentosExtras).FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+        Ativos(_context.Clientes.AsNoTracking().Include(c => c.DocumentosExtras)).FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
     public async Task<IReadOnlyList<Cliente>> ListOrderedForSelectAsync(CancellationToken cancellationToken = default) =>
-        await _context.Clientes.AsNoTracking().OrderBy(c => c.Nome).ToListAsync(cancellationToken);
+        await Ativos(_context.Clientes.AsNoTracking()).OrderBy(c => c.Nome).ToListAsync(cancellationToken);
 
     public Task<int> CountAsync(CancellationToken cancellationToken = default) =>
-        _context.Clientes.CountAsync(cancellationToken);
+        Ativos(_context.Clientes).CountAsync(cancellationToken);
+
+    public Task<int> CountDisponiveisEmAsync(DateTime ateUtcExclusive, CancellationToken cancellationToken = default) =>
+        _context.Clientes.CountAsync(c =>
+            (c.DataRegisto == null || c.DataRegisto < ateUtcExclusive)
+            && (c.EliminadoEm == null || c.EliminadoEm >= ateUtcExclusive), cancellationToken);
 }
 
 public sealed class FuncionarioRepository(FinalprojContext context) : IFuncionarioRepository
 {
     private readonly FinalprojContext _context = context;
 
+    private static IQueryable<Funcionario> Ativos(IQueryable<Funcionario> query) =>
+        query.Where(f => f.EliminadoEm == null);
+
     public Task<Funcionario?> GetByIdAsync(int id, CancellationToken cancellationToken = default) =>
-        _context.Funcionarios.AsNoTracking().FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
+        Ativos(_context.Funcionarios.AsNoTracking()).FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
 
     public async Task<IReadOnlyList<Funcionario>> GetAllAsync(CancellationToken cancellationToken = default) =>
-        await _context.Funcionarios.AsNoTracking().ToListAsync(cancellationToken);
+        await Ativos(_context.Funcionarios.AsNoTracking()).ToListAsync(cancellationToken);
 
     public Task AddAsync(Funcionario entity, CancellationToken cancellationToken = default) =>
         _context.Funcionarios.AddAsync(entity, cancellationToken).AsTask();
@@ -362,38 +382,38 @@ public sealed class FuncionarioRepository(FinalprojContext context) : IFuncionar
     }
 
     public async Task<IReadOnlyList<Funcionario>> ListResponsaveisTecnicosOrdenadosAsync(CancellationToken cancellationToken = default) =>
-        await _context.Funcionarios.AsNoTracking()
+        await Ativos(_context.Funcionarios.AsNoTracking())
             .Where(f => !string.IsNullOrWhiteSpace(f.DocumentoADDRCaminho) && !string.IsNullOrWhiteSpace(f.LicencaOperadorCaminho))
             .OrderBy(f => f.NomeCompleto)
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<Funcionario>> ListEquipaComLicencaOperadorOrdenadosAsync(CancellationToken cancellationToken = default) =>
-        await _context.Funcionarios.AsNoTracking()
+        await Ativos(_context.Funcionarios.AsNoTracking())
             .Where(f => !string.IsNullOrWhiteSpace(f.LicencaOperadorCaminho))
             .OrderBy(f => f.NomeCompleto)
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<int>> GetIdsComLicencaOperadorAsync(CancellationToken cancellationToken = default) =>
-        await _context.Funcionarios.AsNoTracking()
+        await Ativos(_context.Funcionarios.AsNoTracking())
             .Where(f => !string.IsNullOrWhiteSpace(f.LicencaOperadorCaminho))
             .Select(f => f.Id)
             .ToListAsync(cancellationToken);
 
     public Task<Funcionario?> GetByUserIdAsync(string userId, CancellationToken cancellationToken = default) =>
-        _context.Funcionarios.AsNoTracking().FirstOrDefaultAsync(f => f.UserId == userId, cancellationToken);
+        Ativos(_context.Funcionarios.AsNoTracking()).FirstOrDefaultAsync(f => f.UserId == userId, cancellationToken);
 
     public async Task<Funcionario?> FindTrackedByIdAsync(int id, CancellationToken cancellationToken = default) =>
-        await _context.Funcionarios.FindAsync(new object[] { id }, cancellationToken);
+        await Ativos(_context.Funcionarios).FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
 
     public Task<Funcionario?> GetByIdWithDocumentosTrackedAsync(int id, CancellationToken cancellationToken = default) =>
-        _context.Funcionarios.Include(f => f.DocumentosExtras).FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
+        Ativos(_context.Funcionarios.Include(f => f.DocumentosExtras)).FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
 
     public Task<Funcionario?> GetByIdWithDocumentosNoTrackingAsync(int id, CancellationToken cancellationToken = default) =>
-        _context.Funcionarios.AsNoTracking().Include(f => f.DocumentosExtras).FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
+        Ativos(_context.Funcionarios.AsNoTracking().Include(f => f.DocumentosExtras)).FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
 
     public async Task<IReadOnlyList<Funcionario>> SearchOrderedAsync(string? pesquisa, string? cargo, string? ordenar, CancellationToken cancellationToken = default)
     {
-        var query = _context.Funcionarios.AsNoTracking();
+        var query = Ativos(_context.Funcionarios.AsNoTracking());
         if (!string.IsNullOrWhiteSpace(pesquisa))
         {
             var termo = pesquisa.Trim();
@@ -435,10 +455,15 @@ public sealed class FuncionarioRepository(FinalprojContext context) : IFuncionar
             .FirstOrDefaultAsync(cancellationToken);
 
     public Task<int> CountAsync(CancellationToken cancellationToken = default) =>
-        _context.Funcionarios.CountAsync(cancellationToken);
+        Ativos(_context.Funcionarios).CountAsync(cancellationToken);
 
     public Task<int> CountRegistadosDesdeAsync(DateTime desdeUtc, CancellationToken cancellationToken = default) =>
         _context.Funcionarios.CountAsync(f => f.DataRegisto != null && f.DataRegisto >= desdeUtc, cancellationToken);
+
+    public Task<int> CountDisponiveisEmAsync(DateTime ateUtcExclusive, CancellationToken cancellationToken = default) =>
+        _context.Funcionarios.CountAsync(f =>
+            (f.DataRegisto == null || f.DataRegisto < ateUtcExclusive)
+            && (f.EliminadoEm == null || f.EliminadoEm >= ateUtcExclusive), cancellationToken);
 }
 
 public sealed class ServicoRepository(FinalprojContext context) : IServicoRepository
@@ -490,6 +515,10 @@ public sealed class ServicoRepository(FinalprojContext context) : IServicoReposi
 
     public Task<int> CountCreatedSinceAsync(DateTime utcInclusiveStart, CancellationToken cancellationToken = default) =>
         _context.Servicos.CountAsync(s => s.DataServico >= utcInclusiveStart.Date, cancellationToken);
+
+    public Task<int> CountExistentesEmAsync(DateTime ateUtcExclusive, CancellationToken cancellationToken = default) =>
+        _context.Servicos.CountAsync(s =>
+            (s.DataRegisto ?? s.DataServico) < ateUtcExclusive, cancellationToken);
 
     public async Task<(IReadOnlyList<Servico> Items, int Total)> ListPagedWithIncludesAsync(
         int? clienteId,
@@ -594,18 +623,26 @@ public sealed class EntradaPaiolRepository(FinalprojContext context) : IEntradaP
 
     public async Task<Dictionary<int, decimal>> SumSaldoDisponivelPorProdutoAsync(CancellationToken cancellationToken = default)
     {
-        var saldoPorEntrada = await _context.EntradasPaiol.AsNoTracking()
-            .Select(e => new
-            {
-                e.ProdutoId,
-                Saldo = e.Quantidade - (_context.SaidasPaiol
-                    .Where(s => s.EntradaPaiolId == e.Id)
-                    .Sum(s => (decimal?)s.Quantidade) ?? 0m)
-            })
-            .Where(x => x.Saldo > 0)
-            .GroupBy(x => x.ProdutoId)
-            .Select(g => new { ProdutoId = g.Key, Total = g.Sum(x => x.Saldo) })
+        // SQL Server não permite SUM(SUM(subquery)); agregar saídas por lote e calcular saldo em memória.
+        var entradas = await _context.EntradasPaiol.AsNoTracking()
+            .Select(e => new { e.Id, e.ProdutoId, e.Quantidade })
             .ToListAsync(cancellationToken);
+
+        var saidasPorEntrada = await _context.SaidasPaiol.AsNoTracking()
+            .Where(s => s.EntradaPaiolId != null)
+            .GroupBy(s => s.EntradaPaiolId!.Value)
+            .Select(g => new { EntradaPaiolId = g.Key, Total = g.Sum(s => s.Quantidade) })
+            .ToListAsync(cancellationToken);
+
+        var saidasPorEntradaMap = saidasPorEntrada.ToDictionary(x => x.EntradaPaiolId, x => x.Total);
+
+        var resultado = new Dictionary<int, decimal>();
+        foreach (var e in entradas)
+        {
+            var saldo = e.Quantidade - saidasPorEntradaMap.GetValueOrDefault(e.Id, 0m);
+            if (saldo <= 0) continue;
+            resultado[e.ProdutoId] = resultado.GetValueOrDefault(e.ProdutoId) + saldo;
+        }
 
         var saidasSemLote = await _context.SaidasPaiol.AsNoTracking()
             .Where(s => s.EntradaPaiolId == null)
@@ -613,9 +650,14 @@ public sealed class EntradaPaiolRepository(FinalprojContext context) : IEntradaP
             .Select(g => new { ProdutoId = g.Key, Total = g.Sum(s => s.Quantidade) })
             .ToListAsync(cancellationToken);
 
-        var resultado = saldoPorEntrada.ToDictionary(x => x.ProdutoId, x => x.Total);
         foreach (var s in saidasSemLote)
             resultado[s.ProdutoId] = resultado.GetValueOrDefault(s.ProdutoId) - s.Total;
+
+        foreach (var pid in resultado.Keys.ToList())
+        {
+            if (resultado[pid] < 0)
+                resultado[pid] = 0;
+        }
 
         return resultado;
     }
@@ -985,6 +1027,42 @@ public sealed class ServicoDistanciaSegurancaRepository(FinalprojContext context
             .Where(d => d.ServicoId == servicoId)
             .OrderBy(d => d.TipoReferencia)
             .ToListAsync(cancellationToken);
+
+    public async Task SyncDistanciasSegurancaServicoAsync(int servicoId, int? distanciaExigida_m, CancellationToken cancellationToken = default)
+    {
+        var existentes = await _context.ServicoDistanciasSeguranca
+            .Where(d => d.ServicoId == servicoId)
+            .ToListAsync(cancellationToken);
+
+        if (!distanciaExigida_m.HasValue)
+        {
+            if (existentes.Count > 0)
+                _context.ServicoDistanciasSeguranca.RemoveRange(existentes);
+            return;
+        }
+
+        var tipos = Enum.GetValues<TipoReferenciaDistancia>().Where(t => t != TipoReferenciaDistancia.OUTRO).ToList();
+        var porTipo = existentes.ToDictionary(d => d.TipoReferencia);
+        foreach (var tipo in tipos)
+        {
+            if (porTipo.TryGetValue(tipo, out var row))
+            {
+                row.DistanciaMinima_m = distanciaExigida_m.Value;
+                row.DistanciaMedida_m = distanciaExigida_m.Value;
+            }
+            else
+            {
+                await _context.ServicoDistanciasSeguranca.AddAsync(new ServicoDistanciaSeguranca
+                {
+                    ServicoId = servicoId,
+                    TipoReferencia = tipo,
+                    DescricaoReferencia = ConstantesDistanciaSeguranca.Nome(tipo),
+                    DistanciaMinima_m = distanciaExigida_m.Value,
+                    DistanciaMedida_m = distanciaExigida_m.Value
+                }, cancellationToken);
+            }
+        }
+    }
 }
 
 public sealed class ServicoZonaLancamentoRepository(FinalprojContext context) : IServicoZonaLancamentoRepository
@@ -1000,32 +1078,39 @@ public sealed class ServicoZonaLancamentoRepository(FinalprojContext context) : 
         _context.ServicoZonasLancamento.RemoveRange(zonas);
     }
 
-    public async Task AddDistanciasPadraoAsync(int zonaId, string? divisaoDominante, CancellationToken cancellationToken = default)
+    public async Task SyncDistanciasSegurancaZonaAsync(int zonaId, int? distanciaExigida_m, CancellationToken cancellationToken = default)
     {
-        var existentes = await _context.ServicoZonaDistanciasSeguranca.AsNoTracking()
+        var existentes = await _context.ServicoZonaDistanciasSeguranca
             .Where(d => d.ZonaId == zonaId)
-            .Select(d => d.TipoReferencia)
             .ToListAsync(cancellationToken);
-        var tipos = Enum.GetValues<TipoReferenciaDistancia>().Where(t => t != TipoReferenciaDistancia.OUTRO).ToList();
-        foreach (var tipo in tipos.Where(t => !existentes.Contains(t)))
+
+        if (!distanciaExigida_m.HasValue)
         {
-            int min = tipo == TipoReferenciaDistancia.HABITACAO
-                ? ConstantesDistanciaSeguranca.HabitacaoMinimaMetros(divisaoDominante)
-                : tipo switch
-                {
-                    TipoReferenciaDistancia.ESTRADA_NACIONAL => ConstantesDistanciaSeguranca.EstradaNacional,
-                    TipoReferenciaDistancia.AUTOESTRADA => ConstantesDistanciaSeguranca.Autoestrada,
-                    TipoReferenciaDistancia.LINHA_ALTA_TENSAO => ConstantesDistanciaSeguranca.LinhaAltaTensao,
-                    TipoReferenciaDistancia.FLORESTA => ConstantesDistanciaSeguranca.Floresta,
-                    _ => 50
-                };
-            await _context.ServicoZonaDistanciasSeguranca.AddAsync(new ServicoZonaDistanciaSeguranca
+            if (existentes.Count > 0)
+                _context.ServicoZonaDistanciasSeguranca.RemoveRange(existentes);
+            return;
+        }
+
+        var tipos = Enum.GetValues<TipoReferenciaDistancia>().Where(t => t != TipoReferenciaDistancia.OUTRO).ToList();
+        var porTipo = existentes.ToDictionary(d => d.TipoReferencia);
+        foreach (var tipo in tipos)
+        {
+            if (porTipo.TryGetValue(tipo, out var row))
             {
-                ZonaId = zonaId,
-                TipoReferencia = tipo,
-                DescricaoReferencia = ConstantesDistanciaSeguranca.Nome(tipo),
-                DistanciaMinima_m = min
-            }, cancellationToken);
+                row.DistanciaMinima_m = distanciaExigida_m.Value;
+                row.DistanciaMedida_m = distanciaExigida_m.Value;
+            }
+            else
+            {
+                await _context.ServicoZonaDistanciasSeguranca.AddAsync(new ServicoZonaDistanciaSeguranca
+                {
+                    ZonaId = zonaId,
+                    TipoReferencia = tipo,
+                    DescricaoReferencia = ConstantesDistanciaSeguranca.Nome(tipo),
+                    DistanciaMinima_m = distanciaExigida_m.Value,
+                    DistanciaMedida_m = distanciaExigida_m.Value
+                }, cancellationToken);
+            }
         }
     }
 }

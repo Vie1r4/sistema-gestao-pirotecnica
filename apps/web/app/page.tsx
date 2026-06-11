@@ -4,6 +4,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import Navbar from "./components/Navbar";
 import DashboardGestor from "./components/DashboardGestor";
+import DashboardComercial from "./components/DashboardComercial";
 import { useUser } from "./context/UserContext";
 import { fadeInUp, transitionSmooth, staggerContainer } from "./lib/animations";
 import { getToken } from "./lib/auth";
@@ -49,16 +50,17 @@ export default function Home() {
   const { user } = useUser();
   const apenasArmazem = isApenasArmazem(user?.roles);
   const melhorCargoComercial = isMelhorCargoComercial(user?.roles);
-  /** Admin/Gestor: só o painel (sem hero). Todos os outros: só o hero PIROFAFE. */
+  /** Admin/Gestor: painel gestor. Comercial (sem Admin/Gestor): painel comercial. Resto: hero PIROFAFE. */
   const showDashboardGestor = !!token && !apenasArmazem && !melhorCargoComercial;
+  const showDashboardComercial = !!token && melhorCargoComercial;
 
   return (
     <div className="min-h-screen bg-[#fafaf9] text-[#1c1917] selection:bg-[#f97316]/20 selection:text-[#1c1917] dark:bg-[#050505] dark:text-white">
       <Navbar />
 
       <main className="relative pt-content-offset">
-        {/* Hero PIROFAFE — apenas para quem NÃO é Admin/Gestor */}
-        {!showDashboardGestor && (
+        {/* Hero PIROFAFE — visitantes, Armazém e outros sem painel dedicado */}
+        {!showDashboardGestor && !showDashboardComercial && (
           <section className="home-hero-bg home-grid relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 pb-24 pt-24 sm:px-8 sm:pb-32 sm:pt-28 md:pb-36 md:pt-32">
             {/* Camada de grain sutil */}
             <div className="home-grain" aria-hidden />
@@ -158,6 +160,10 @@ export default function Home() {
             userName={user?.nome ?? ""}
             roleLabel={user?.roles?.find((r) => r === ROLE_ADMIN || r === ROLE_GESTOR) ?? ROLE_GESTOR}
           />
+        )}
+
+        {showDashboardComercial && token && (
+          <DashboardComercial token={token} userName={user?.nome ?? undefined} />
         )}
 
         {/* Footer — estático para scroll fluido */}

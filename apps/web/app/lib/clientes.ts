@@ -26,6 +26,8 @@ export type Cliente = {
   notas?: string;
   dataRegisto: string;
   documentosExtras: ClienteDocumentoExtra[];
+  /** False após eliminação lógica da ficha (nome mantém-se no histórico). */
+  disponivel?: boolean;
 };
 
 /** Resposta do detalhe: cliente + encomendas ativas e histórico */
@@ -60,6 +62,7 @@ export function mapApiToCliente(p: Record<string, unknown>): Cliente {
           caminho: d.caminho != null || d.Caminho != null ? String(d.caminho ?? d.Caminho ?? "") : undefined,
         }))
       : [],
+    disponivel: (p.disponivel ?? p.Disponivel ?? true) as boolean,
   };
 }
 

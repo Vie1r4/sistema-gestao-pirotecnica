@@ -23,7 +23,8 @@ public static class TestDataSeeder
                 FiltroTecnico = TestProdutoDefaults.FiltroTecnico,
                 Calibre = TestProdutoDefaults.Calibre,
                 Categoria = TestProdutoDefaults.Categoria,
-                GrupoCompatibilidade = TestProdutoDefaults.GrupoCompatibilidade
+                GrupoCompatibilidade = TestProdutoDefaults.GrupoCompatibilidade,
+                DistanciaSegurancaPublico_m = TestProdutoDefaults.DistanciaSegurancaPublico_m
             });
             await context.SaveChangesAsync();
         }
@@ -80,7 +81,41 @@ public static class TestDataSeeder
             });
             await context.SaveChangesAsync();
         }
+
+        await SeedDemoYoY2025EncomendasAsync(context);
     }
+
+    /// <summary>5 encomendas/mês em 2025 para testes do gráfico YoY.</summary>
+    public static async Task SeedDemoYoY2025EncomendasAsync(FinalprojContext context)
+    {
+        if (context.Encomendas.Any(e => e.Observacoes == DemoYoY2025Marker))
+            return;
+
+        var clienteId = context.Clientes.Select(c => c.Id).First();
+        var produtoId = context.Produtos.Select(p => p.Id).First();
+        var encomendas = new List<Encomenda>();
+        for (var mes = 1; mes <= 12; mes++)
+        {
+            for (var i = 0; i < 5; i++)
+            {
+                var dia = Math.Min(1 + i * 5, 28);
+                encomendas.Add(new Encomenda
+                {
+                    ClienteId = clienteId,
+                    Nome = $"Demo gráfico 2025-{mes:D2}-{i + 1}",
+                    Estado = ConstantesEncomenda.CONCLUIDA,
+                    DataCriacao = new DateTime(2025, mes, dia, 12, 0, 0, DateTimeKind.Utc),
+                    Observacoes = DemoYoY2025Marker,
+                    Itens = [new EncomendaItem { ProdutoId = produtoId, QuantidadePedida = 1 }]
+                });
+            }
+        }
+
+        context.Encomendas.AddRange(encomendas);
+        await context.SaveChangesAsync();
+    }
+
+    public const string DemoYoY2025Marker = "SEED-DEMO-YOY-2025";
 
     public static int GetSeedFuncionarioId(IServiceProvider sp) =>
         sp.GetRequiredService<FinalprojContext>().Funcionarios.Select(f => f.Id).First();

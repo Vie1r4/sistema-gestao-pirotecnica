@@ -55,7 +55,7 @@ function EncomendasContent() {
   const { user } = useUser();
   const canGerirEncomendas = (user?.permissions ?? []).includes("encomendas.gerir");
 
-  const estadoParam = searchParams.get("estado") ?? "Ativas";
+  const estadoParam = searchParams.get("estado") ?? "Todos";
   const estado = (estadoParam === "Todos" || estadoParam === "Ativas" ? estadoParam : estadoParam) as EstadoEncomenda | "Todos" | "Ativas";
   const pagina = Math.max(1, parseInt(searchParams.get("pagina") ?? "1", 10) || 1);
 
@@ -171,8 +171,8 @@ function EncomendasContent() {
                 onChange={(e) => setEstadoPagina(e.target.value as EstadoEncomenda | "Todos" | "Ativas")}
                 className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-white"
               >
-                <option value="Ativas">Ativas ({totalAtivas})</option>
                 <option value="Todos">Todos ({totalGeral})</option>
+                <option value="Ativas">Ativas ({totalAtivas})</option>
                 {ESTADOS_ENCOMENDA.map((e) => (
                   <option key={e} value={e}>
                     {e} ({(totais[e] ?? 0)})

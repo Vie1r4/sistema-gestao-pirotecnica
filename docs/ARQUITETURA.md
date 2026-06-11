@@ -19,10 +19,24 @@ Sistema de gestão pirotécnica: paióis e stock (MLE/NEM, FIFO), catálogo de p
 |---------|----------|
 | `Finalproj.Api` | Controllers, `Program.cs`, middleware, model binders HTTP (`UploadedFileContent`), dropdowns |
 | `Finalproj.Application` | Serviços de aplicação, DTOs, validadores FluentValidation — **sem** `Microsoft.AspNetCore.*` |
-| `Finalproj.Domain` | Entidades, constantes, read models (`ReadModels/`); contratos em `Interfaces/` (`IUnitOfWork`, `IGestorAnalyticsRepository`) e `Interfaces/Repositories/` (`Finalproj.Domain.Interfaces.Repositories`) |
+| `Finalproj.Domain` | Entidades, constantes, read models (`ReadModels/`); **parâmetros e regras legais em `Legislacao/`**; contratos em `Interfaces/` (`IUnitOfWork`, `IGestorAnalyticsRepository`) e `Interfaces/Repositories/` (`Finalproj.Domain.Interfaces.Repositories`) |
 | `Finalproj.Infrastructure` | EF `FinalprojContext`, email, `ArquivosRaizService`, `DocumentoStorageService`, backups, `LogSistemaService` |
 
 Serviços de negócio relevantes: `EncomendaService` (preparação FIFO), `StockDisponivelService`, `ServicoService`, `DocumentoStorageService` (uploads em `PirofafeData/Uploads` via `IArquivosRaizService`; validação extensão + magic bytes). Uploads na Application usam `UploadedFileContent` (bytes + nome); a API converte `IFormFile` na fronteira (`FormFileMapper` / model binder).
+
+### Dados e cálculos legais (`Finalproj.Domain/Legislacao/`)
+
+Tudo o que é **definido por lei** e muda com frequência (ADR, RFACEPE, Regulamento PSP) está concentrado neste módulo, para ser de fácil acesso quando a legislação for alterada:
+
+- **`ParametrosLegaisPirotecnia`** — **fonte única** dos valores numéricos e matrizes: distâncias mínimas de segurança, limite de MLE do grupo C com G (50 kg), limiares de ocupação do paiol (80% / 90%), hierarquia de divisões de risco, matriz de compatibilidade de grupos (ADR 7.2.5) e matriz licença-paiol → famílias aceites (ADR 7.5.2.2). **Alterar a lei = alterar só aqui.**
+- **`MotorValidacaoPaiol`** — valida entradas no paiol (licença, grupos, lotação); consome os parâmetros acima.
+- **`RegrasLicencaPaiol`** — compatibilidade licença ↔ família do produto.
+- **`ConstantesDistanciaSeguranca`** — nomes dos tipos de referência regulamentares (habitações, estrada, etc.); **não** é a fonte dos valores gravados em serviços.
+- **`CalculoAreaSegurancaPublico`** — raio ao público de uma zona = **máximo** das distâncias de segurança ao público dos produtos alocados (campo obrigatório do catálogo). Bombas 100 m + caixas 50 m → 100 m. O **serviço** usa o **máximo entre zonas** (ex.: zonas 80 m e 120 m → 120 m).
+
+Ao gravar zonas (`ServicoService.GravarZonasAsync`), o backend sincroniza `ServicoZonaDistanciaSeguranca` e `ServicoDistanciaSeguranca` com esses máximos (`DistanciaMinima_m` = `DistanciaMedida_m`). O PUT manual `.../distancia-seguranca/{id}` mantém-se por compatibilidade, mas os valores são repostos no próximo save de zonas; a UI não expõe edição manual.
+
+O namespace `Finalproj.Domain.Legislacao` está nos `global using` de todos os projetos.
 
 ---
 
@@ -37,13 +51,13 @@ Serviços de negócio relevantes: `EncomendaService` (preparação FIFO), `Stock
 
 ## Domínio (resumo)
 
-- **Paiol** + acessos por role, entradas/saídas, documentos.
+- **Paiol** + entradas/saídas, documentos (visíveis para todos os perfis com permissão de armazém).
 - **Produto** — NEM, classificação, compatibilidade.
 - **Encomenda** — estados (Pendente → Aceite → Em preparação → Concluída / Rejeitada), itens, **reservas**.
 - **Servico** — equipa, licenças, distâncias, documentos; `EncomendaId` único; **zonas de lançamento** (`ServicoZonaLancamento` com linhas de material/horário e distâncias por zona); campos para PSP (`NomeEvento`, `CoordenadorPirotecnico`, CRED no funcionário, `Categoria` no produto, `Nome` na encomenda).
 - **Cliente**, **Funcionario**, **RefreshToken**, **LogSistema**.
 
-Regras centrais: stock disponível = saldo por lote não esgotado (SQL) − saídas avulsas − reservas; preparação só em encomenda Aceite, saídas FIFO por data de fabrico e data de entrada. Entradas no paiol passam por `MotorValidacaoPaiol` (licença, grupos ADR 7.2.5, lotação); cobertura HTTP em `Finalproj.IntegrationTests/Paiols/EntradaPaiolCompatibilidadeTests.cs`. Serviço exige repartição do material da encomenda por zonas (validação FluentValidation + `ServicoService`); geração de declaração PSP via `GeradorDeclaracaoPspService` (ver `Docs/documentacao-regulatoria/`).
+Regras centrais: stock disponível = saldo por lote não esgotado (SQL) − saídas avulsas − reservas; preparação só em encomenda Aceite, saídas FIFO por data de fabrico e data de entrada. **Clientes e funcionários:** eliminação lógica (`EliminadoEm`) — a ficha sai das listagens e do GET detalhe, mas o registo e o nome permanecem nas encomendas/serviços (`disponivel: false` na API; UI mostra aviso em vez de link). Entradas no paiol passam por `MotorValidacaoPaiol` (licença, grupos ADR 7.2.5, lotação); cobertura HTTP em `Finalproj.IntegrationTests/Paiols/EntradaPaiolCompatibilidadeTests.cs`. Serviço exige repartição do material da encomenda por zonas (validação FluentValidation + `ServicoService`); geração de declaração PSP via `GeradorDeclaracaoPspService` (ver `Docs/documentacao-regulatoria/`).
 
 ---
 

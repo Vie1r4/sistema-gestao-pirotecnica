@@ -53,5 +53,10 @@ public class Cliente
     [StringLength(450)]
     public string? UserId { get; set; }
 
+    /// <summary>Preenchido em eliminação lógica; a ficha deixa de estar disponível mas o registo permanece para histórico.</summary>
+    public DateTime? EliminadoEm { get; set; }
+
+    public bool EstaDisponivel => EliminadoEm == null;
+
     public ICollection<ClienteDocumentoExtra> DocumentosExtras { get; set; } = new List<ClienteDocumentoExtra>();
 }

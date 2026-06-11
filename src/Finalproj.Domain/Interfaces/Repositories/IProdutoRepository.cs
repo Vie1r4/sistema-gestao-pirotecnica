@@ -21,5 +21,6 @@ public interface IProdutoRepository
 
     Task<int> CountAsync(CancellationToken cancellationToken = default);
     Task<int> CountRegistadosDesdeAsync(DateTime desdeUtc, CancellationToken cancellationToken = default);
+    Task<int> CountExistentesEmAsync(DateTime ateUtcExclusive, CancellationToken cancellationToken = default);
 }
 

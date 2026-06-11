@@ -73,5 +73,10 @@ public class Funcionario
     [Display(Name = "Outros")]
     public string? OutrosCaminho { get; set; }
 
+    /// <summary>Preenchido em eliminação lógica; a ficha deixa de estar disponível mas o registo permanece para histórico.</summary>
+    public DateTime? EliminadoEm { get; set; }
+
+    public bool EstaDisponivel => EliminadoEm == null;
+
     public ICollection<FuncionarioDocumentoExtra> DocumentosExtras { get; set; } = new List<FuncionarioDocumentoExtra>();
 }

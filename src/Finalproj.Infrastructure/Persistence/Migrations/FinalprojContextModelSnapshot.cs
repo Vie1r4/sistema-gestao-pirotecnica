@@ -37,6 +37,9 @@ namespace Finalproj.Migrations
                     b.Property<DateTime?>("DataRegisto")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("EliminadoEm")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
@@ -313,6 +316,9 @@ namespace Finalproj.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<DateTime?>("EliminadoEm")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
@@ -585,6 +591,9 @@ namespace Finalproj.Migrations
 
                     b.Property<DateTime?>("DataRegisto")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("DistanciaSegurancaPublico_m")
+                        .HasColumnType("int");
 
                     b.Property<string>("FamiliaRisco")
                         .IsRequired()

@@ -311,6 +311,10 @@ function mapId(v: unknown): string {
 }
 
 /** Mapeia um item da lista da API para o tipo do frontend (id como string). */
+function mapDisponivel(o: Record<string, unknown>): boolean {
+  return (o.disponivel ?? o.Disponivel ?? true) as boolean;
+}
+
 function mapApiServicoToList(s: Record<string, unknown>): Servico & { cliente?: Cliente | null; encomenda?: Encomenda | null; responsavelTecnico?: Funcionario | null; coordenadorPirotecnico?: Funcionario | null } {
   const id = mapId(s.id ?? s.Id);
   const cliente = (s.cliente ?? s.Cliente) as Record<string, unknown> | undefined;
@@ -345,14 +349,15 @@ function mapApiServicoToList(s: Record<string, unknown>): Servico & { cliente?: 
           : undefined,
     observacoes: (s.observacoes ?? s.Observacoes) as string | undefined,
     nomeEvento: (s.nomeEvento ?? s.NomeEvento) as string | undefined,
-    cliente: cliente ? { id: mapId(cliente.id ?? cliente.Id), nome: String(cliente.nome ?? cliente.Nome ?? "") } as Cliente : null,
+    cliente: cliente ? { id: mapId(cliente.id ?? cliente.Id), nome: String(cliente.nome ?? cliente.Nome ?? ""), disponivel: mapDisponivel(cliente) } as Cliente : null,
     encomenda: encomenda ? { id: mapId(encomenda.id ?? encomenda.Id), estado: (encomenda.estado ?? encomenda.Estado) as string } as Encomenda : null,
-    responsavelTecnico: resp ? { id: mapId(resp.id ?? resp.Id), nomeCompleto: String(resp.nomeCompleto ?? resp.NomeCompleto ?? "") } as Funcionario : null,
+    responsavelTecnico: resp ? { id: mapId(resp.id ?? resp.Id), nomeCompleto: String(resp.nomeCompleto ?? resp.NomeCompleto ?? ""), disponivel: mapDisponivel(resp) } as Funcionario : null,
     coordenadorPirotecnico: coord
       ? ({
           id: mapId(coord.id ?? coord.Id),
           nomeCompleto: String(coord.nomeCompleto ?? coord.NomeCompleto ?? ""),
           numeroCredencial: (coord.numeroCredencial ?? coord.NumeroCredencial) as string | undefined,
+          disponivel: mapDisponivel(coord),
         } as Funcionario)
       : null,
   };
@@ -481,14 +486,15 @@ function mapApiDetalheToServicoDetalhe(data: {
   return {
     ...mapApiServicoToList(data.servico),
     id,
-    cliente: cliente ? { id: mapId(cliente.id ?? cliente.Id), nome: String(cliente.nome ?? cliente.Nome ?? "") } as Cliente : null,
+    cliente: cliente ? { id: mapId(cliente.id ?? cliente.Id), nome: String(cliente.nome ?? cliente.Nome ?? ""), disponivel: mapDisponivel(cliente) } as Cliente : null,
     encomenda: encomenda ? { id: mapId(encomenda.id ?? encomenda.Id), estado: (encomenda.estado ?? encomenda.Estado) as string } as Encomenda : null,
-    responsavelTecnico: resp ? { id: mapId(resp.id ?? resp.Id), nomeCompleto: String(resp.nomeCompleto ?? resp.NomeCompleto ?? "") } as Funcionario : null,
+    responsavelTecnico: resp ? { id: mapId(resp.id ?? resp.Id), nomeCompleto: String(resp.nomeCompleto ?? resp.NomeCompleto ?? ""), disponivel: mapDisponivel(resp) } as Funcionario : null,
     coordenadorPirotecnico: coord
       ? ({
           id: mapId(coord.id ?? coord.Id),
           nomeCompleto: String(coord.nomeCompleto ?? coord.NomeCompleto ?? ""),
           numeroCredencial: (coord.numeroCredencial ?? coord.NumeroCredencial) as string | undefined,
+          disponivel: mapDisponivel(coord),
         } as Funcionario)
       : null,
     // API GET detalhe devolve Equipa como lista de FuncionarioResponseDto (id, nomeCompleto no topo),
@@ -505,7 +511,11 @@ function mapApiDetalheToServicoDetalhe(data: {
       return {
         servicoId: id,
         funcionarioId: fid,
-        funcionario: { id: fid, nomeCompleto } as Funcionario,
+        funcionario: {
+          id: fid,
+          nomeCompleto,
+          disponivel: mapDisponivel(src),
+        } as Funcionario,
       };
     }),
     documentosExtras: (documentosExtras ?? []).map((d: Record<string, unknown>) => ({

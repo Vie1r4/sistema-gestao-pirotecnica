@@ -38,6 +38,9 @@ public class FuncionarioResponseDto
 
     /// <summary>Documentos extras: apenas Id e Nome (sem caminho).</summary>
     public List<FuncionarioDocumentoExtraDto> DocumentosExtras { get; set; } = new();
+
+    /// <summary>False após eliminação lógica da ficha (histórico mantém o nome).</summary>
+    public bool Disponivel { get; set; } = true;
 }
 
 public class FuncionarioDocumentoExtraDto
@@ -73,7 +76,8 @@ public static class FuncionarioResponseDtoMapping
             HasOutros = !string.IsNullOrEmpty(f.OutrosCaminho),
             DocumentosExtras = (f.DocumentosExtras ?? new List<FuncionarioDocumentoExtra>())
                 .Select(e => new FuncionarioDocumentoExtraDto { Id = e.Id, Nome = e.Nome })
-                .ToList()
+                .ToList(),
+            Disponivel = f.EstaDisponivel
         };
     }
 }

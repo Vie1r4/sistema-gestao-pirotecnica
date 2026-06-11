@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   calcularAllocacao,
+  calcularRaioPublicoZona,
   createDefaultZonasFromItens,
   parseItensEncomenda,
   parseQuantidadeInteira,
@@ -11,16 +12,25 @@ import {
 
 describe("zonasLancamento", () => {
   const itens = [
-    { produtoId: 1, produtoNome: "Fogo A", quantidadePedida: 10 },
-    { produtoId: 2, produtoNome: "Fogo B", quantidadePedida: 5 },
+    { produtoId: 1, produtoNome: "Fogo A", quantidadePedida: 10, distanciaSegurancaPublico_m: 100 },
+    { produtoId: 2, produtoNome: "Fogo B", quantidadePedida: 5, distanciaSegurancaPublico_m: 50 },
   ];
 
   it("parseItensEncomenda mapeia PascalCase e camelCase", () => {
     const parsed = parseItensEncomenda([
-      { ProdutoId: 3, QuantidadePedida: 2, Produto: { Nome: "X" } },
+      { ProdutoId: 3, QuantidadePedida: 2, Produto: { Nome: "X", DistanciaSegurancaPublico_m: 75 } },
       { produtoId: 4, quantidadePedida: 0 },
     ]);
-    expect(parsed).toEqual([{ produtoId: 3, produtoNome: "X", quantidadePedida: 2 }]);
+    expect(parsed).toEqual([
+      { produtoId: 3, produtoNome: "X", quantidadePedida: 2, distanciaSegurancaPublico_m: 75 },
+    ]);
+  });
+
+  it("calcularRaioPublicoZona usa o máximo entre produtos da zona", () => {
+    const zonas = createDefaultZonasFromItens(itens, "2026-06-01");
+    expect(calcularRaioPublicoZona(zonas[0], itens)).toBe(100);
+    zonas[0].linhas = [zonas[0].linhas[1]];
+    expect(calcularRaioPublicoZona(zonas[0], itens)).toBe(50);
   });
 
   it("createDefaultZonasFromItens cria uma zona com todo o material", () => {
@@ -65,5 +75,6 @@ describe("zonasLancamento", () => {
     expect(api[0].linhas[0].horaInicio).toBe("22:00:00");
     expect(api[0].linhas[0].horaFim).toBe("22:30:00");
     expect(api[0].linhas[0].produtoId).toBe(1);
+    expect(api[0].raioPublico).toBeUndefined();
   });
 });

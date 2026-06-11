@@ -24,23 +24,19 @@ public sealed class VolumeResponseDto
     public IReadOnlyList<VolumePeriodoDto> Periodos { get; set; } = [];
 }
 
-public sealed class ComparacaoAnualSemanaDto
+public sealed class ComparacaoAnualPontoDto
 {
-    public int Semana { get; set; }
-    public string Chave { get; set; } = "";
+    public int Mes { get; set; }
     public string Rotulo { get; set; } = "";
+    public int? Total { get; set; }
     public bool Futuro { get; set; }
-    public int Atual { get; set; }
-    public int AnoAnterior { get; set; }
-    public string? ProdutoDestaque { get; set; }
-    public decimal QuantidadeDestaque { get; set; }
+    public IReadOnlyList<VolumeEncomendaDetalheDto> Encomendas { get; set; } = [];
 }
 
-public sealed class ZonaPicoDto
+public sealed class ComparacaoAnualSerieDto
 {
-    public int SemanaInicio { get; set; }
-    public int SemanaFim { get; set; }
-    public string Texto { get; set; } = "";
+    public int Ano { get; set; }
+    public IReadOnlyList<ComparacaoAnualPontoDto> Pontos { get; set; } = [];
 }
 
 public sealed class FiltroOpcaoDto
@@ -51,10 +47,9 @@ public sealed class FiltroOpcaoDto
 
 public sealed class ComparacaoAnualResponseDto
 {
-    public int Ano { get; set; }
-    public int AnoAnterior { get; set; }
-    public IReadOnlyList<ComparacaoAnualSemanaDto> Semanas { get; set; } = [];
-    public IReadOnlyList<ZonaPicoDto> ZonasPico { get; set; } = [];
+    public int AnoAtual { get; set; }
+    public IReadOnlyList<int> AnosDisponiveis { get; set; } = [];
+    public IReadOnlyList<ComparacaoAnualSerieDto> Series { get; set; } = [];
     public IReadOnlyList<FiltroOpcaoDto> Materiais { get; set; } = [];
     public IReadOnlyList<FiltroOpcaoDto> Clientes { get; set; } = [];
     public int? ProdutoIdFiltro { get; set; }

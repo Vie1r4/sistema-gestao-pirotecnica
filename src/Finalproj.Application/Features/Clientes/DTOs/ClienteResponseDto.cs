@@ -25,6 +25,9 @@ public class ClienteResponseDto
 
     /// <summary>Documentos extras: apenas Id e Nome (sem caminho).</summary>
     public List<ClienteDocumentoExtraDto> DocumentosExtras { get; set; } = new();
+
+    /// <summary>False após eliminação lógica da ficha (histórico mantém o nome).</summary>
+    public bool Disponivel { get; set; } = true;
 }
 
 public class ClienteDocumentoExtraDto
@@ -53,7 +56,8 @@ public static class ClienteResponseDtoMapping
             Morada = includeSensitive ? c.Morada : null,
             DocumentosExtras = (c.DocumentosExtras ?? new List<ClienteDocumentoExtra>())
                 .Select(e => new ClienteDocumentoExtraDto { Id = e.Id, Nome = e.Nome })
-                .ToList()
+                .ToList(),
+            Disponivel = c.EstaDisponivel
         };
     }
 }

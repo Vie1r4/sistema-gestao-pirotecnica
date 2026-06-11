@@ -109,25 +109,22 @@ export async function postCreatePaiol(
   return res.json();
 }
 
-/** GET api/paiol/create — dados para formulário criar (perfisRisco, estados, cargosDisponiveis) */
+/** GET api/paiol/create — dados para formulário criar (perfisRisco, estados) */
 export async function fetchCreate(token: string): Promise<{
   paiol: Record<string, unknown>;
   perfisRisco: string[];
   estados: string[];
-  cargosDisponiveis: string[];
 }> {
   const res = await fetch(`${apiPath("api/paiol")}/create`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Falha ao carregar formulário");
   return res.json();
 }
 
-/** GET api/paiol/{id}/edit — dados para editar (paiol, cargosSelecionados, opções) */
+/** GET api/paiol/{id}/edit — dados para editar (paiol, opções) */
 export async function fetchEdit(token: string, id: number): Promise<{
   paiol: Record<string, unknown>;
   perfisRisco: string[];
   estados: string[];
-  cargosDisponiveis: string[];
-  cargosSelecionados: string[];
 }> {
   const res = await fetch(`${apiPath("api/paiol")}/${id}/edit`, { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Falha ao carregar dados para editar");

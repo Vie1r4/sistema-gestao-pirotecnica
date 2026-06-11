@@ -50,21 +50,17 @@ export type VolumeResponse = {
   periodos: VolumePeriodo[];
 };
 
-export type ComparacaoAnualSemana = {
-  semana: number;
-  chave?: string;
+export type ComparacaoAnualPonto = {
+  mes: number;
   rotulo: string;
-  futuro?: boolean;
-  atual: number;
-  anoAnterior: number;
-  produtoDestaque?: string | null;
-  quantidadeDestaque: number;
+  total: number | null;
+  futuro: boolean;
+  encomendas: VolumeEncomendaDetalhe[];
 };
 
-export type ZonaPico = {
-  semanaInicio: number;
-  semanaFim: number;
-  texto: string;
+export type ComparacaoAnualSerie = {
+  ano: number;
+  pontos: ComparacaoAnualPonto[];
 };
 
 export type FiltroOpcao = {
@@ -73,10 +69,9 @@ export type FiltroOpcao = {
 };
 
 export type ComparacaoAnualResponse = {
-  ano: number;
-  anoAnterior?: number;
-  semanas: ComparacaoAnualSemana[];
-  zonasPico: ZonaPico[];
+  anoAtual: number;
+  anosDisponiveis: number[];
+  series: ComparacaoAnualSerie[];
   materiais: FiltroOpcao[];
   clientes: FiltroOpcao[];
   produtoIdFiltro?: number | null;
@@ -159,39 +154,53 @@ function mapFiltroOpcoes(raw: unknown): FiltroOpcao[] {
     .filter((x): x is FiltroOpcao => x != null);
 }
 
-function mapComparacaoAnualSemana(raw: Record<string, unknown>): ComparacaoAnualSemana {
+function mapVolumeEncomendaDetalhe(raw: Record<string, unknown>): VolumeEncomendaDetalhe {
   return {
-    semana: Number(raw.semana ?? raw.Semana ?? 0),
-    chave: String(raw.chave ?? raw.Chave ?? ""),
+    encomendaId: Number(raw.encomendaId ?? raw.EncomendaId ?? 0),
+    clienteNome: String(raw.clienteNome ?? raw.ClienteNome ?? ""),
+    produtoPrincipal: String(raw.produtoPrincipal ?? raw.ProdutoPrincipal ?? ""),
+    dataCriacao: String(raw.dataCriacao ?? raw.DataCriacao ?? ""),
+  };
+}
+
+function mapComparacaoAnualPonto(raw: Record<string, unknown>): ComparacaoAnualPonto {
+  const encRaw = raw.encomendas ?? raw.Encomendas;
+  const totalRaw = raw.total ?? raw.Total;
+  const futuro = Boolean(raw.futuro ?? raw.Futuro ?? false);
+  return {
+    mes: Number(raw.mes ?? raw.Mes ?? 0),
     rotulo: String(raw.rotulo ?? raw.Rotulo ?? ""),
-    futuro: Boolean(raw.futuro ?? raw.Futuro ?? false),
-    atual: Number(raw.atual ?? raw.Atual ?? 0),
-    anoAnterior: Number(raw.anoAnterior ?? raw.AnoAnterior ?? 0),
-    produtoDestaque:
-      raw.produtoDestaque != null || raw.ProdutoDestaque != null
-        ? String(raw.produtoDestaque ?? raw.ProdutoDestaque)
-        : null,
-    quantidadeDestaque: Number(raw.quantidadeDestaque ?? raw.QuantidadeDestaque ?? 0),
+    futuro,
+    total:
+      totalRaw == null || futuro
+        ? null
+        : Number(totalRaw),
+    encomendas: Array.isArray(encRaw)
+      ? (encRaw as Record<string, unknown>[]).map(mapVolumeEncomendaDetalhe)
+      : [],
+  };
+}
+
+function mapComparacaoAnualSerie(raw: Record<string, unknown>): ComparacaoAnualSerie {
+  const pontosRaw = raw.pontos ?? raw.Pontos;
+  return {
+    ano: Number(raw.ano ?? raw.Ano ?? 0),
+    pontos: Array.isArray(pontosRaw)
+      ? (pontosRaw as Record<string, unknown>[]).map(mapComparacaoAnualPonto)
+      : [],
   };
 }
 
 function normalizeComparacaoAnual(raw: Record<string, unknown>): ComparacaoAnualResponse {
-  const semanasRaw = raw.semanas ?? raw.Semanas;
-  const zonasRaw = raw.zonasPico ?? raw.ZonasPico;
+  const seriesRaw = raw.series ?? raw.Series;
+  const anosRaw = raw.anosDisponiveis ?? raw.AnosDisponiveis;
   return {
-    ano: Number(raw.ano ?? raw.Ano ?? new Date().getFullYear()),
-    anoAnterior: Number(
-      raw.anoAnterior ?? raw.AnoAnterior ?? Number(raw.ano ?? raw.Ano ?? new Date().getFullYear()) - 1
-    ),
-    semanas: Array.isArray(semanasRaw)
-      ? (semanasRaw as Record<string, unknown>[]).map(mapComparacaoAnualSemana)
+    anoAtual: Number(raw.anoAtual ?? raw.AnoAtual ?? new Date().getFullYear()),
+    anosDisponiveis: Array.isArray(anosRaw)
+      ? (anosRaw as unknown[]).map((a) => Number(a)).filter((n) => !Number.isNaN(n))
       : [],
-    zonasPico: Array.isArray(zonasRaw)
-      ? (zonasRaw as Record<string, unknown>[]).map((z) => ({
-          semanaInicio: Number(z.semanaInicio ?? z.SemanaInicio ?? 0),
-          semanaFim: Number(z.semanaFim ?? z.SemanaFim ?? 0),
-          texto: String(z.texto ?? z.Texto ?? ""),
-        }))
+    series: Array.isArray(seriesRaw)
+      ? (seriesRaw as Record<string, unknown>[]).map(mapComparacaoAnualSerie)
       : [],
     materiais: mapFiltroOpcoes(raw.materiais ?? raw.Materiais),
     clientes: mapFiltroOpcoes(raw.clientes ?? raw.Clientes),
@@ -208,10 +217,9 @@ function normalizeComparacaoAnual(raw: Record<string, unknown>): ComparacaoAnual
 
 export function fetchComparacaoAnual(
   token: string,
-  opts?: { periodoId?: string; produtoId?: number; clienteId?: number }
+  opts?: { produtoId?: number; clienteId?: number }
 ) {
   const params = new URLSearchParams();
-  if (opts?.periodoId) params.set("periodoId", opts.periodoId);
   if (opts?.produtoId != null) params.set("produtoId", String(opts.produtoId));
   if (opts?.clienteId != null) params.set("clienteId", String(opts.clienteId));
   const q = params.toString() ? `?${params}` : "";

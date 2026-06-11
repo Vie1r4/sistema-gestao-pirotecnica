@@ -30,31 +30,31 @@ public sealed class HomeAnalyticsService(
     public async Task<object> GetGestorDashboardAsync(CancellationToken cancellationToken = default)
     {
         var hoje = DateTime.UtcNow.Date;
-        var semanaInicio = hoje.AddDays(-7);
-        var semanaAnteriorInicio = hoje.AddDays(-14);
-        var encSemana = await gestorAnalytics.CountEncomendasCreatedBetweenAsync(semanaInicio, hoje.AddDays(1), cancellationToken);
-        var encSemanaAnt = await gestorAnalytics.CountEncomendasCreatedBetweenAsync(semanaAnteriorInicio, semanaInicio, cancellationToken);
-        var srvDesde2Sem = await servicos.CountCreatedSinceAsync(semanaAnteriorInicio, cancellationToken);
-        var srvSemana = await servicos.CountCreatedSinceAsync(semanaInicio, cancellationToken);
-        var srvSemanaAnt = srvDesde2Sem - srvSemana;
-        var clientesDesde2Sem = await gestorAnalytics.CountClientesRegistadosDesdeAsync(semanaAnteriorInicio, cancellationToken);
-        var clientesSemana = await gestorAnalytics.CountClientesRegistadosDesdeAsync(semanaInicio, cancellationToken);
-        var clientesSemanaAnt = clientesDesde2Sem - clientesSemana;
-        var funcDesde2Sem = await funcionarios.CountRegistadosDesdeAsync(semanaAnteriorInicio, cancellationToken);
-        var funcSemana = await funcionarios.CountRegistadosDesdeAsync(semanaInicio, cancellationToken);
-        var funcSemanaAnt = funcDesde2Sem - funcSemana;
-        var prodDesde2Sem = await produtos.CountRegistadosDesdeAsync(semanaAnteriorInicio, cancellationToken);
-        var prodSemana = await produtos.CountRegistadosDesdeAsync(semanaInicio, cancellationToken);
-        var prodSemanaAnt = prodDesde2Sem - prodSemana;
+        var ha7Dias = hoje.AddDays(-7);
+
+        var totalClientes = await clientes.CountAsync(cancellationToken);
+        var totalServicos = await servicos.CountAsync(cancellationToken);
+        var totalProdutos = await produtos.CountAsync(cancellationToken);
+        var totalPaioisAtivos = await paiois.CountByEstadoAsync(ConstantesPaiol.EstadoAtivo, cancellationToken);
+        var totalFuncionarios = await funcionarios.CountAsync(cancellationToken);
+
+        var clientesHa7 = await clientes.CountDisponiveisEmAsync(ha7Dias, cancellationToken);
+        var servicosHa7 = await servicos.CountExistentesEmAsync(ha7Dias, cancellationToken);
+        var produtosHa7 = await produtos.CountExistentesEmAsync(ha7Dias, cancellationToken);
+        var paioisAtivosHa7 = await paiois.CountAtivosExistentesEmAsync(ha7Dias, cancellationToken);
+        var funcionariosHa7 = await funcionarios.CountDisponiveisEmAsync(ha7Dias, cancellationToken);
+
+        var encSemana = await gestorAnalytics.CountEncomendasCreatedBetweenAsync(ha7Dias, hoje.AddDays(1), cancellationToken);
+        var encHa14 = await gestorAnalytics.CountEncomendasCreatedBetweenAsync(hoje.AddDays(-14), ha7Dias, cancellationToken);
         var paioisManut = (await paiois.GetAllAsync(cancellationToken)).Where(p => p.Estado == ConstantesPaiol.EstadoEmManutencao).ToList();
 
         return new
         {
-            totalClientes = await clientes.CountAsync(cancellationToken),
-            totalServicos = await servicos.CountAsync(cancellationToken),
-            totalProdutos = await produtos.CountAsync(cancellationToken),
-            totalPaioisAtivos = await paiois.CountByEstadoAsync(ConstantesPaiol.EstadoAtivo, cancellationToken),
-            totalFuncionarios = await funcionarios.CountAsync(cancellationToken),
+            totalClientes,
+            totalServicos,
+            totalProdutos,
+            totalPaioisAtivos,
+            totalFuncionarios,
             encomendasPendentes = await encomendas.CountByEstadoAsync(ConstantesEncomenda.PENDENTE, cancellationToken),
             encomendasPorEstado = await encomendas.CountGroupedByEstadoAsync(cancellationToken),
             encomendasPorMes = (await encomendas.EncomendasPorMesUltimos6MesesAsync(cancellationToken)).Select(x => new { mes = x.MesKey, total = x.Total }).ToList(),
@@ -67,26 +67,24 @@ public sealed class HomeAnalyticsService(
             {
                 encomendasPendentes = new
                 {
-                    deltaSemana = encSemana - encSemanaAnt,
+                    deltaSemana = encSemana - encHa14,
                     recebidasSemana = encSemana,
-                    texto = FormatDelta(encSemana, encSemanaAnt, "esta semana")
+                    texto = FormatDelta(encSemana, encHa14, "esta semana")
                 },
-                servicos = new { deltaSemana = srvSemana - srvSemanaAnt, texto = FormatDelta(srvSemana, srvSemanaAnt, "esta semana") },
-                clientes = new { deltaSemana = clientesSemana - clientesSemanaAnt, novosSemana = clientesSemana, texto = FormatDelta(clientesSemana, clientesSemanaAnt, "esta semana") },
-                produtos = new
-                {
-                    total = await produtos.CountAsync(cancellationToken),
-                    deltaSemana = prodSemana - prodSemanaAnt,
-                    texto = FormatDelta(prodSemana, prodSemanaAnt, "esta semana")
-                },
-                paiois = new { emManutencao = paioisManut.Count, texto = paioisManut.Count > 0 ? $"{paioisManut.Count} em manutenção" : "todos operacionais" },
-                funcionarios = new
-                {
-                    deltaSemana = funcSemana - funcSemanaAnt,
-                    texto = FormatDelta(funcSemana, funcSemanaAnt, "esta semana")
-                }
+                servicos = new { deltaSemana = totalServicos - servicosHa7, totalHa7Dias = servicosHa7, texto = FormatDeltaTotal(totalServicos, servicosHa7) },
+                clientes = new { deltaSemana = totalClientes - clientesHa7, totalHa7Dias = clientesHa7, texto = FormatDeltaTotal(totalClientes, clientesHa7) },
+                produtos = new { deltaSemana = totalProdutos - produtosHa7, totalHa7Dias = produtosHa7, texto = FormatDeltaTotal(totalProdutos, produtosHa7) },
+                paiois = new { deltaSemana = totalPaioisAtivos - paioisAtivosHa7, totalHa7Dias = paioisAtivosHa7, emManutencao = paioisManut.Count, texto = FormatDeltaTotal(totalPaioisAtivos, paioisAtivosHa7) },
+                funcionarios = new { deltaSemana = totalFuncionarios - funcionariosHa7, totalHa7Dias = funcionariosHa7, texto = FormatDeltaTotal(totalFuncionarios, funcionariosHa7) }
             }
         };
+    }
+
+    private static string FormatDeltaTotal(int totalAgora, int totalHa7Dias)
+    {
+        var d = totalAgora - totalHa7Dias;
+        if (d == 0) return "igual a há 7 dias";
+        return d > 0 ? $"+{d} vs há 7 dias" : $"{d} vs há 7 dias";
     }
 
     private static string FormatDelta(int atual, int anterior, string periodo)

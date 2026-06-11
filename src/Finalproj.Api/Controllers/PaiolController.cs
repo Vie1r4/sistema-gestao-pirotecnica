@@ -16,7 +16,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Finalproj.Controllers
 {
-    /// <summary>Paióis: stock, movimentos, CRUD e documentos; acesso filtrado por cargo.</summary>
+    /// <summary>Paióis: stock, movimentos, CRUD e documentos; visíveis para quem tem permissão de armazém.</summary>
     [Route("api/paiol")]
     [ApiController]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
@@ -40,15 +40,9 @@ namespace Finalproj.Controllers
             _createPaiolValidator = createPaiolValidator;
         }
 
-        // Paióis a que o utilizador tem acesso (por cargo). Admin vê todos os paióis.
-        private async Task<List<int>> ObterPaiolIdsComAcessoAsync(CancellationToken cancellationToken = default)
-        {
-            if (User.IsInRole(ConstantesRoles.Admin) || User.IsInRole(ConstantesRoles.Gestor))
-                return (await _paiois.ListAllOrderedAsync(cancellationToken)).Select(p => p.Id).ToList();
-            var user = await _userManager.GetUserAsync(User);
-            var roles = user == null ? Array.Empty<string>() : (await _userManager.GetRolesAsync(user)).ToArray();
-            return (await _paiois.GetPaiolIdsComAcessoAsync(false, roles, cancellationToken)).ToList();
-        }
+        // Todos os paióis são visíveis para utilizadores com permissão de armazém.
+        private async Task<List<int>> ObterPaiolIdsComAcessoAsync(CancellationToken cancellationToken = default) =>
+            (await _paiois.ListAllOrderedAsync(cancellationToken)).Select(p => p.Id).ToList();
 
         /// <summary>Paiol - página operacional: lista de paióis com acesso.</summary>
 
@@ -103,33 +97,21 @@ namespace Finalproj.Controllers
             if (id == null)
                 return NotFound();
 
-            var idsAcesso = await ObterPaiolIdsComAcessoAsync(cancellationToken);
-            var podeVerTodos = User.IsInRole(ConstantesRoles.Admin) || User.IsInRole(ConstantesRoles.Gestor);
-            if (!podeVerTodos && !idsAcesso.Contains(id.Value))
-                return StatusCode(StatusCodes.Status403Forbidden);
-
             var data = await _paiois.GetConteudoAsync(id.Value, cancellationToken);
             return data == null ? NotFound() : Ok(data);
         }
 
-        /// <summary>Detalhe do paiol (ocupação, carga, cargos com acesso). Armazém só vê paióis com PaiolAcesso.</summary>
+        /// <summary>Detalhe do paiol (ocupação, carga).</summary>
         /// <response code="200">Dados do paiol</response>
-        /// <response code="403">Sem acesso a este paiol</response>
         /// <response code="404">Paiol não encontrado</response>
         [HttpGet("{id:int}")]
         [Authorize(Policy = PoliticasAutorizacao.PodeVerArmazemStock)]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Details(int? id, CancellationToken cancellationToken = default)
         {
             if (id == null)
                 return NotFound();
-
-            var idsAcesso = await ObterPaiolIdsComAcessoAsync(cancellationToken);
-            var podeVerTodos = User.IsInRole(ConstantesRoles.Admin) || User.IsInRole(ConstantesRoles.Gestor);
-            if (!podeVerTodos && !idsAcesso.Contains(id.Value))
-                return StatusCode(StatusCodes.Status403Forbidden);
 
             var data = await _paiois.GetDetailsDataAsync(id.Value, cancellationToken);
             return data == null ? NotFound() : Ok(data);
@@ -145,8 +127,7 @@ namespace Finalproj.Controllers
             {
                 paiol = ArmazemResponseDtoMapping.EmptyPaiolParaFormulario(),
                 perfisRisco = DropdownSelectLists.LicencasParaDropdown(),
-                estados = ConstantesPaiol.Estados,
-                cargosDisponiveis = ConstantesPaiol.CargosDisponiveis
+                estados = ConstantesPaiol.Estados
             });
         }
 
@@ -157,7 +138,6 @@ namespace Finalproj.Controllers
         public async Task<IActionResult> Create([FromForm] CreatePaiolInputDto input, CancellationToken cancellationToken = default)
         {
             var paiol = input.Paiol;
-            var cargosAcesso = input.CargosAcesso;
             var documentosExtras = input.DocumentosExtras;
 
             var validationResult = await _createPaiolValidator.ValidateAsync(input, cancellationToken);
@@ -173,11 +153,10 @@ namespace Finalproj.Controllers
                         paiol = PaiolResponseDtoMapping.Map(paiol),
                         perfisRisco = DropdownSelectLists.LicencasParaDropdown(),
                         estados = ConstantesPaiol.Estados,
-                        cargosDisponiveis = ConstantesPaiol.CargosDisponiveis,
                         errors = ModelState
                     });
                 }
-                await _paiois.CreateAsync(paiol, cargosAcesso, null, cancellationToken);
+                await _paiois.CreateAsync(paiol, null, null, cancellationToken);
                 var docs = new List<PaiolDocumentoExtra>();
                 if (documentosExtras != null)
                 {
@@ -195,7 +174,7 @@ namespace Finalproj.Controllers
                     }
                 }
                 if (docs.Count > 0)
-                    await _paiois.UpdateAsync(paiol.Id, paiol, cargosAcesso, docs, null, cancellationToken);
+                    await _paiois.UpdateAsync(paiol.Id, paiol, null, docs, null, cancellationToken);
                 var paiolCriado = await _paiois.GetByIdAsync(paiol.Id, includeDocumentos: true, cancellationToken);
                 if (paiolCriado == null) return NotFound();
                 return CreatedAtAction(nameof(Details), new { id = paiol.Id }, new { paiol = PaiolResponseDtoMapping.Map(paiolCriado) });
@@ -205,7 +184,6 @@ namespace Finalproj.Controllers
                 paiol = PaiolResponseDtoMapping.Map(paiol),
                 perfisRisco = DropdownSelectLists.LicencasParaDropdown(),
                 estados = ConstantesPaiol.Estados,
-                cargosDisponiveis = ConstantesPaiol.CargosDisponiveis,
                 errors = ModelState
             });
         }
@@ -223,15 +201,11 @@ namespace Finalproj.Controllers
             if (paiol == null)
                 return NotFound();
 
-            var cargosSelecionados = await _paiois.GetCargosAcessoAsync(id.Value, cancellationToken);
-
             return Ok(new
             {
                 paiol = PaiolResponseDtoMapping.Map(paiol),
                 perfisRisco = DropdownSelectLists.LicencasParaDropdown(),
-                estados = ConstantesPaiol.Estados,
-                cargosDisponiveis = ConstantesPaiol.CargosDisponiveis,
-                cargosSelecionados
+                estados = ConstantesPaiol.Estados
             });
         }
 
@@ -242,7 +216,6 @@ namespace Finalproj.Controllers
         public async Task<IActionResult> Edit(int id, [FromForm] EditPaiolInputDto input, CancellationToken cancellationToken = default)
         {
             var paiol = input.Paiol;
-            var cargosAcesso = input.CargosAcesso;
             var documentosExtras = input.DocumentosExtras;
             var removerDocumentoExtraIds = input.RemoverDocumentoExtraIds;
 
@@ -272,7 +245,7 @@ namespace Finalproj.Controllers
                             }
                         }
                     }
-                    var atualizado = await _paiois.UpdateAsync(id, paiol, cargosAcesso, docs, removerDocumentoExtraIds, cancellationToken);
+                    var atualizado = await _paiois.UpdateAsync(id, paiol, null, docs, removerDocumentoExtraIds, cancellationToken);
                     if (atualizado == null) return NotFound();
                 }
                 catch (InvalidOperationException)
@@ -284,14 +257,11 @@ namespace Finalproj.Controllers
                 return Ok(new { paiol = PaiolResponseDtoMapping.Map(paiolAtualizado) });
             }
 
-            var cargosSelecionados = await _paiois.GetCargosAcessoAsync(id, cancellationToken);
             return BadRequest(new
             {
                 paiol = PaiolResponseDtoMapping.Map(paiol),
                 perfisRisco = DropdownSelectLists.LicencasParaDropdown(),
                 estados = ConstantesPaiol.Estados,
-                cargosDisponiveis = ConstantesPaiol.CargosDisponiveis,
-                cargosSelecionados,
                 errors = ModelState
             });
         }
@@ -323,15 +293,12 @@ namespace Finalproj.Controllers
             return NoContent();
         }
 
-        /// <summary>Devolve documento extra do paiol (inline). Apenas se o utilizador tiver acesso ao paiol.</summary>
+        /// <summary>Devolve documento extra do paiol (inline).</summary>
 
         [HttpGet("{id:int}/documentos/{extraId:int}")]
         [Authorize(Policy = PoliticasAutorizacao.PodeVerArmazemStock)]
         public async Task<IActionResult> Download(int id, int extraId, CancellationToken cancellationToken = default)
         {
-            var idsAcesso = await ObterPaiolIdsComAcessoAsync(cancellationToken);
-            if (!idsAcesso.Contains(id))
-                return StatusCode(StatusCodes.Status403Forbidden);
             var caminho = await _paiois.GetDocumentoExtraPathForPaiolAsync(id, extraId, cancellationToken);
             if (caminho == null)
                 return NotFound();
