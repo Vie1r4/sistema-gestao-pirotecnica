@@ -15,16 +15,10 @@ import {
 } from "@/app/lib/passwordPolicy";
 import { normalizeResetTokenFromUrl } from "@/app/lib/resetPasswordToken";
 
-const inputClass =
-  "mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-[#f97316] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-white dark:placeholder-gray-500";
-
-const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300";
+import { inputClass, labelClass, authCardClass as cardClass } from "@/app/components/ui/tokens";
 
 const btnPrimary =
   "data-button w-full rounded-xl bg-[#f97316] px-5 py-3 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
-
-const cardClass =
-  "card-hover rounded-2xl border border-[#e7e5e4] bg-white p-8 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:border-[#1f1f1f] dark:bg-[#111] dark:shadow-none sm:p-10";
 
 function ResetPasswordContent() {
   const router = useRouter();

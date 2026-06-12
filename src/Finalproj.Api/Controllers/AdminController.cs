@@ -179,22 +179,19 @@ namespace Finalproj.Controllers
         public async Task<IActionResult> EditarUtilizador(string id, [FromBody] EditarUtilizadorRolesViewModel model, CancellationToken cancellationToken = default)
         {
             if (id != model.Id) return NotFound();
-            var user = await _userManager.FindByIdAsync(model.Id);
-            if (user == null) return NotFound();
 
-            var rolesAtuais = await _userManager.GetRolesAsync(user);
-            foreach (var role in RolesDisponiveis)
+            var result = await _adminUserAccounts.UpdateUtilizadorRolesAsync(
+                id, model, _userManager.GetUserId(User), User.Identity?.Name, cancellationToken);
+            if (!result.Success)
+                return BadRequest(new { error = result.Message, errors = result.Errors });
+
+            return Ok(new
             {
-                var deveTer = model.Roles?.Any(r => r.Nome == role && r.Atribuido) ?? false;
-                if (deveTer && !rolesAtuais.Contains(role))
-                    await _userManager.AddToRoleAsync(user, role);
-                else if (!deveTer && rolesAtuais.Contains(role))
-                    await _userManager.RemoveFromRoleAsync(user, role);
-            }
-
-            await _adminStats.AssociarFuncionarioAUtilizadorAsync(user.Id, model.FuncionarioId, cancellationToken);
-
-            return Ok(new { model, success = true });
+                model,
+                success = true,
+                message = result.Message,
+                requiresTokenRefresh = result.RequiresTokenRefresh,
+            });
         }
 
         [HttpPost("utilizadores/{id}/resend-confirm-email")]

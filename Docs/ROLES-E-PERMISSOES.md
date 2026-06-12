@@ -62,6 +62,17 @@ O frontend (`Navbar`, rotas) usa estas strings; a API é a fonte de verdade.
 
 Endpoints `/api/*` com JWT Bearer. **401/403** em JSON, sem redirect HTML.
 
+Após alteração das **próprias** roles (`PUT /api/admin/utilizadores/{id}` na conta em sessão, ou mudança do próprio cargo na ficha de funcionário), a API devolve `requiresTokenRefresh: true` e o frontend renova o JWT (`POST /api/auth/refresh`) e invalida o cache de `GET /api/auth/me`. Alterar o cargo de **outro** utilizador não termina a sessão de quem edita nem força logout global.
+
+---
+
+## 5. Regras de alteração de cargos
+
+- **Um cargo operacional por utilizador** (Admin, Gestor, Comercial ou Armazém) — não são cumulativos.
+- **Último Admin:** não é possível remover a role Admin se for o único administrador do sistema (mensagem de erro na API).
+- **Ficha de funcionário:** ao alterar o **cargo** de quem tem conta, a role Identity é sincronizada automaticamente (com as mesmas validações).
+- **Painel Admin → Utilizadores:** edição de roles com toggles mutuamente exclusivos; após guardar a própria conta, o menu e o JWT actualizam-se de imediato.
+
 ---
 
 ## Manutenção

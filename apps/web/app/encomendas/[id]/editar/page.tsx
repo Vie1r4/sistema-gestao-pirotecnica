@@ -18,67 +18,17 @@ import {
   rotuloCoordenadorPirotecnico,
 } from "@/app/lib/servicosFuncionariosForm";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
-
-const inputClass =
-  "rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-white";
-
-const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300";
-
-const btnPrimary =
-  "data-button rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
-
-const btnSecondary =
-  "data-button rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
+import { mapApiToEncomendaForm, type EncomendaItemEdit } from "@/app/lib/encomendas";
+import {
+  labelClass,
+  btnPrimary,
+  btnSecondary,
+  inputClassCompact as inputClass,
+} from "@/app/components/ui/tokens";
 
 const MIN_QUANTIDADE = 0.0001;
 
-type ItemEdit = { produtoId: string; produtoNome: string; quantidade: number };
-
-function mapApiToForm(data: { encomenda: Record<string, unknown> }): {
-  id: string;
-  clienteId: string;
-  clienteNome: string;
-  estado: string;
-  dataEntrega: string;
-  observacoes: string;
-  coordenadorPirotecnicoId: string;
-  itens: ItemEdit[];
-} {
-  const e = data.encomenda;
-  const get = (k: string) => e[k] ?? e[k.charAt(0).toUpperCase() + k.slice(1)];
-  const itensRaw = (get("itens") ?? get("Itens")) as Array<Record<string, unknown>> | undefined;
-  const itens: ItemEdit[] = (itensRaw ?? []).map((i) => {
-    const gi = (key: string) => i[key] ?? i[key.charAt(0).toUpperCase() + key.slice(1)];
-    const prod = gi("produto") ?? gi("Produto");
-    const prodObj = prod && typeof prod === "object" ? (prod as Record<string, unknown>) : null;
-    const nome = prodObj ? String(prodObj.nome ?? prodObj.Nome ?? "") : "";
-    return {
-      produtoId: String(gi("produtoId") ?? gi("ProdutoId") ?? ""),
-      produtoNome: nome,
-      quantidade: Number(gi("quantidadePedida") ?? gi("QuantidadePedida") ?? 0),
-    };
-  });
-  const cliente = get("cliente") ?? get("Cliente");
-  const clienteObj = cliente && typeof cliente === "object" ? (cliente as Record<string, unknown>) : null;
-  const dataEntregaRaw = get("dataEntrega") ?? get("DataEntrega");
-  const dataEntregaStr =
-    dataEntregaRaw != null
-      ? typeof dataEntregaRaw === "string"
-        ? dataEntregaRaw.slice(0, 10)
-        : new Date(dataEntregaRaw as string).toISOString().slice(0, 10)
-      : "";
-  const coordRaw = get("coordenadorPirotecnicoId") ?? get("CoordenadorPirotecnicoId");
-  return {
-    id: String(get("id") ?? get("Id") ?? ""),
-    clienteId: String(get("clienteId") ?? get("ClienteId") ?? ""),
-    clienteNome: clienteObj ? String(clienteObj.nome ?? clienteObj.Nome ?? "") : "",
-    estado: String(get("estado") ?? get("Estado") ?? "Pendente"),
-    dataEntrega: dataEntregaStr,
-    observacoes: String(get("observacoes") ?? get("Observacoes") ?? ""),
-    coordenadorPirotecnicoId: coordRaw != null ? String(coordRaw) : "",
-    itens,
-  };
-}
+type ItemEdit = EncomendaItemEdit;
 
 export default function EditarEncomendaPage() {
   const params = useParams();
@@ -140,7 +90,7 @@ export default function EditarEncomendaPage() {
     [funcionariosData?.items]
   );
 
-  const encomendaForm = editData ? mapApiToForm(editData) : null;
+  const encomendaForm = editData ? mapApiToEncomendaForm(editData) : null;
   const produtos = (produtosData?.items ?? []) as Array<{ id?: number; Id?: number; nome?: string; Nome?: string }>;
   const produtosSorted = [...produtos].sort((a, b) =>
     String(a.nome ?? a.Nome ?? "").localeCompare(String(b.nome ?? b.Nome ?? ""))

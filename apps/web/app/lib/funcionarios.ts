@@ -36,3 +36,28 @@ export type Funcionario = {
 
 /** Tipos e constantes para a área Funcionários. Dados vêm apenas da API (funcionariosApi). Sem localStorage. */
 export const CARGOS: CargoFuncionario[] = ["Admin", "Armazém", "Gestor", "Comercial"];
+
+/**
+ * Mapeia um item da listagem da API para `Funcionario`.
+ * A API devolve `contaAssociada` / `contaEmailConfirmada` por item (sem UserId na listagem).
+ */
+export function mapApiToFuncionario(item: Record<string, unknown>): Funcionario {
+  const nome = (item.nomeCompleto ?? item.nome ?? "") as string;
+  const userId = (item.userId ?? item.UserId) as string | undefined;
+  const contaAssociada = Boolean(item.contaAssociada ?? item.ContaAssociada ?? userId);
+  const apiConf = item.contaEmailConfirmada ?? item.ContaEmailConfirmada;
+  const emailConfirmado = typeof apiConf === "boolean" ? apiConf : undefined;
+  return {
+    id: String(item.id ?? item.Id ?? ""),
+    nomeCompleto: nome,
+    nif: (item.nif ?? item.NIF) as string | undefined,
+    email: (item.email ?? item.Email) as string | undefined,
+    telefone: (item.telefone ?? item.Telefone) as string | undefined,
+    morada: (item.morada ?? item.Morada) as string | undefined,
+    cargo: (item.cargo ?? item.Cargo ?? "Comercial") as CargoFuncionario,
+    dataRegisto: String(item.dataRegisto ?? item.DataRegisto ?? new Date().toISOString()),
+    contaAssociada,
+    emailConfirmado,
+    userId,
+  };
+}

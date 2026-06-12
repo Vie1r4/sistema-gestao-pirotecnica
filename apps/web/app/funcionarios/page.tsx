@@ -5,92 +5,15 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import type { ColumnDef } from "@tanstack/react-table";
 import Navbar, { CONTENT_OFFSET_TOP } from "../components/Navbar";
 import PageHeader from "../components/ui/PageHeader";
 import { DataTable } from "../components/ui/DataTable";
-import type { Funcionario, CargoFuncionario } from "../lib/funcionarios";
+import { btnPrimary } from "../components/ui/tokens";
+import { funcionariosColumns } from "./_components/funcionariosColumns";
+import { mapApiToFuncionario, type Funcionario } from "../lib/funcionarios";
 import { getToken } from "../lib/auth";
 import { fetchFuncionariosLista } from "../lib/funcionariosApi";
 import { fadeInUp, transitionSmooth } from "../lib/animations";
-
-const btnPrimary =
-  "data-button rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
-
-function funcionariosColumns(): ColumnDef<Funcionario, unknown>[] {
-  return [
-    {
-      accessorKey: "nomeCompleto",
-      header: "Nome",
-      enableSorting: true,
-    },
-    {
-      accessorKey: "email",
-      header: "Email",
-      cell: ({ getValue }) => (
-        <span className="text-[#57534e] dark:text-gray-400">{getValue() as string ?? "—"}</span>
-      ),
-      enableSorting: true,
-    },
-    {
-      accessorKey: "telefone",
-      header: "Telefone",
-      cell: ({ getValue }) => (
-        <span className="text-[#57534e] dark:text-gray-400">{getValue() as string ?? "—"}</span>
-      ),
-      enableSorting: false,
-    },
-    {
-      id: "conta",
-      header: "Conta",
-      cell: ({ row }) => {
-        const f = row.original;
-        if (!f.contaAssociada)
-          return <span className="text-[#78716c] dark:text-gray-400">Não</span>;
-        if (f.emailConfirmado !== false)
-          return <span className="font-medium text-green-600 dark:text-green-400">Sim</span>;
-        return <span className="font-medium text-amber-600 dark:text-amber-400">Pendente</span>;
-      },
-      enableSorting: false,
-    },
-    {
-      id: "acoes",
-      header: "Ações",
-      cell: ({ row }) => (
-        <Link
-          href={`/funcionarios/${row.original.id}`}
-          data-button
-          className="text-[#f97316] transition-[color] duration-200 hover:underline"
-        >
-          Ver detalhes
-        </Link>
-      ),
-      enableSorting: false,
-    },
-  ];
-}
-
-/** Resposta da API: contaAssociada / contaEmailConfirmada por item (sem UserId na listagem). */
-function mapApiToFuncionario(item: Record<string, unknown>): Funcionario {
-  const nome = (item.nomeCompleto ?? item.nome ?? "") as string;
-  const userId = (item.userId ?? item.UserId) as string | undefined;
-  const contaAssociada = Boolean(item.contaAssociada ?? item.ContaAssociada ?? userId);
-  const apiConf = item.contaEmailConfirmada ?? item.ContaEmailConfirmada;
-  const emailConfirmado = typeof apiConf === "boolean" ? apiConf : undefined;
-  return {
-    id: String(item.id ?? item.Id ?? ""),
-    nomeCompleto: nome,
-    nif: (item.nif ?? item.NIF) as string | undefined,
-    email: (item.email ?? item.Email) as string | undefined,
-    telefone: (item.telefone ?? item.Telefone) as string | undefined,
-    morada: (item.morada ?? item.Morada) as string | undefined,
-    cargo: (item.cargo ?? item.Cargo ?? "Comercial") as CargoFuncionario,
-    dataRegisto: String(item.dataRegisto ?? item.DataRegisto ?? new Date().toISOString()),
-    contaAssociada,
-    emailConfirmado,
-    userId,
-  };
-}
 
 function FuncionariosContent() {
   const searchParams = useSearchParams();

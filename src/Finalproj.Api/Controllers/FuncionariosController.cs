@@ -6,6 +6,7 @@ using Finalproj.Application.Features.Funcionarios.DTOs;
 using Finalproj.Application.Features.Funcionarios.Interfaces;
 using Finalproj.Application.Features.Home.Interfaces;
 using Finalproj.Application.Services;
+using Finalproj.Application.Services.Interfaces;
 using Finalproj.Helpers;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
@@ -30,6 +31,7 @@ namespace Finalproj.Controllers
         private readonly IEmailSender _emailSender;
         private readonly IConfiguration _configuration;
         private readonly IValidator<CreateFuncionarioInputDto> _createFuncionarioValidator;
+        private readonly IIdentityRolesService _identityRoles;
         private const string PastaDocumentosFuncionarios = "Documentos/Funcionarios";
         private static readonly string[] RolesParaConta = ConstantesRoles.ParaContaFuncionario;
 
@@ -50,7 +52,8 @@ namespace Finalproj.Controllers
             IDocumentoStorageService documentoStorage,
             IEmailSender emailSender,
             IConfiguration configuration,
-            IValidator<CreateFuncionarioInputDto> createFuncionarioValidator)
+            IValidator<CreateFuncionarioInputDto> createFuncionarioValidator,
+            IIdentityRolesService identityRoles)
         {
             _funcionarios = funcionarios;
             _homeAnalytics = homeAnalytics;
@@ -59,6 +62,7 @@ namespace Finalproj.Controllers
             _emailSender = emailSender;
             _configuration = configuration;
             _createFuncionarioValidator = createFuncionarioValidator;
+            _identityRoles = identityRoles;
         }
 
         /// <summary>Lista com pesquisa e filtro por cargo (sem NSS, IBAN nem caminhos de ficheiros).</summary>
@@ -177,17 +181,21 @@ namespace Finalproj.Controllers
             {
                 await _funcionarios.CreateAsync(funcionario, null, cancellationToken);
 
+                var documentosPrincipaisAlterados = false;
                 if (input.CartaoCidadaoFicheiro != null && _documentoStorage.ExtensaoPermitida(input.CartaoCidadaoFicheiro.FileName))
                 {
                     funcionario.CartaoCidadaoCaminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, input.CartaoCidadaoFicheiro, "cc", cancellationToken);
+                    documentosPrincipaisAlterados = true;
                 }
                 if (input.DocumentoADDRFicheiro != null && _documentoStorage.ExtensaoPermitida(input.DocumentoADDRFicheiro.FileName))
                 {
                     funcionario.DocumentoADDRCaminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, input.DocumentoADDRFicheiro, "addr", cancellationToken);
+                    documentosPrincipaisAlterados = true;
                 }
                 if (input.LicencaOperadorFicheiro != null && _documentoStorage.ExtensaoPermitida(input.LicencaOperadorFicheiro.FileName))
                 {
                     funcionario.LicencaOperadorCaminho = await _documentoStorage.GuardarFicheiroAsync(PastaDocumentosFuncionarios, funcionario.Id, input.LicencaOperadorFicheiro, "licenca", cancellationToken);
+                    documentosPrincipaisAlterados = true;
                 }
                 if (documentosExtras != null)
                 {
@@ -213,7 +221,6 @@ namespace Finalproj.Controllers
                     {
                         await _userManager.AddToRoleAsync(user, contaRole!);
                         funcionario.UserId = user.Id;
-                        await _funcionarios.UpdateAsync(funcionario.Id, funcionario, cancellationToken: cancellationToken);
                         await _homeAnalytics.SavePerfilAsync(user.Id, funcionario.NomeCompleto, funcionario.Telefone, cancellationToken);
                         var confirmCode = await _userManager.GenerateEmailConfirmationTokenAsync(user);
                         var confirmCodeEncoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(confirmCode));
@@ -231,6 +238,9 @@ namespace Finalproj.Controllers
                         return BadRequest(new { funcionario = FuncionarioResponseDtoMapping.Map(funcionario, includeSensitive: false), cargos = DropdownSelectLists.CargosParaDropdown(), rolesConta = DropdownSelectLists.CargosParaDropdown(), errors = ModelState });
                     }
                 }
+
+                if (documentosPrincipaisAlterados || !string.IsNullOrEmpty(funcionario.UserId))
+                    await _funcionarios.UpdateAsync(funcionario.Id, funcionario, cancellationToken: cancellationToken);
 
                 var created = await _funcionarios.GetByIdAsync(funcionario.Id, includeDocumentos: true, cancellationToken);
                 if (created == null) return NotFound();
@@ -289,6 +299,9 @@ namespace Finalproj.Controllers
             if (existing == null)
                 return NotFound();
 
+            var cargoAnterior = NormalizarCargo(existing.Cargo);
+            var cargoNovo = NormalizarCargo(funcionario.Cargo);
+
             existing.NomeCompleto = funcionario.NomeCompleto;
             existing.NIF = funcionario.NIF;
             existing.Email = funcionario.Email;
@@ -297,7 +310,7 @@ namespace Finalproj.Controllers
             existing.NumeroSegurancaSocial = funcionario.NumeroSegurancaSocial;
             existing.NumeroCredencial = funcionario.NumeroCredencial;
             existing.IBAN = funcionario.IBAN;
-            existing.Cargo = NormalizarCargo(funcionario.Cargo);
+            existing.Cargo = cargoNovo;
             existing.Notas = funcionario.Notas;
             existing.UserId = funcionario.UserId;
 
@@ -322,6 +335,23 @@ namespace Finalproj.Controllers
             {
                 try
                 {
+                    var requiresTokenRefresh = false;
+                    if (!string.IsNullOrEmpty(existing.UserId)
+                        && !string.Equals(cargoAnterior, cargoNovo, StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrEmpty(cargoNovo)
+                        && RolesParaConta.Contains(cargoNovo))
+                    {
+                        var syncResult = await _identityRoles.SetOperationalRolesAsync(
+                            existing.UserId, new[] { cargoNovo }, cancellationToken);
+                        if (!syncResult.Success)
+                        {
+                            ModelState.AddModelError("Funcionario.Cargo", syncResult.Message);
+                            return BadRequest(new { funcionario = FuncionarioResponseDtoMapping.Map(existing, includeSensitive: true), cargos = DropdownSelectLists.CargosParaDropdown(), rolesConta = DropdownSelectLists.CargosParaDropdown(), errors = ModelState });
+                        }
+                        var currentUserId = _userManager.GetUserId(User);
+                        requiresTokenRefresh = syncResult.RolesChanged && existing.UserId == currentUserId;
+                    }
+
                     if (removerDocumentoExtraIds != null)
                         foreach (var docId in removerDocumentoExtraIds)
                             _documentoStorage.ApagarFicheiroSeExistir(await _funcionarios.GetDocumentoPathAsync(id, "extra", docId, cancellationToken));
@@ -423,7 +453,12 @@ namespace Finalproj.Controllers
                     var updated = await _funcionarios.UpdateAsync(id, existing, novosDocs, removerDocumentoExtraIds, cancellationToken);
                     if (updated == null)
                         return NotFound();
-                    return Ok(new { funcionario = FuncionarioResponseDtoMapping.Map(updated, includeSensitive: false), funcionarioEditado = true });
+                    return Ok(new
+                    {
+                        funcionario = FuncionarioResponseDtoMapping.Map(updated, includeSensitive: false),
+                        funcionarioEditado = true,
+                        requiresTokenRefresh,
+                    });
                 }
                 catch (InvalidOperationException)
                 {

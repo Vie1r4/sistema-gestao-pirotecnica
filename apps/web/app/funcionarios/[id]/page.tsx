@@ -4,94 +4,14 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import Navbar, { CONTENT_OFFSET_TOP } from "../../components/Navbar";
+import Navbar from "../../components/Navbar";
+import DocLink from "../_components/FuncionarioDocLink";
 import type { Funcionario } from "../../lib/funcionarios";
 import { getToken } from "../../lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { fadeInUp, transitionSmooth } from "../../lib/animations";
-import {
-  fetchFuncionarioPorId,
-  downloadFuncionarioDocumento,
-  openFuncionarioDocumento,
-} from "@/app/lib/funcionariosApi";
-
-const cardClass =
-  "card-hover rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111] sm:p-8";
-
-const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300";
-
-const btnPrimary =
-  "data-button rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
-
-const btnSecondary =
-  "data-button rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-[border-color,background-color,color] duration-200 hover:bg-gray-50 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
-
-const btnDanger =
-  "data-button rounded-xl border border-red-300 px-4 py-2 text-sm font-medium text-red-700 transition-[border-color,background-color,color] duration-200 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950";
-
-function DocLink({
-  funcionarioId,
-  label,
-  tipo,
-  extraId,
-  fileName,
-}: {
-  funcionarioId: string;
-  label: string;
-  tipo: string;
-  extraId?: string;
-  fileName?: string;
-}) {
-  const handleOpen = async () => {
-    const token = getToken();
-    if (!token) return;
-    try {
-      await openFuncionarioDocumento(token, funcionarioId, tipo, extraId);
-    } catch {
-      alert("Não foi possível abrir o documento.");
-    }
-  };
-
-  const handleDownload = async () => {
-    const token = getToken();
-    if (!token) return;
-    try {
-      await downloadFuncionarioDocumento(
-        token,
-        funcionarioId,
-        tipo,
-        fileName || `${label}.pdf`,
-        extraId
-      );
-    } catch {
-      alert("Não foi possível transferir o documento.");
-    }
-  };
-
-  return (
-    <div className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-[#222] px-3 py-2">
-      <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={handleOpen}
-          data-button
-          className="text-sm text-[#f97316] transition-[color] duration-200 hover:underline"
-        >
-          Abrir
-        </button>
-        <button
-          type="button"
-          onClick={handleDownload}
-          data-button
-          className="text-sm text-[#f97316] transition-[color] duration-200 hover:underline"
-        >
-          Transferir
-        </button>
-      </div>
-    </div>
-  );
-}
+import { fetchFuncionarioPorId } from "@/app/lib/funcionariosApi";
+import { cardClass, labelClass, btnPrimary, btnSecondary, btnDanger } from "@/app/components/ui/tokens";
 
 export default function FuncionarioDetalhePage() {
   const params = useParams();
@@ -257,6 +177,35 @@ export default function FuncionarioDetalhePage() {
                 </Link>
               </p>
             )}
+
+            {canGerirFuncionarios && (
+              <div className="mt-8 border-t border-gray-200 pt-6 dark:border-[#222]">
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white">Documentos</h3>
+                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                  Ficheiros guardados na ficha — abrir ou transferir.
+                </p>
+                <div className="mt-4 space-y-2">
+                  {docs.cartaoCidadao && (
+                    <DocLink funcionarioId={id} label="Cartão de cidadão" tipo="cc" fileName={docs.cartaoCidadao} />
+                  )}
+                  {docs.adr && (
+                    <DocLink funcionarioId={id} label="Documento ADR" tipo="addr" fileName={docs.adr} />
+                  )}
+                  {docs.licencaOperador && (
+                    <DocLink funcionarioId={id} label="Licença de operador" tipo="licenca" fileName={docs.licencaOperador} />
+                  )}
+                  {docs.outros && (
+                    <DocLink funcionarioId={id} label="Outros" tipo="outros" fileName={docs.outros} />
+                  )}
+                  {docs.extras.map((ex) => (
+                    <DocLink key={ex.id} funcionarioId={id} label={ex.nome} tipo="extra" extraId={ex.id} fileName={ex.nome} />
+                  ))}
+                  {!docs.cartaoCidadao && !docs.adr && !docs.licencaOperador && !docs.outros && docs.extras.length === 0 && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum documento guardado.</p>
+                  )}
+                </div>
+              </div>
+            )}
           </motion.section>
 
           <motion.section
@@ -283,35 +232,6 @@ export default function FuncionarioDetalhePage() {
             )}
           </motion.section>
 
-          <motion.section
-            initial={fadeInUp.initial}
-            animate={fadeInUp.animate}
-            transition={{ ...transitionSmooth, delay: 0.1 }}
-            className={`mt-8 ${cardClass}`}
-          >
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Documentos</h2>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Abrir ou transferir cada documento guardado.</p>
-            <div className="mt-4 space-y-2">
-              {docs.cartaoCidadao && (
-                <DocLink funcionarioId={id} label="Cartão de cidadão" tipo="cc" fileName={docs.cartaoCidadao} />
-              )}
-              {docs.adr && (
-                <DocLink funcionarioId={id} label="Documento ADR" tipo="addr" fileName={docs.adr} />
-              )}
-              {docs.licencaOperador && (
-                <DocLink funcionarioId={id} label="Licença de operador" tipo="licenca" fileName={docs.licencaOperador} />
-              )}
-              {docs.outros && (
-                <DocLink funcionarioId={id} label="Outros" tipo="outros" fileName={docs.outros} />
-              )}
-              {docs.extras.map((ex) => (
-                <DocLink key={ex.id} funcionarioId={id} label={ex.nome} tipo="extra" extraId={ex.id} fileName={ex.nome} />
-              ))}
-              {!docs.cartaoCidadao && !docs.adr && !docs.licencaOperador && !docs.outros && docs.extras.length === 0 && (
-                <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum documento guardado.</p>
-              )}
-            </div>
-          </motion.section>
         </div>
       </main>
     </div>

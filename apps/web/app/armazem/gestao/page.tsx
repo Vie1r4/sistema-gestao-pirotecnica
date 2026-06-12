@@ -12,12 +12,7 @@ import { useUser } from "@/app/context/UserContext";
 import { labelPerfilRisco } from "@/app/lib/armazem";
 import { fetchGestao, fetchListaPaiol } from "@/app/lib/paiolApi";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
-
-const btnPrimary =
-  "data-button rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
-
-const btnSecondary =
-  "data-button rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-[border-color,background-color,color] duration-200 hover:bg-gray-50 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
+import { btnPrimary, btnSecondary } from "@/app/components/ui/tokens";
 
 type PaiolLinha = {
   id: string;
@@ -181,8 +176,8 @@ function GestaoContent() {
               </p>
             ) : mostrarVazio ? (
               <EmptyState
-                title="Ainda não há paióis com acesso."
-                description="Em Criar novo paiol marque pelo menos um cargo com acesso (ex. Admin)."
+                title="Ainda não há paióis registados."
+                description="Crie o primeiro paiol para começar a gerir o armazém."
                 action={
                   <Link href="/armazem/novo" className={btnPrimary}>
                     Criar novo paiol
@@ -200,7 +195,7 @@ function GestaoContent() {
                       <tr className="border-b border-[#e7e5e4] dark:border-[#222]">
                         <th className="pb-3 font-semibold text-[#444] dark:text-gray-300">Nome</th>
                         <th className="pb-3 font-semibold text-[#444] dark:text-gray-300">Localização</th>
-                        <th className="pb-3 font-semibold text-[#444] dark:text-gray-300">Limite MLE (kg)</th>
+                        <th className="pb-3 font-semibold text-[#444] dark:text-gray-300">Capacidade máx.</th>
                         <th className="pb-3 font-semibold text-[#444] dark:text-gray-300">Perfil de risco</th>
                         <th className="pb-3 font-semibold text-[#444] dark:text-gray-300">Ocupação</th>
                         <th className="pb-3 font-semibold text-[#444] dark:text-gray-300">Estado</th>
@@ -219,8 +214,8 @@ function GestaoContent() {
                           <td className="py-3 text-[#57534e] dark:text-gray-400">
                             {p.localizacao ?? "—"}
                           </td>
-                          <td className="py-3 text-[#57534e] dark:text-gray-400">
-                            {p.limiteMLE}
+                          <td className="whitespace-nowrap py-3 text-[#57534e] dark:text-gray-400">
+                            {p.limiteMLE} kg
                           </td>
                           <td className="py-3 text-[#57534e] dark:text-gray-400">
                             {labelPerfilRisco(p.perfilRisco)}

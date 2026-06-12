@@ -4,34 +4,8 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { fetchList } from "@/app/lib/encomendasApi";
 import { fetchServicosFromApi } from "@/app/lib/servicos";
-import { corEstado, type EstadoEncomenda } from "@/app/lib/encomendas";
+import { corEstado, mapApiToEncomendaLinha } from "@/app/lib/encomendas";
 import { useLiveDateTime } from "@/app/hooks/useLiveDateTime";
-
-type EncomendaLinha = {
-  id: string;
-  clienteId: string;
-  estado: EstadoEncomenda | string;
-  dataCriacao: string;
-  dataEntrega?: string;
-  clienteNome?: string;
-};
-
-function mapApiToEncomendaLinha(e: Record<string, unknown>): EncomendaLinha {
-  const id = e.id ?? e.Id;
-  const clienteId = e.clienteId ?? e.ClienteId;
-  const estadoVal = e.estado ?? e.Estado ?? "Pendente";
-  const dataCriacao = e.dataCriacao ?? e.DataCriacao;
-  const dataEntrega = e.dataEntrega ?? e.DataEntrega;
-  const cliente = (e.cliente ?? e.Cliente) as { nome?: string } | undefined;
-  return {
-    id: String(id ?? ""),
-    clienteId: String(clienteId ?? ""),
-    estado: String(estadoVal),
-    dataCriacao: typeof dataCriacao === "string" ? dataCriacao : new Date().toISOString(),
-    dataEntrega: dataEntrega ? (typeof dataEntrega === "string" ? dataEntrega : "") : undefined,
-    clienteNome: cliente?.nome,
-  };
-}
 
 const hoje = new Date().toISOString().slice(0, 10);
 
@@ -46,6 +20,9 @@ export default function DashboardComercial({
   const {
     data: encomendasData,
     isLoading: loadingEncomendas,
+    isError: encomendasError,
+    error: encomendasErr,
+    refetch: refetchEncomendas,
     dataUpdatedAt: encomendasUpdatedAt,
   } = useQuery({
     queryKey: ["encomendas-dashboard", "all"],
@@ -57,6 +34,9 @@ export default function DashboardComercial({
   const {
     data: servicosData,
     isLoading: loadingServicos,
+    isError: servicosError,
+    error: servicosErr,
+    refetch: refetchServicos,
     dataUpdatedAt: servicosUpdatedAt,
   } = useQuery({
     queryKey: ["servicos-dashboard", "proximos"],
@@ -64,6 +44,17 @@ export default function DashboardComercial({
     enabled: !!token,
     staleTime: 60 * 1000,
   });
+
+  const hasError = encomendasError || servicosError;
+  const errorMessage = encomendasError
+    ? encomendasErr instanceof Error
+      ? encomendasErr.message
+      : "Erro ao carregar encomendas."
+    : servicosError
+      ? servicosErr instanceof Error
+        ? servicosErr.message
+        : "Erro ao carregar serviços."
+      : "Erro ao carregar o painel.";
 
   const totaisPorEstado = (encomendasData?.totaisPorEstado ?? {}) as Record<string, number>;
   const pendentes = Number(totaisPorEstado?.Pendente ?? 0);
@@ -109,6 +100,31 @@ export default function DashboardComercial({
       description: "Próximos no terreno",
     },
   ];
+
+  if (hasError) {
+    return (
+      <section
+        id="dashboard-comercial"
+        className="border-t border-[#e7e5e4] bg-[#fafaf9] px-6 py-24 dark:border-[#1a1a1a] dark:bg-[#050505] sm:px-8 sm:py-32"
+      >
+        <div className="content-container">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center dark:border-amber-800 dark:bg-amber-900/20">
+            <p className="font-medium text-amber-900 dark:text-amber-200">{errorMessage}</p>
+            <button
+              type="button"
+              onClick={() => {
+                void refetchEncomendas();
+                void refetchServicos();
+              }}
+              className="mt-4 rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-800"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section

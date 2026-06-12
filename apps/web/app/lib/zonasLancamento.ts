@@ -89,13 +89,15 @@ export function parseItensEncomenda(raw: Array<Record<string, unknown>>): ItemEn
       const distancia =
         distRaw != null && distRaw !== "" ? Number(distRaw) : undefined;
       if (!produtoId || q <= 0) return null;
-      return {
+      const item: ItemEncomendaForm = {
         produtoId,
         produtoNome: nome || `Produto #${produtoId}`,
         quantidadePedida: q,
-        distanciaSegurancaPublico_m:
-          distancia != null && !Number.isNaN(distancia) && distancia > 0 ? distancia : undefined,
       };
+      if (distancia != null && !Number.isNaN(distancia) && distancia > 0) {
+        item.distanciaSegurancaPublico_m = distancia;
+      }
+      return item;
     })
     .filter((x): x is ItemEncomendaForm => x != null);
 }

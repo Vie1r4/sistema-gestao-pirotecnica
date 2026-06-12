@@ -5,11 +5,11 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import Navbar from "@/app/components/Navbar";
+import ClienteDocLink from "@/app/clientes/_components/ClienteDocLink";
 import {
   fetchClienteEdit,
   updateClienteApi,
-  fetchDocumentoClienteBlobUrl,
   TIPOS_CLIENTE,
   type TipoCliente,
   type ClienteDocumentoExtra,
@@ -18,20 +18,13 @@ import {
 import { getToken } from "@/app/lib/auth";
 import { useToastStore } from "@/app/stores/useToastStore";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
-
-const cardClass =
-  "card-hover rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111] sm:p-8";
-
-const inputClass =
-  "mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-[#f97316] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-white dark:placeholder-gray-500";
-
-const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300";
-
-const btnPrimary =
-  "data-button rounded-xl bg-[#f97316] px-5 py-2.5 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
-
-const btnSecondary =
-  "data-button rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition-[border-color,background-color,color] duration-200 hover:bg-gray-50 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
+import {
+  cardClass,
+  inputClass,
+  labelClass,
+  btnPrimaryLg as btnPrimary,
+  btnSecondaryLg as btnSecondary,
+} from "@/app/components/ui/tokens";
 
 const FILE_ACCEPT = ".pdf,.jpg,.jpeg,.png";
 
@@ -117,17 +110,6 @@ export default function EditarClientePage() {
   });
 
   const submitting = submitLocked || mutation.isPending;
-
-  const handleVerDocumento = async (extraId: string) => {
-    const token = getToken();
-    if (!token) return;
-    try {
-      const url = await fetchDocumentoClienteBlobUrl(token, id, extraId);
-      window.open(url, "_blank", "noopener");
-    } catch {
-      alert("Não foi possível abrir o documento.");
-    }
-  };
 
   const addNovoDoc = () => {
     setNovosExtras((e) => [...e, { id: `ex-${Date.now()}`, nome: "" }]);
@@ -353,40 +335,29 @@ export default function EditarClientePage() {
               transition={{ ...transitionSmooth, delay: 0.1 }}
               className={cardClass}
             >
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Documentação
-              </h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Documentos</h2>
               <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                Documentos já existentes: marque Remover para apagar. Adicione novos documentos abaixo.
+                Documentos guardados: abrir ou transferir. Marque Remover para apagar. Pode adicionar novos com nome à escolha.
               </p>
               {docsExistentes.length > 0 && (
                 <div className="mt-4 space-y-2">
                   {docsExistentes.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 p-3 dark:border-[#222]"
-                    >
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        {doc.nome || "Documento"}
-                      </span>
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => handleVerDocumento(doc.id)}
-                          className="text-sm text-[#f97316] hover:underline"
-                        >
-                          Ver
-                        </button>
-                        <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                          <input
-                            type="checkbox"
-                            checked={removerDocIds.has(doc.id)}
-                            onChange={() => toggleRemoverDoc(doc.id)}
-                            className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                          />
-                          Remover
-                        </label>
-                      </div>
+                    <div key={doc.id} className="space-y-2">
+                      <ClienteDocLink
+                        clienteId={id}
+                        extraId={doc.id}
+                        label={doc.nome || "Documento"}
+                        fileName={doc.nome || "documento"}
+                      />
+                      <label className="flex items-center gap-2 px-1 text-sm text-gray-600 dark:text-gray-400">
+                        <input
+                          type="checkbox"
+                          checked={removerDocIds.has(doc.id)}
+                          onChange={() => toggleRemoverDoc(doc.id)}
+                          className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                        />
+                        Remover este documento
+                      </label>
                     </div>
                   ))}
                 </div>

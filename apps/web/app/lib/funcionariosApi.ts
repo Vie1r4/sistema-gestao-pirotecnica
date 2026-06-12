@@ -45,7 +45,11 @@ export async function fetchFuncionarioEditGet(
 }
 
 /** PUT api/funcionarios/{id} — atualizar ficha (FormData). */
-export async function putFuncionario(token: string, id: string, formData: FormData): Promise<void> {
+export async function putFuncionario(
+  token: string,
+  id: string,
+  formData: FormData
+): Promise<{ requiresTokenRefresh: boolean }> {
   const res = await fetch(`${apiPath("api/funcionarios")}/${id}`, {
     method: "PUT",
     headers: authHeaders(token),
@@ -66,6 +70,8 @@ export async function putFuncionario(token: string, id: string, formData: FormDa
     const msg = correlationId ? `${baseMsg} (correlationId: ${correlationId})` : baseMsg;
     throw new Error(msg);
   }
+  const body = (await safeParseJson(res).catch(() => ({}))) as { requiresTokenRefresh?: boolean };
+  return { requiresTokenRefresh: Boolean(body.requiresTokenRefresh) };
 }
 
 /**

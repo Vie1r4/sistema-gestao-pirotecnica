@@ -9,18 +9,10 @@ import { getToken } from "@/app/lib/auth";
 import { fetchPreparar, postRegistarPreparacao, type RetiradaPreparacaoInput } from "@/app/lib/encomendasApi";
 import { mensagemErroPreparacao } from "@/app/lib/encomendaErrors";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
+import { btnPrimary, btnSecondary, btnDanger } from "@/app/components/ui/tokens";
 
 const inputClass =
   "w-20 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-right text-sm text-gray-900 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-white";
-
-const btnPrimary =
-  "data-button rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
-
-const btnDanger =
-  "data-button rounded-xl border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950";
-
-const btnSecondary =
-  "data-button rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
 
 const TOL = 0.0001;
 

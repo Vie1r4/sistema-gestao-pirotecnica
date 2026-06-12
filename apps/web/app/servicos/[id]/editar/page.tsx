@@ -6,8 +6,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar from "@/app/components/Navbar";
-import ZonasLancamentoEditor from "@/app/components/servicos/ZonasLancamentoEditor";
-import ServicoFuncionariosFields from "@/app/components/servicos/ServicoFuncionariosFields";
+import ZonasLancamentoEditor from "@/app/servicos/_components/ZonasLancamentoEditor";
+import ServicoFuncionariosFields from "@/app/servicos/_components/ServicoFuncionariosFields";
 import { getToken } from "@/app/lib/auth";
 import { useToastStore } from "@/app/stores/useToastStore";
 import {
@@ -29,16 +29,9 @@ import {
   mapFuncionariosServico,
   membrosEquipaParaZonas,
 } from "@/app/lib/servicosFuncionariosForm";
+import { labelClass, btnPrimary, btnSecondary, inputClassCompact as inputClass } from "@/app/components/ui/tokens";
 
 type EncomendaOpt = { id: string | number; texto?: string; cliente?: { nome: string }; clienteId?: string };
-
-const inputClass =
-  "rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-white";
-const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300";
-const btnPrimary =
-  "data-button rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
-const btnSecondary =
-  "rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-[#333] dark:text-gray-300";
 
 export default function EditarServicoPage() {
   const params = useParams();

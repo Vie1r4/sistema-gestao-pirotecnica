@@ -9,13 +9,17 @@ import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import EmptyState from "@/app/components/ui/EmptyState";
 import PageHeader from "@/app/components/ui/PageHeader";
 import StatusBadge from "@/app/components/ui/StatusBadge";
-import { ESTADOS_ENCOMENDA, type EstadoEncomenda } from "@/app/lib/encomendas";
+import {
+  ESTADOS_ENCOMENDA,
+  mapApiToEncomendaLinha,
+  type EstadoEncomenda,
+  type EncomendaLinha,
+} from "@/app/lib/encomendas";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { fetchList } from "@/app/lib/encomendasApi";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
-
-type EncomendaLinha = { id: string; clienteId: string; estado: EstadoEncomenda | string; dataCriacao: string; dataEntrega?: string; clienteNome?: string };
+import { btnPrimary } from "@/app/components/ui/tokens";
 
 type EncomendasApiData = {
   lista: EncomendaLinha[];
@@ -25,26 +29,6 @@ type EncomendasApiData = {
   paginaAtual: number;
   itensPorPagina: number;
 };
-
-function mapApiToEncomendaLinha(e: Record<string, unknown>): EncomendaLinha {
-  const id = e.id ?? e.Id;
-  const clienteId = e.clienteId ?? e.ClienteId;
-  const estadoVal = e.estado ?? e.Estado ?? "Pendente";
-  const dataCriacao = e.dataCriacao ?? e.DataCriacao;
-  const dataEntrega = e.dataEntrega ?? e.DataEntrega;
-  const cliente = (e.cliente ?? e.Cliente) as { nome?: string } | undefined;
-  return {
-    id: String(id ?? ""),
-    clienteId: String(clienteId ?? ""),
-    estado: String(estadoVal),
-    dataCriacao: typeof dataCriacao === "string" ? dataCriacao : new Date().toISOString(),
-    dataEntrega: dataEntrega ? (typeof dataEntrega === "string" ? dataEntrega : "") : undefined,
-    clienteNome: cliente?.nome,
-  };
-}
-
-const btnPrimary =
-  "data-button rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
 
 const ITENS_POR_PAGINA = 20;
 const MAX_PAGINAS_VISIVEIS = 10;

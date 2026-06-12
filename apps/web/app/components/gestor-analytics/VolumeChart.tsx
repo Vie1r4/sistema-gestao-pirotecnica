@@ -167,7 +167,9 @@ export default function VolumeChart({
   const periodo = periodoPorId(periodId);
 
   const viewRef = useRef({ periodId, agrupamento: agrupamentoAtual });
-  viewRef.current = { periodId, agrupamento: agrupamentoAtual };
+  useEffect(() => {
+    viewRef.current = { periodId, agrupamento: agrupamentoAtual };
+  }, [periodId, agrupamentoAtual]);
 
   const applyPeriodoEAgrupamento = useCallback(
     (id: PeriodoVolumeId, agrupamento: AgrupamentoVolume, animate = true) => {

@@ -19,22 +19,15 @@ import {
 } from "@/app/lib/armazem";
 import { useToastStore } from "@/app/stores/useToastStore";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
+import {
+  cardClass,
+  inputClass,
+  labelClass,
+  btnPrimaryLg as btnPrimary,
+  btnSecondaryLg as btnSecondary,
+} from "@/app/components/ui/tokens";
 
 import { postCreatePaiol } from "@/app/lib/paiolApi";
-
-const cardClass =
-  "card-hover rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111] sm:p-8";
-
-const inputClass =
-  "mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-[#f97316] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-white dark:placeholder-gray-500";
-
-const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300";
-
-const btnPrimary =
-  "data-button rounded-xl bg-[#f97316] px-5 py-2.5 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
-
-const btnSecondary =
-  "data-button rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition-[border-color,background-color,color] duration-200 hover:bg-gray-50 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
 
 const FILE_ACCEPT = ".pdf,.jpg,.jpeg,.png";
 
@@ -185,7 +178,7 @@ export default function NovoPaiolPage() {
               Criar novo paiol
             </h1>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Nome, localização, teto de segurança NEM (kg), perfil de risco, estado, licença PSP e cargos com acesso.
+              Nome, localização, teto de segurança NEM (kg), perfil de risco, estado e licença PSP.
             </p>
           </motion.div>
 

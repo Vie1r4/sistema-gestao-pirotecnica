@@ -25,8 +25,10 @@ if (builder.Environment.IsProduction())
 // Não usar AuthorizeFilter global para não forçar Cookies e redirecionar a API para login (HTML).
 builder.Services.AddControllers(options =>
     {
+        // Upload multipart → UploadedFileContent (funcionários, clientes, paióis, etc.)
+        options.ModelBinderProviders.Insert(0, new Finalproj.ModelBinders.UploadedFileContentModelBinderProvider());
         // Decimal com cultura invariante (ponto como separador) para form/query — evita "value is not valid for Latitude"
-        options.ModelBinderProviders.Insert(0, new Finalproj.ModelBinders.DecimalInvariantModelBinderProvider());
+        options.ModelBinderProviders.Insert(1, new Finalproj.ModelBinders.DecimalInvariantModelBinderProvider());
         options.Filters.Add<Finalproj.Filters.InvalidOperationExceptionFilter>();
     })
     .AddJsonOptions(options =>
@@ -111,6 +113,7 @@ builder.Services.AddScoped<Finalproj.Application.Features.Paiols.Interfaces.ISai
 builder.Services.AddScoped<Finalproj.Application.Features.Funcionarios.Interfaces.IFuncionarioApplicationService, Finalproj.Application.Features.Funcionarios.Services.FuncionarioApplicationService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Admin.Interfaces.IAdminStatsService, Finalproj.Application.Features.Admin.Services.AdminStatsService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Admin.Interfaces.IAdminUserAccountService, Finalproj.Infrastructure.Services.AdminUserAccountService>();
+builder.Services.AddScoped<Finalproj.Application.Services.Interfaces.IIdentityRolesService, Finalproj.Infrastructure.Services.IdentityRolesService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Home.Interfaces.IHomeAnalyticsService, Finalproj.Application.Features.Home.Services.HomeAnalyticsService>();
 builder.Services.AddScoped<Finalproj.Application.Features.GestorAnalytics.Interfaces.IGestorAnalyticsService, Finalproj.Application.Features.GestorAnalytics.Services.GestorAnalyticsService>();
 builder.Services.AddScoped<Finalproj.Domain.Interfaces.IGestorAnalyticsRepository, Finalproj.Infrastructure.Repositories.GestorAnalyticsRepository>();
@@ -368,78 +371,7 @@ static async Task InicializarAsync(WebApplication app)
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<FinalprojContext>();
     await context.Database.MigrateAsync();
-    // Se o histórico de migrações estiver desalinhado, a coluna pode faltar e o GET serviço falha (500).
-    await GarantirColunaOrigemRegistoServicoLicencaAsync(context);
-    await GarantirColunaCargoFuncionarioAsync(context);
-    await GarantirColunaTemaPerfilAsync(context);
-    await GarantirColunaDistanciaSegurancaPublicoProdutoAsync(context);
-    await GarantirColunasSoftDeleteClienteFuncionarioAsync(context);
     await SeedRoles.InitializeAsync(scope.ServiceProvider);
-}
-
-static async Task GarantirColunaOrigemRegistoServicoLicencaAsync(FinalprojContext context)
-{
-    await context.Database.ExecuteSqlRawAsync(
-        """
-        IF OBJECT_ID(N'[dbo].[ServicoLicencas]', N'U') IS NOT NULL
-           AND COL_LENGTH(N'ServicoLicencas', N'OrigemRegisto') IS NULL
-        BEGIN
-            ALTER TABLE [ServicoLicencas] ADD [OrigemRegisto] TINYINT NOT NULL CONSTRAINT DF_ServicoLicencas_OrigemRegisto DEFAULT 1;
-        END
-        """);
-}
-
-static async Task GarantirColunaCargoFuncionarioAsync(FinalprojContext context)
-{
-    await context.Database.ExecuteSqlRawAsync(
-        """
-        IF OBJECT_ID(N'[dbo].[Funcionarios]', N'U') IS NOT NULL
-           AND COL_LENGTH(N'Funcionarios', N'Cargo') IS NULL
-        BEGIN
-            ALTER TABLE [Funcionarios] ADD [Cargo] NVARCHAR(50) NULL;
-        END
-        """);
-}
-
-static async Task GarantirColunaTemaPerfilAsync(FinalprojContext context)
-{
-    await context.Database.ExecuteSqlRawAsync(
-        """
-        IF OBJECT_ID(N'[dbo].[Perfis]', N'U') IS NOT NULL
-           AND COL_LENGTH(N'Perfis', N'Tema') IS NULL
-        BEGIN
-            ALTER TABLE [Perfis] ADD [Tema] NVARCHAR(10) NULL;
-        END
-        """);
-}
-
-static async Task GarantirColunaDistanciaSegurancaPublicoProdutoAsync(FinalprojContext context)
-{
-    await context.Database.ExecuteSqlRawAsync(
-        """
-        IF OBJECT_ID(N'[dbo].[Produtos]', N'U') IS NOT NULL
-           AND COL_LENGTH(N'Produtos', N'DistanciaSegurancaPublico_m') IS NULL
-        BEGIN
-            ALTER TABLE [Produtos] ADD [DistanciaSegurancaPublico_m] INT NOT NULL CONSTRAINT DF_Produtos_DistanciaSegurancaPublico DEFAULT 50;
-        END
-        """);
-}
-
-static async Task GarantirColunasSoftDeleteClienteFuncionarioAsync(FinalprojContext context)
-{
-    await context.Database.ExecuteSqlRawAsync(
-        """
-        IF OBJECT_ID(N'[dbo].[Clientes]', N'U') IS NOT NULL
-           AND COL_LENGTH(N'Clientes', N'EliminadoEm') IS NULL
-        BEGIN
-            ALTER TABLE [Clientes] ADD [EliminadoEm] DATETIME2 NULL;
-        END
-        IF OBJECT_ID(N'[dbo].[Funcionarios]', N'U') IS NOT NULL
-           AND COL_LENGTH(N'Funcionarios', N'EliminadoEm') IS NULL
-        BEGIN
-            ALTER TABLE [Funcionarios] ADD [EliminadoEm] DATETIME2 NULL;
-        END
-        """);
 }
 
 // Pipeline: erros, HTTPS, estáticos, sessão, auth

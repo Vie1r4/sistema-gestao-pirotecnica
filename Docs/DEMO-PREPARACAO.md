@@ -10,7 +10,7 @@ Guia para **instalar, popular dados manualmente e ensaiar** o PIROFAFE antes da 
 
 ### Pré-requisitos
 
-- .NET 8 SDK, Node.js 18+, SQL Server (LocalDB ou instância)
+- .NET 8 SDK, Node.js 20+, SQL Server (LocalDB ou instância)
 - Seguir [README na raiz](../README.md) — secção «Configuração do Backend»
 
 ### Segredos obrigatórios

@@ -23,6 +23,7 @@ Docs/
 ├── TESTES.md                    ← unitários, integração, E2E, CI
 ├── OPERACOES.md                 ← backups, RPO/RTO, correlation id
 ├── frontend/
+│   ├── ORGANIZACAO-FRONTEND.md  ← onde vive cada coisa + design tokens
 │   ├── PAINEL-ADMIN.md
 │   └── PAINEL-GESTOR.md
 └── documentacao-regulatoria/
@@ -40,6 +41,7 @@ Docs/
 | **Novo no projeto** | [guia-iniciantes.md](guia-iniciantes.md) |
 | **Integrar com a API** | [API.md](API.md) |
 | **Permissões e roles** | [ROLES-E-PERMISSOES.md](ROLES-E-PERMISSOES.md) |
+| **Publicar em produção** | [PRODUCAO.md](PRODUCAO.md) |
 
 ---
 
@@ -55,6 +57,7 @@ Docs/
 | [PRODUCAO.md](PRODUCAO.md) | Checklist de produção (HTTPS, CORS, segredos, fail-fast) |
 | [TESTES.md](TESTES.md) | Unitários, integração, Vitest, Playwright, CI |
 | [OPERACOES.md](OPERACOES.md) | Backups (BD + docs), RPO/RTO, testes de restauro |
+| [frontend/ORGANIZACAO-FRONTEND.md](frontend/ORGANIZACAO-FRONTEND.md) | Onde vive cada coisa (`lib`, `_components`, tokens) e convenção de estilos |
 | [frontend/PAINEL-ADMIN.md](frontend/PAINEL-ADMIN.md) | Rotas e funcionalidades `/admin` |
 | [frontend/PAINEL-GESTOR.md](frontend/PAINEL-GESTOR.md) | Analytics do gestor na home (`/`) |
 | [documentacao-regulatoria/README.md](documentacao-regulatoria/README.md) | Declaração PSP |

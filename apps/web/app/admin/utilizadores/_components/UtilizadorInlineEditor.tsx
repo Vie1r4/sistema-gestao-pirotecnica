@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getToken } from "@/app/lib/auth";
+import { useUser } from "@/app/context/UserContext";
+import { refreshSessionAfterRoleChange } from "@/app/lib/refreshSessionAfterRoleChange";
 import {
   confirmEmailAdmin,
   fetchUtilizadorParaEditar,
@@ -32,6 +34,7 @@ export default function UtilizadorInlineEditor({
 }: Props) {
   const token = getToken();
   const queryClient = useQueryClient();
+  const { refetch: refetchUser } = useUser();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin", "utilizador", userId],
@@ -66,22 +69,33 @@ export default function UtilizadorInlineEditor({
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!token || !data) throw new Error("Sem dados.");
-      await updateUtilizador(token, userId, {
+      const assigned = roles.filter((r) => r.atribuido);
+      if (assigned.length === 0) throw new Error("Selecione um cargo de acesso.");
+      if (assigned.length > 1) throw new Error("Selecione apenas um cargo de acesso por utilizador.");
+      return updateUtilizador(token, userId, {
         ...data.model,
         roles,
         funcionarioId: funcId,
       });
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "utilizadores"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "utilizador", userId] });
+      await refreshSessionAfterRoleChange(queryClient, result.requiresTokenRefresh);
+      if (result.requiresTokenRefresh) await refetchUser();
       onSaved();
     },
   });
 
   const toggleRole = (nome: string) => {
-    setLocalRoles((prev) =>
-      (prev ?? roles).map((r) => (r.nome === nome ? { ...r, atribuido: !r.atribuido } : r))
-    );
+    setLocalRoles((prev) => {
+      const list = prev ?? roles;
+      const isOn = list.find((r) => r.nome === nome)?.atribuido ?? false;
+      if (isOn) {
+        return list.map((r) => (r.nome === nome ? { ...r, atribuido: false } : r));
+      }
+      return list.map((r) => ({ ...r, atribuido: r.nome === nome }));
+    });
   };
 
   const runAccountAction = async (key: string, fn: () => Promise<string>, toastMsg?: string) => {
@@ -188,7 +202,10 @@ export default function UtilizadorInlineEditor({
       <div className="flex flex-wrap gap-8">
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#78716c] dark:text-[#666]">
-            Cargos (roles)
+            Cargo de acesso (um por utilizador)
+          </p>
+          <p className="mb-2 text-xs text-[#a8a29e] dark:text-[#666]">
+            Apenas um cargo pode estar activo. O último administrador do sistema não pode ser removido.
           </p>
           <div className="flex flex-wrap gap-2">
             {ALL_ROLES.map((role) => {

@@ -10,7 +10,7 @@ Governança do sistema (contas, auditoria, backups, limpeza em testes). **Não**
 
 | Rota | Função |
 |------|--------|
-| `/admin` | Dashboard: KPIs horizontais no topo, **Totais de referência** (5 cartões individuais, mesmo layout), atalhos, feed de logs |
+| `/admin` | Dashboard: KPIs no topo (emails pendentes, contas, auditoria), **Totais de referência** (5 cartões) e feed de **Atividade recente** |
 | `/admin/utilizadores` | Tabela com pesquisa, filtros, **Novo utilizador** (modal), edição inline com roles, funcionário, email, confirmação e reset (`?edit={id}`, `?filtro=`). Componentes em `utilizadores/_components/` |
 | `/admin/utilizadores/[id]/editar` | Redireciona para `?edit=` na lista |
 | `/admin/logs` | Auditoria: filtros por **área** (`entidade`), **tipo** (`acao`), utilizador, datas, presets de período (Hoje/7d/30d); chips activos com remoção individual; debounce nos campos de texto; paginação; **export CSV (filtros)** com linhas `#` de metadados. Componentes: `logs/AdminLogsFilters.tsx`, `logs/_components/LogsList.tsx`, `lib/exportLogsCsv.ts` |
@@ -26,7 +26,7 @@ Governança do sistema (contas, auditoria, backups, limpeza em testes). **Não**
 
 Ver [API.md](../API.md) — secção `/api/admin`.
 
-- Dashboard: `GET /api/admin/stats`, `GET /api/admin/logs` (feed), `GET /api/admin/health` (badge).
+- Dashboard: `GET /api/admin/stats`, `GET /api/admin/logs` (feed). Estado da API em `/admin/definicoes`.
 - Utilizadores (contas): `POST /api/admin/utilizadores`, `GET .../criar-opcoes`, `POST .../resend-confirm-email`, `POST .../confirm-email`, `POST .../send-password-reset`, `PUT .../credenciais`.
 - **Não** usa `GET /api/home/gestor-dashboard` no painel admin.
 

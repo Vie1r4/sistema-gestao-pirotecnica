@@ -11,13 +11,9 @@ import { useUser } from "@/app/context/UserContext";
 import type { Funcionario } from "../../../lib/funcionarios";
 import { fadeInUp, transitionSmooth } from "../../../lib/animations";
 import { fetchFuncionarioPorId, postDesassociarConta } from "@/app/lib/funcionariosApi";
+import { cardClass, btnSecondary } from "@/app/components/ui/tokens";
 
-const cardClass =
-  "card-hover rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111] sm:p-8";
-
-const btnSecondary =
-  "data-button rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-[border-color,background-color,color] duration-200 hover:bg-gray-50 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
-
+// Ação de aviso (não destrutiva como eliminar): mantém o estilo âmbar próprio.
 const btnDanger =
   "data-button rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition-[background-color,opacity] duration-200 hover:bg-amber-700";
 

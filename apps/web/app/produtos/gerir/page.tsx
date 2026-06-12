@@ -5,16 +5,14 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
-import EmptyState from "@/app/components/ui/EmptyState";
+import Navbar from "@/app/components/Navbar";
+import { DataTable } from "@/app/components/ui/DataTable";
+import { produtosGerirColumns } from "@/app/produtos/_components/produtosColumns";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { useRouter } from "next/navigation";
 import {
   textoClassificacao,
-  textoGrupo,
-  textoFiltroTecnico,
-  textoCalibre,
   CLASSIFICACOES_RISCO,
   GRUPOS_COMPATIBILIDADE,
   FILTROS_TECNICOS,
@@ -23,15 +21,7 @@ import {
 } from "@/app/lib/produtos";
 import { fetchGerir, mapApiToProduto } from "@/app/lib/produtosApi";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
-
-const inputClass =
-  "rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#f97316] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-white";
-
-const btnPrimary =
-  "data-button rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90";
-
-const btnSecondary =
-  "data-button rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-[border-color,background-color,color] duration-200 hover:bg-gray-50 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
+import { btnPrimary, btnSecondary, inputClassFilter as inputClass } from "@/app/components/ui/tokens";
 
 function GerirContent() {
   const searchParams = useSearchParams();
@@ -82,6 +72,7 @@ function GerirContent() {
   });
 
   const lista: Produto[] = (gerirData?.items ?? []).map((it) => mapApiToProduto(it as Record<string, unknown>));
+  const columns = useMemo(() => produtosGerirColumns(), []);
 
   if (!mounted || (user !== undefined && !canGerirProdutos)) {
     return (
@@ -241,79 +232,24 @@ function GerirContent() {
             <p className="mt-4 text-sm text-[#57534e] dark:text-gray-400">
               {loadingApi && getToken() ? "A carregar… " : ""}{lista.length} produto(s)
             </p>
-            <div className="mt-6 overflow-x-auto">
-              {lista.length === 0 ? (
-                <EmptyState
-                  title={!getToken() ? "Inicie sessão para gerir produtos." : "Nenhum produto."}
-                  description={getToken() ? "Crie o primeiro produto no catálogo." : undefined}
-                  action={
-                    getToken() ? (
-                      <Link href="/produtos/novo" className={btnPrimary}>
-                        Criar produto
-                      </Link>
-                    ) : undefined
+            <div className="mt-6">
+              {loadingApi ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-12 text-[#57534e] dark:text-gray-400">
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent" />
+                  <span>A carregar produtos…</span>
+                </div>
+              ) : (
+                <DataTable<Produto>
+                  columns={columns}
+                  data={lista}
+                  pageSize={15}
+                  showSearch={false}
+                  emptyMessage={
+                    !getToken()
+                      ? "Inicie sessão para gerir produtos."
+                      : "Nenhum produto. Crie o primeiro no catálogo."
                   }
                 />
-              ) : (
-                <>
-                  {/* Vista em cards em ecrãs pequenos */}
-                  <div className="space-y-3 lg:hidden">
-                    {lista.map((pr) => (
-                      <Link
-                        key={pr.id}
-                        href={`/produtos/${pr.id}`}
-                        className="card-hover block rounded-xl border border-[#e7e5e4] bg-white p-4 dark:border-[#1f1f1f] dark:bg-[#111]"
-                      >
-                        <p className="font-medium text-[#1c1917] dark:text-white">{pr.nome}</p>
-                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#57534e] dark:text-gray-400">
-                          <span>NEM: {pr.nemPorUnidade} kg/un</span>
-                          <span>Risco: {textoClassificacao(pr.familiaRisco)}</span>
-                          <span>Grupo: {textoGrupo(pr.grupoCompatibilidade)}</span>
-                          {pr.referencia && <span>Ref.: {pr.referencia}</span>}
-                        </div>
-                        <p className="mt-1 text-xs text-[#f97316]">Detalhes →</p>
-                      </Link>
-                    ))}
-                  </div>
-                  {/* Tabela em ecrãs grandes */}
-                  <div className="hidden overflow-x-auto lg:block">
-                    <table className="w-full text-left text-sm">
-                      <thead>
-                        <tr className="border-b border-[#e7e5e4] dark:border-[#222]">
-                          <th className="whitespace-nowrap pb-2 pr-3 font-semibold text-[#444] dark:text-gray-300">Nome</th>
-                          <th className="whitespace-nowrap pb-2 pr-3 font-semibold text-[#444] dark:text-gray-300">NEM (kg/un)</th>
-                          <th className="whitespace-nowrap pb-2 pr-3 font-semibold text-[#444] dark:text-gray-300">Classif.</th>
-                          <th className="whitespace-nowrap pb-2 pr-3 font-semibold text-[#444] dark:text-gray-300">Grupo</th>
-                          <th className="whitespace-nowrap pb-2 pr-3 font-semibold text-[#444] dark:text-gray-300">Filtro técn.</th>
-                          <th className="whitespace-nowrap pb-2 pr-3 font-semibold text-[#444] dark:text-gray-300">Calibre</th>
-                          <th className="whitespace-nowrap pb-2 pr-3 font-semibold text-[#444] dark:text-gray-300">Ref.</th>
-                          <th className="whitespace-nowrap pb-2 pr-3 font-semibold text-[#444] dark:text-gray-300">Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {lista.map((pr) => (
-                          <tr
-                            key={pr.id}
-                            className="border-b border-[#f5f5f4] transition-colors hover:bg-[#fafaf9] dark:border-[#1a1a1a] dark:hover:bg-[#0a0a0a]"
-                          >
-                            <td className="py-2 pr-3 font-medium text-[#1c1917] dark:text-white">{pr.nome}</td>
-                            <td className="whitespace-nowrap py-2 pr-3 text-[#57534e] dark:text-gray-400">{pr.nemPorUnidade}</td>
-                            <td className="whitespace-nowrap py-2 pr-3 text-[#57534e] dark:text-gray-400">{textoClassificacao(pr.familiaRisco)}</td>
-                            <td className="whitespace-nowrap py-2 pr-3 text-[#57534e] dark:text-gray-400">{textoGrupo(pr.grupoCompatibilidade)}</td>
-                            <td className="whitespace-nowrap py-2 pr-3 text-[#57534e] dark:text-gray-400">{textoFiltroTecnico(pr.filtroTecnico)}</td>
-                            <td className="whitespace-nowrap py-2 pr-3 text-[#57534e] dark:text-gray-400">{textoCalibre(pr.calibre)}</td>
-                            <td className="max-w-[8rem] truncate py-2 pr-3 text-[#57534e] dark:text-gray-400" title={pr.referencia ?? undefined}>{pr.referencia ?? "—"}</td>
-                            <td className="py-2 pr-3">
-                              <Link href={`/produtos/${pr.id}`} className="text-[#f97316] hover:underline">
-                                Detalhes
-                              </Link>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
               )}
             </div>
           </motion.div>

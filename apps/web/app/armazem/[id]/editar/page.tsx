@@ -12,6 +12,7 @@ import {
   ESTADOS_PAIOL,
   labelPerfilRisco,
   validarLimiteMLE,
+  mapPaiolFromApi,
   type Paiol,
   type PaiolDocumentoExtra,
   type PerfilRiscoPaiol,
@@ -21,47 +22,15 @@ import { getToken } from "@/app/lib/auth";
 import { useToastStore } from "@/app/stores/useToastStore";
 import { fetchEdit, putEdit, openDocumento } from "@/app/lib/paiolApi";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
-
-const cardClass =
-  "card-hover rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111] sm:p-8";
-
-const inputClass =
-  "mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-[#f97316] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-white dark:placeholder-gray-500";
-
-const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300";
-
-const btnPrimary =
-  "data-button rounded-xl bg-[#f97316] px-5 py-2.5 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
-
-const btnSecondary =
-  "data-button rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition-[border-color,background-color,color] duration-200 hover:bg-gray-50 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
+import {
+  cardClass,
+  inputClass,
+  labelClass,
+  btnPrimaryLg as btnPrimary,
+  btnSecondaryLg as btnSecondary,
+} from "@/app/components/ui/tokens";
 
 const FILE_ACCEPT = ".pdf,.jpg,.jpeg,.png";
-
-function mapApiToPaiol(data: Record<string, unknown>, id: string): Paiol {
-  const p = (data.paiol ?? data.Paiol ?? data) as Record<string, unknown>;
-  const get = (key: string) => p[key] ?? p[key.charAt(0).toUpperCase() + key.slice(1)];
-  const docExtras = (get("documentosExtras") ?? get("DocumentosExtras") ?? []) as Array<Record<string, unknown>>;
-  return {
-    id: String(get("id") ?? get("Id") ?? id),
-    nome: String(get("nome") ?? get("Nome") ?? ""),
-    localizacao: (get("localizacao") ?? get("Localizacao")) as string | undefined,
-    coordenadasLat: (get("coordenadasLat") ?? get("CoordenadasLat")) as number | undefined,
-    coordenadasLng: (get("coordenadasLng") ?? get("CoordenadasLng")) as number | undefined,
-    limiteMLE: Number(get("limiteMLE") ?? get("LimiteMLE") ?? 0),
-    perfilRisco: String(get("perfilRisco") ?? get("PerfilRisco") ?? "1.1") as PerfilRiscoPaiol,
-    estado: String(get("estado") ?? get("Estado") ?? "Ativo") as EstadoPaiol,
-    dataValidadeLicenca: (get("dataValidadeLicenca") ?? get("DataValidadeLicenca")) as string | undefined,
-    numeroLicenca: (get("numeroLicenca") ?? get("NumeroLicenca")) as string | undefined,
-    divisaoDominante: (get("divisaoDominante") ?? get("DivisaoDominante")) as string | undefined,
-    documentosExtras: docExtras.map((d) => ({
-      id: String(d.id ?? d.Id ?? ""),
-      nome: String(d.nome ?? d.Nome ?? ""),
-      caminho: (d.caminho ?? d.Caminho) as string | undefined,
-    })) as PaiolDocumentoExtra[],
-    dataRegisto: (get("dataRegisto") ?? get("DataRegisto") ?? new Date().toISOString()) as string,
-  };
-}
 
 export default function EditarPaiolPage() {
   const params = useParams();
@@ -109,11 +78,11 @@ export default function EditarPaiolPage() {
     enabled: validId && !!getToken(),
   });
 
-  const paiol = editData ? mapApiToPaiol({ paiol: editData.paiol }, id) : null;
+  const paiol = editData ? mapPaiolFromApi({ paiol: editData.paiol }, id) : null;
 
   useEffect(() => {
     if (!editData) return;
-    const mapped = mapApiToPaiol({ paiol: editData.paiol }, id);
+    const mapped = mapPaiolFromApi({ paiol: editData.paiol }, id);
     setForm({
       nome: mapped.nome,
       localizacao: mapped.localizacao ?? "",
@@ -180,7 +149,7 @@ export default function EditarPaiolPage() {
     try {
       await openDocumento(token, numId, extraNum);
     } catch {
-      alert("Não foi possível abrir o documento.");
+      useToastStore.getState().show("Não foi possível abrir o documento.", "error");
     }
   };
 

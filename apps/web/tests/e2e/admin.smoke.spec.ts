@@ -116,8 +116,8 @@ test.describe("Painel Admin (smoke)", () => {
   test("dashboard admin renderiza", async ({ page }) => {
     await page.goto("/admin");
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Estado do sistema" }).first()).toBeVisible();
-    await expect(page.getByText("Operacional").first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Totais de referência" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Atividade recente" })).toBeVisible();
   });
 
   test("utilizadores e logs renderizam", async ({ page }) => {

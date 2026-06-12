@@ -1,4 +1,5 @@
 using System.Text;
+using Finalproj.Application.DTOs;
 using Finalproj.Application.Features.Admin.DTOs;
 using Finalproj.Application.Features.Admin.Interfaces;
 using Finalproj.Application.Features.Home.Interfaces;
@@ -19,7 +20,8 @@ public sealed class AdminUserAccountService(
     IEmailSender emailSender,
     IConfiguration configuration,
     IPasswordValidationService passwordValidation,
-    ILogSistemaService logSistema) : IAdminUserAccountService
+    ILogSistemaService logSistema,
+    IIdentityRolesService identityRoles) : IAdminUserAccountService
 {
     private static readonly string[] RolesPermitidas = ConstantesRoles.ParaContaFuncionario;
 
@@ -56,7 +58,9 @@ public sealed class AdminUserAccountService(
 
         var roles = NormalizeRoles(request.Roles);
         if (roles.Count == 0)
-            return Fail("Selecione pelo menos uma role.");
+            return Fail("Selecione um cargo de acesso.");
+        if (roles.Count > 1)
+            return Fail("Selecione apenas um cargo de acesso por utilizador.");
 
         var user = new IdentityUser { UserName = email, Email = email };
         var createResult = await userManager.CreateAsync(user, request.Password!);
@@ -221,6 +225,53 @@ public sealed class AdminUserAccountService(
             cancellationToken);
 
         return Ok("Email da conta atualizado.");
+    }
+
+    public async Task<AdminUserAccountResult> UpdateUtilizadorRolesAsync(
+        string userId,
+        EditarUtilizadorRolesViewModel model,
+        string? adminUserId,
+        string? adminUserName,
+        CancellationToken cancellationToken = default)
+    {
+        if (userId != model.Id)
+            return Fail("Identificador inconsistente.");
+
+        var user = await userManager.FindByIdAsync(model.Id);
+        if (user == null)
+            return Fail("Utilizador não encontrado.");
+
+        var desired = (model.Roles ?? [])
+            .Where(r => r.Atribuido)
+            .Select(r => r.Nome)
+            .ToList();
+
+        var roleResult = await identityRoles.SetOperationalRolesAsync(user.Id!, desired, cancellationToken);
+        if (!roleResult.Success)
+            return Fail(roleResult.Message);
+
+        await adminStats.AssociarFuncionarioAUtilizadorAsync(user.Id!, model.FuncionarioId, cancellationToken);
+
+        if (roleResult.RolesChanged)
+        {
+            await logSistema.RegistarAsync(
+                "ADMIN_UTILIZADOR_ROLES_ALTERADAS",
+                adminUserId,
+                adminUserName,
+                new { userId = user.Id, roles = desired },
+                cancellationToken);
+        }
+
+        var requiresRefresh = roleResult.RolesChanged && adminUserId == user.Id;
+        return new AdminUserAccountResult
+        {
+            Success = true,
+            Message = roleResult.RolesChanged
+                ? roleResult.Message
+                : "Utilizador atualizado.",
+            UserId = user.Id,
+            RequiresTokenRefresh = requiresRefresh,
+        };
     }
 
     private static List<string> NormalizeRoles(List<string>? roles)

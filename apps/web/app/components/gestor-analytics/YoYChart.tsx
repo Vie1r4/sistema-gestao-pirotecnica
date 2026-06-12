@@ -68,7 +68,13 @@ function YoYTooltip({
   unidades,
 }: {
   active?: boolean;
-  payload?: { dataKey?: string; value?: number | null; color?: string; name?: string }[];
+  payload?: {
+    dataKey?: string;
+    value?: number | null;
+    color?: string;
+    name?: string;
+    payload?: YoYChartRow;
+  }[];
   label?: string;
   unidades: boolean;
 }) {

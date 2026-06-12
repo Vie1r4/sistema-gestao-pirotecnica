@@ -220,6 +220,41 @@ export async function fetchDocumentoClienteBlobUrl(
   return URL.createObjectURL(blob);
 }
 
+export async function openClienteDocumento(
+  token: string,
+  clienteId: string,
+  extraId: string
+): Promise<void> {
+  const res = await fetch(documentoClienteUrl(clienteId, extraId), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Documento não encontrado");
+  const blob = await res.blob();
+  const contentType = res.headers.get("content-type") ?? "application/octet-stream";
+  const url = URL.createObjectURL(new Blob([blob], { type: contentType }));
+  const w = window.open(url, "_blank", "noopener");
+  if (!w) URL.revokeObjectURL(url);
+}
+
+export async function downloadClienteDocumento(
+  token: string,
+  clienteId: string,
+  extraId: string,
+  fileName: string
+): Promise<void> {
+  const res = await fetch(documentoClienteUrl(clienteId, extraId), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Documento não encontrado");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 /** Valida NIF: exatamente 9 dígitos */
 export function validarNif(nif: string): boolean {
   const digits = nif.replace(/\D/g, "");

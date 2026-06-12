@@ -11,15 +11,7 @@ import { getToken } from "@/app/lib/auth";
 import { useToastStore } from "@/app/stores/useToastStore";
 import { deletePaiol, fetchDeleteGet } from "@/app/lib/paiolApi";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
-
-const cardClass =
-  "card-hover rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111] sm:p-8";
-
-const btnSecondary =
-  "data-button rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-[border-color,background-color,color] duration-200 hover:bg-gray-50 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
-
-const btnDanger =
-  "data-button rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-[background-color,opacity] duration-200 hover:bg-red-700";
+import { cardClass, btnSecondary, btnDangerSolid as btnDanger } from "@/app/components/ui/tokens";
 
 type PaiolResumo = {
   id: string;

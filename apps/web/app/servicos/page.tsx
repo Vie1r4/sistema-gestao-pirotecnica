@@ -12,6 +12,7 @@ import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { fetchServicosFromApi } from "@/app/lib/servicos";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
+import { btnPrimary } from "@/app/components/ui/tokens";
 
 type ListItem = {
   id: string;
@@ -29,9 +30,6 @@ type ServicosApiData = {
   total: number;
   clientes: Array<{ id: string; nome: string }>;
 };
-
-const btnPrimary =
-  "data-button rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
 
 const ITENS_POR_PAGINA = 20;
 const MAX_PAGINAS_VISIVEIS = 10;

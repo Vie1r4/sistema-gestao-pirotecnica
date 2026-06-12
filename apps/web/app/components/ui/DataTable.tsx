@@ -12,14 +12,14 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 import { useState } from "react";
-
-const inputClass =
-  "rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-[#f97316] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-white dark:placeholder-gray-500";
+import { inputClassSearch as inputClass } from "@/app/components/ui/tokens";
 
 export type DataTableProps<TData> = {
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
   pageSize?: number;
+  /** Mostrar caixa de pesquisa local (predefinido: sim) */
+  showSearch?: boolean;
   searchPlaceholder?: string;
   /** Conteúdo quando não há dados */
   emptyMessage?: string;
@@ -41,6 +41,7 @@ export function DataTable<TData>({
   columns,
   data,
   pageSize = 10,
+  showSearch = true,
   searchPlaceholder = "Pesquisar…",
   emptyMessage = "Sem dados para mostrar.",
   noResultsMessage = "Nenhum resultado para a pesquisa.",
@@ -74,19 +75,21 @@ export function DataTable<TData>({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-1 min-w-[200px]">
-        <label htmlFor="datatable-search" className="sr-only">
-          Pesquisar
-        </label>
-        <input
-          id="datatable-search"
-          type="search"
-          placeholder={searchPlaceholder}
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          className={`${inputClass} w-full max-w-md`}
-        />
-      </div>
+      {showSearch && (
+        <div className="flex flex-1 min-w-[200px]">
+          <label htmlFor="datatable-search" className="sr-only">
+            Pesquisar
+          </label>
+          <input
+            id="datatable-search"
+            type="search"
+            placeholder={searchPlaceholder}
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className={`${inputClass} w-full max-w-md`}
+          />
+        </div>
+      )}
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-left text-sm">

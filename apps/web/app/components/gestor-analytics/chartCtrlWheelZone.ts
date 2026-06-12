@@ -29,7 +29,9 @@ export function attachCtrlWheelZone(
 export function useChartCtrlWheelZoneRef(onStep: (zoomIn: boolean) => void) {
   const cleanupRef = useRef<(() => void) | null>(null);
   const onStepRef = useRef(onStep);
-  onStepRef.current = onStep;
+  useEffect(() => {
+    onStepRef.current = onStep;
+  }, [onStep]);
 
   const setZoneRef = useCallback((node: HTMLDivElement | null) => {
     cleanupRef.current?.();

@@ -16,7 +16,6 @@ public class ProductionConfigurationValidatorTests
     private static Dictionary<string, string?> ValidProduction() => new()
     {
         ["Bootstrap:AllowFirstUserRegistration"] = "false",
-        ["SeedUsers:Enabled"] = "false",
         ["AllowedHosts"] = "app.example.com;api.example.com",
         ["Cors:AllowedOrigins"] = "https://app.example.com",
         ["Frontend:BaseUrl"] = "https://app.example.com",

@@ -15,11 +15,8 @@ import { fetchServicoDetalheFromApi, servicosApi } from "@/app/lib/servicos";
 import type { ServicoDetalhe } from "@/app/lib/servicos";
 import { textoCalibre, textoGrupo } from "@/app/lib/produtos";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
+import { btnSecondary, btnDanger } from "@/app/components/ui/tokens";
 
-const btnSecondary =
-  "data-button rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
-const btnDanger =
-  "data-button rounded-xl border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950";
 const FILE_ACCEPT = ".pdf,.jpg,.jpeg,.png";
 
 function formatHoraApi(h?: string) {

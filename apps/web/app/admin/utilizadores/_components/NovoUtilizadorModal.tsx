@@ -50,6 +50,8 @@ export default function NovoUtilizadorModal({ open, onClose, onCreated }: Props)
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!token) throw new Error("Sem sessão.");
+      if (rolesSel.length === 0) throw new Error("Selecione um cargo de acesso.");
+      if (rolesSel.length > 1) throw new Error("Selecione apenas um cargo de acesso por utilizador.");
       await createUtilizador(token, {
         email: email.trim(),
         password,
@@ -74,9 +76,7 @@ export default function NovoUtilizadorModal({ open, onClose, onCreated }: Props)
   });
 
   const toggleRole = (role: string) => {
-    setRolesSel((prev) =>
-      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]
-    );
+    setRolesSel((prev) => (prev.includes(role) ? [] : [role]));
   };
 
   if (!open) return null;

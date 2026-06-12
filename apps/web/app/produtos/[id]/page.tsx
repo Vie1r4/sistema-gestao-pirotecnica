@@ -10,21 +10,14 @@ import { useUser } from "@/app/context/UserContext";
 import { textoClassificacao, textoGrupo, textoFiltroTecnico, textoCalibre, type Produto } from "@/app/lib/produtos";
 import { fetchDetails, mapApiToProduto } from "@/app/lib/produtosApi";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
-
-const cardClass =
-  "card-hover rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111] sm:p-8";
-
-const sectionTitleClass = "text-lg font-semibold text-gray-900 dark:text-white";
-const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300";
-
-const btnPrimary =
-  "data-button rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90";
-
-const btnSecondary =
-  "data-button rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-[border-color,background-color,color] duration-200 hover:bg-gray-50 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
-
-const btnDanger =
-  "data-button rounded-xl border border-red-300 px-4 py-2 text-sm font-medium text-red-700 transition-[border-color,background-color,color] duration-200 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950";
+import {
+  cardClass,
+  sectionTitleClass,
+  labelClass,
+  btnPrimary,
+  btnSecondary,
+  btnDanger,
+} from "@/app/components/ui/tokens";
 
 export default function ProdutoDetalhePage() {
   const params = useParams();

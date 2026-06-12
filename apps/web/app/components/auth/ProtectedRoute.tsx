@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ensureAccessToken, isAuthenticated } from "@/app/lib/auth";
+import { ensureAccessToken, getToken, isAuthenticated } from "@/app/lib/auth";
 import { isRotaPublica, isRotaSemBootstrapAuth } from "@/app/lib/publicRoutes";
 import { UserProvider } from "@/app/context/UserContext";
 import RoutePermissionGuard from "./RoutePermissionGuard";
@@ -17,22 +17,36 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const initialAuthChecked = useRef(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || initialAuthChecked.current) return;
+
     let cancelled = false;
-    setAuthReady(false);
-    if (isRotaSemBootstrapAuth(pathname)) {
+
+    const finish = () => {
+      if (cancelled) return;
+      initialAuthChecked.current = true;
       setAuthReady(true);
+    };
+
+    if (isRotaSemBootstrapAuth(pathname)) {
+      finish();
       return;
     }
-    ensureAccessToken().then(() => {
-      if (!cancelled) setAuthReady(true);
-    });
+
+    if (getToken()) {
+      finish();
+      void ensureAccessToken();
+      return;
+    }
+
+    void ensureAccessToken().then(finish);
+
     return () => {
       cancelled = true;
     };
@@ -51,11 +65,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (isRotaPublica(pathname)) {
-    return (
-      <UserProvider>
-        {children}
-      </UserProvider>
-    );
+    return <UserProvider>{children}</UserProvider>;
   }
 
   if (!isAuthenticated()) {

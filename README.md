@@ -82,7 +82,7 @@ Ver [Docs/TESTES.md](Docs/TESTES.md).
 ## Pré-requisitos
 
 - .NET 8 SDK
-- Node.js 18+ (para o frontend)
+- Node.js 20+ (para o frontend)
 - SQL Server (LocalDB ou instância) para o backend
 
 ## Configuração do Backend

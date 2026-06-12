@@ -10,86 +10,22 @@ import ReferenciaIndisponivel from "@/app/components/ReferenciaIndisponivel";
 import {
   podeEditarEncomenda,
   corEstado,
+  mapApiToEncomendaDetalhe,
   type EncomendaComClienteEItens,
-  type EncomendaItem,
-  type EstadoEncomenda,
 } from "@/app/lib/encomendas";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
 import { fetchEncomendaDetalheParaPagina, postAceitar, postConcluir } from "@/app/lib/encomendasApi";
 import type { Cliente } from "@/app/lib/clientes";
-import { textoCalibre, textoGrupo, type Produto } from "@/app/lib/produtos";
+import { textoCalibre, textoGrupo } from "@/app/lib/produtos";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
+import {
+  labelClass,
+  btnPrimary,
+  btnSecondary,
+  btnDanger,
+} from "@/app/components/ui/tokens";
 
-function mapApiToEncomendaDetalhe(data: Record<string, unknown>): EncomendaComClienteEItens | null {
-  const enc = data?.encomenda ?? data?.Encomenda;
-  if (!enc || typeof enc !== "object") return null;
-  const e = enc as Record<string, unknown>;
-  const get = (key: string) => e[key] ?? e[key.charAt(0).toUpperCase() + key.slice(1)];
-  const funcionarioAceiteNome = (data?.funcionarioAceiteNome ?? data?.FuncionarioAceiteNome) as string | undefined;
-  const funcionarioPreparouNome = (data?.funcionarioPreparouNome ?? data?.FuncionarioPreparouNome) as string | undefined;
-  const stockPorProdutoRaw = data?.stockPorProduto ?? data?.StockPorProduto;
-  const stockMap = new Map<string, number>();
-  if (stockPorProdutoRaw && typeof stockPorProdutoRaw === "object") {
-    for (const [k, v] of Object.entries(stockPorProdutoRaw)) {
-      if (typeof v === "number") stockMap.set(String(k), v);
-    }
-  }
-  const dataCriacao = get("dataCriacao") ?? get("DataCriacao");
-  const dataEntrega = get("dataEntrega") ?? get("DataEntrega");
-  const dataConclusao = get("dataConclusao") ?? get("DataConclusao");
-  const clienteRaw = get("cliente") ?? get("Cliente");
-  const clienteObj = clienteRaw && typeof clienteRaw === "object" ? (clienteRaw as Record<string, unknown>) : null;
-  const itensRaw = get("itens") ?? get("Itens");
-  const itensArr = Array.isArray(itensRaw) ? itensRaw : [];
-  return {
-    id: String(get("id") ?? get("Id") ?? ""),
-    clienteId: String(get("clienteId") ?? get("ClienteId") ?? ""),
-    estado: (get("estado") ?? get("Estado") ?? "Pendente") as EstadoEncomenda,
-    dataCriacao: dataCriacao ? (typeof dataCriacao === "string" ? dataCriacao : new Date(dataCriacao as string).toISOString()) : new Date().toISOString(),
-    dataEntrega: dataEntrega ? (typeof dataEntrega === "string" ? dataEntrega : new Date(dataEntrega as string).toISOString().slice(0, 10)) : undefined,
-    observacoes: (get("observacoes") ?? get("Observacoes")) as string | undefined,
-    motivoRejeicao: (get("motivoRejeicao") ?? get("MotivoRejeicao")) as string | undefined,
-    funcionarioAceiteNome,
-    funcionarioPreparouNome,
-    dataConclusao: dataConclusao ? (typeof dataConclusao === "string" ? dataConclusao : new Date(dataConclusao as string).toISOString()) : undefined,
-    cliente: clienteObj
-      ? ({
-          id: String(clienteObj.id ?? clienteObj.Id ?? ""),
-          nome: String(clienteObj.nome ?? clienteObj.Nome ?? ""),
-          tipoCliente: "Empresa" as const,
-          dataRegisto: new Date().toISOString(),
-          documentosExtras: [],
-          disponivel: (clienteObj.disponivel ?? clienteObj.Disponivel ?? true) as boolean,
-        } as Cliente & { disponivel?: boolean })
-      : null,
-    itens: itensArr.map((i: Record<string, unknown>) => {
-      const gi = (k: string) => i[k] ?? i[k.charAt(0).toUpperCase() + k.slice(1)];
-      const prod = gi("produto") ?? gi("Produto");
-      const prodObj = prod && typeof prod === "object" ? (prod as Record<string, unknown>) : null;
-      return {
-        id: String(gi("id") ?? gi("Id") ?? ""),
-        encomendaId: String(gi("encomendaId") ?? gi("EncomendaId") ?? ""),
-        produtoId: String(gi("produtoId") ?? gi("ProdutoId") ?? ""),
-        quantidadePedida: Number(gi("quantidadePedida") ?? gi("QuantidadePedida") ?? 0),
-        produto: prodObj ? { id: String(prodObj.id ?? prodObj.Id ?? ""), nome: String(prodObj.nome ?? prodObj.Nome ?? "") } as Produto : null,
-        produtoNome: prodObj ? String(prodObj.nome ?? prodObj.Nome ?? "") : undefined,
-      };
-    }) as (EncomendaItem & { produto?: Produto | null; produtoNome?: string })[],
-    stockPorProduto: stockMap,
-  };
-}
-
-const btnPrimary =
-  "data-button rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
-
-const btnSecondary =
-  "data-button rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
-
-const btnDanger =
-  "data-button rounded-xl border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950";
-
-const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300";
 const valueClass = "mt-1 text-gray-900 dark:text-white";
 
 export default function EncomendaDetalhePage() {

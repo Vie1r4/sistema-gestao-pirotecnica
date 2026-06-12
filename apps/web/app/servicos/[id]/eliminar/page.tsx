@@ -10,11 +10,7 @@ import { getToken } from "@/app/lib/auth";
 import { useToastStore } from "@/app/stores/useToastStore";
 import { servicosApi } from "@/app/lib/servicos";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
-
-const btnDanger =
-  "data-button rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600";
-const btnSecondary =
-  "rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-[#333] dark:text-gray-300";
+import { btnSecondary, btnDangerSolid as btnDanger } from "@/app/components/ui/tokens";
 
 type ServicoResumo = {
   id: string;

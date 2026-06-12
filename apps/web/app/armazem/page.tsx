@@ -9,21 +9,12 @@ import type { ColumnDef } from "@tanstack/react-table";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import { DataTable } from "@/app/components/ui/DataTable";
 import EmptyState from "@/app/components/ui/EmptyState";
+import { btnPrimary, btnSecondary } from "@/app/components/ui/tokens";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
-import { labelPerfilRisco } from "@/app/lib/armazem";
+import { labelPerfilRisco, mapPaiolComOcupacao, type PaiolComOcupacao } from "@/app/lib/armazem";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 import { fetchListaPaiol } from "@/app/lib/paiolApi";
-
-/** Paiol com ocupação (vindo da API) para a lista do Armazém */
-type PaiolComOcupacao = {
-  id: string;
-  nome: string;
-  localizacao?: string;
-  perfilRisco: string;
-  estado: string;
-  percentagemOcupacao: number;
-};
 
 function armazemColumns(): ColumnDef<PaiolComOcupacao, unknown>[] {
   return [
@@ -42,7 +33,7 @@ function armazemColumns(): ColumnDef<PaiolComOcupacao, unknown>[] {
     },
     {
       accessorKey: "localizacao",
-      header: "Localização (cidade)",
+      header: "Localização",
       cell: ({ getValue }) => (
         <span className="text-[#57534e] dark:text-gray-400">{getValue() as string ?? "—"}</span>
       ),
@@ -54,6 +45,19 @@ function armazemColumns(): ColumnDef<PaiolComOcupacao, unknown>[] {
       cell: ({ getValue }) => (
         <span className="text-[#57534e] dark:text-gray-400">{labelPerfilRisco(getValue() as string)}</span>
       ),
+      enableSorting: true,
+    },
+    {
+      accessorKey: "limiteMLE",
+      header: "Capacidade máx.",
+      cell: ({ getValue }) => {
+        const kg = getValue() as number;
+        return (
+          <span className="whitespace-nowrap text-[#57534e] dark:text-gray-400">
+            {Number.isFinite(kg) ? `${kg} kg` : "—"}
+          </span>
+        );
+      },
       enableSorting: true,
     },
     {
@@ -112,25 +116,6 @@ function armazemColumns(): ColumnDef<PaiolComOcupacao, unknown>[] {
   ];
 }
 
-const btnPrimary =
-  "data-button rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
-
-const btnSecondary =
-  "data-button rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-[border-color,background-color,color] duration-200 hover:bg-gray-50 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
-
-function mapApiToPaiolComOcupacao(item: Record<string, unknown>): PaiolComOcupacao {
-  const p = (item.Paiol ?? item.paiol ?? {}) as Record<string, unknown>;
-  const pct = Number(item.PercentagemOcupacao ?? item.percentagemOcupacao ?? 0);
-  return {
-    id: String(p.Id ?? p.id ?? ""),
-    nome: String(p.Nome ?? p.nome ?? "").trim() || "—",
-    localizacao: (p.Localizacao ?? p.localizacao) as string | undefined,
-    perfilRisco: String(p.PerfilRisco ?? p.perfilRisco ?? ""),
-    estado: String(p.Estado ?? p.estado ?? ""),
-    percentagemOcupacao: Number.isFinite(pct) ? pct : 0,
-  };
-}
-
 function ArmazemContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -156,7 +141,7 @@ function ArmazemContent() {
       try {
         const data = await fetchListaPaiol(token);
         const list = Array.isArray(data) ? data : [];
-        return list.map((item: Record<string, unknown>) => mapApiToPaiolComOcupacao(item));
+        return list.map((item: Record<string, unknown>) => mapPaiolComOcupacao(item));
       } catch (e) {
         if (e instanceof Error && e.message === "UNAUTHORIZED") {
           router.replace("/login");
@@ -201,7 +186,7 @@ function ArmazemContent() {
                 Armazém
               </h1>
               <p className="mt-1 flex items-center gap-2 text-[#57534e] dark:text-gray-400">
-                Paióis com acesso, ocupação MLE e ligações para stock e movimentos.
+                Paióis registados, ocupação MLE e ligações para stock e movimentos.
                 {isRefetching && !loading && (
                   <span className="inline-flex items-center gap-1.5 text-xs text-[#78716c] dark:text-gray-500">
                     <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[#f97316]" />
@@ -262,12 +247,16 @@ function ArmazemContent() {
               </div>
             ) : paiois.length === 0 ? (
               <EmptyState
-                title="Não tem acesso a nenhum paiol ou ainda não existem paióis."
-                description="Os administradores podem criar paióis em Gestão de Paióis."
+                title="Ainda não há paióis registados."
+                description={
+                  canGerirArmazem
+                    ? "Crie o primeiro paiol em Gestão de Paióis."
+                    : "Peça a um administrador ou gestor para criar paióis."
+                }
                 action={
                   canGerirArmazem ? (
                     <Link href="/armazem/gestao" className={btnPrimary}>
-                      Ir para Gestão de Paióis
+                      Gestão de Paióis
                     </Link>
                   ) : undefined
                 }
@@ -278,7 +267,7 @@ function ArmazemContent() {
                 data={paiois}
                 pageSize={10}
                 searchPlaceholder="Pesquisar paióis…"
-                emptyMessage="Não tem acesso a nenhum paiol ou ainda não existem paióis."
+                emptyMessage="Ainda não há paióis registados."
                 noResultsMessage="Nenhum paiol encontrado para a pesquisa."
               />
             )}

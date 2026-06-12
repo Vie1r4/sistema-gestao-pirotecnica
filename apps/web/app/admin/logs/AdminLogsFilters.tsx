@@ -79,7 +79,9 @@ export default function AdminLogsFilters({
   const [acaoDraft, setAcaoDraft] = useState(value.acao);
   const [userDraft, setUserDraft] = useState(value.userName);
   const valueRef = useRef(value);
-  valueRef.current = value;
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
 
   const quickTipoId = matchLogTipoId(value.acao);
 

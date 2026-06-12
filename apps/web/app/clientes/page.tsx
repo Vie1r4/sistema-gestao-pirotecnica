@@ -5,71 +5,13 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import type { ColumnDef } from "@tanstack/react-table";
 import Navbar, { CONTENT_OFFSET_TOP } from "../components/Navbar";
 import { DataTable } from "../components/ui/DataTable";
+import { btnPrimary } from "../components/ui/tokens";
+import { clientesColumns } from "./_components/clientesColumns";
 import { fetchClientes, type Cliente } from "../lib/clientes";
 import { getToken } from "../lib/auth";
 import { fadeInUp, transitionSmooth } from "../lib/animations";
-
-const btnPrimary =
-  "data-button rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316]";
-
-function clientesColumns(): ColumnDef<Cliente, unknown>[] {
-  return [
-    {
-      accessorKey: "nome",
-      header: "Nome",
-      enableSorting: true,
-    },
-    {
-      accessorKey: "tipoCliente",
-      header: "Tipo",
-      cell: ({ getValue }) => (
-        <span className="text-[#57534e] dark:text-gray-400">{getValue() as string}</span>
-      ),
-      enableSorting: true,
-    },
-    {
-      accessorKey: "nif",
-      header: "NIF",
-      cell: ({ getValue }) => (
-        <span className="text-[#57534e] dark:text-gray-400">{getValue() as string ?? "—"}</span>
-      ),
-      enableSorting: false,
-    },
-    {
-      accessorKey: "email",
-      header: "Email",
-      cell: ({ getValue }) => (
-        <span className="text-[#57534e] dark:text-gray-400">{getValue() as string ?? "—"}</span>
-      ),
-      enableSorting: true,
-    },
-    {
-      accessorKey: "telefone",
-      header: "Telefone",
-      cell: ({ getValue }) => (
-        <span className="text-[#57534e] dark:text-gray-400">{getValue() as string ?? "—"}</span>
-      ),
-      enableSorting: false,
-    },
-    {
-      id: "acoes",
-      header: "Ações",
-      cell: ({ row }) => (
-        <Link
-          href={`/clientes/${row.original.id}`}
-          data-button
-          className="text-[#f97316] transition-[color] duration-200 hover:underline"
-        >
-          Ver detalhes
-        </Link>
-      ),
-      enableSorting: false,
-    },
-  ];
-}
 
 function ClientesContent() {
   const searchParams = useSearchParams();

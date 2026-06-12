@@ -27,11 +27,6 @@ public static class ProductionConfigurationValidator
                 "Bootstrap:AllowFirstUserRegistration deve ser false em produção (desativa o registo público do primeiro admin).");
         }
 
-        if (configuration.GetValue("SeedUsers:Enabled", false))
-        {
-            errors.Add("SeedUsers:Enabled deve ser false em produção (não criar contas de teste automaticamente).");
-        }
-
         var allowedHosts = configuration["AllowedHosts"]?.Trim();
         if (string.IsNullOrEmpty(allowedHosts) || allowedHosts == "*")
         {

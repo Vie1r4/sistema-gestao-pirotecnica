@@ -74,7 +74,7 @@ Auth: JWT + refresh HttpOnly; endpoints em `AuthController`. Listagem completa d
 1. HSTS (não-Development) → middleware de erros JSON em `/api/*`.
 2. HTTPS (prod) → static files → routing → CORS → session → auth → controllers.
 3. `RequestDiagnosticsMiddleware` — `X-Correlation-Id`, latência (ver [OPERACOES.md](OPERACOES.md)).
-4. Arranque: `MigrateAsync` (inclui evolução de schema, ex. `ServicoPaiolDataRegisto` para KPIs do gestor) e criação das **roles** Identity (`SeedRoles`). **Sem** dados de negócio automáticos — produtos, clientes, encomendas, etc. são criados na aplicação.
+4. Arranque: `MigrateAsync` (evolução de schema **só** via migrações EF em `Persistence/Migrations/`) e criação das **roles** Identity (`SeedRoles`). **Sem** SQL ad-hoc no `Program.cs` nem dados de negócio automáticos — produtos, clientes, encomendas, etc. são criados na aplicação.
 
 ---
 

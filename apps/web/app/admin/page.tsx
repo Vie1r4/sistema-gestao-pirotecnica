@@ -13,10 +13,8 @@ import {
   AdminSection,
   AdminEmptyState,
   AdminIcons,
-  AdminSystemHealth,
   buildBreadcrumbs,
   logActionDotClass,
-  adminTheme,
 } from "@/app/admin/_components";
 import {
   STAT_ACCENT_BG,
@@ -59,13 +57,9 @@ type StatItem = {
   accent: StatAccent;
 };
 
-/** Cartão métrico horizontal (KPIs topo). */
-const METRIC_CARD_SHELL =
-  "flex h-full items-center gap-4 rounded-2xl border border-[#e7e5e4] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] transition-shadow hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.08)] dark:border-[#222] dark:bg-[#111] dark:hover:shadow-[0_4px_20px_-8px_rgba(0,0,0,0.3)]";
-
-/** Totais de referência: altura automática, sem esticar à coluna dos atalhos. */
+/** Cartões de totais de referência (KPIs de negócio). */
 const REFERENCE_CARD_SHELL =
-  "flex flex-row flex-nowrap items-center gap-3 rounded-2xl border border-[#e7e5e4] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] transition-shadow hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.08)] dark:border-[#222] dark:bg-[#111] dark:hover:shadow-[0_4px_20px_-8px_rgba(0,0,0,0.3)]";
+  "flex h-full flex-row flex-nowrap items-center gap-3 rounded-2xl border border-[#e7e5e4] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] transition-shadow hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.08)] dark:border-[#222] dark:bg-[#111] dark:hover:shadow-[0_4px_20px_-8px_rgba(0,0,0,0.3)]";
 
 const REFERENCE_STATS: StatItem[] = [
   { key: "totalEncomendas", label: "Encomendas", href: "/encomendas", icon: IcoBox, accent: "orange" },
@@ -73,13 +67,6 @@ const REFERENCE_STATS: StatItem[] = [
   { key: "totalFuncionarios", label: "Funcionários", href: "/funcionarios", icon: IcoUsers, accent: "blue" },
   { key: "totalProdutos", label: "Produtos", href: "/produtos", icon: IcoCube, accent: "green" },
   { key: "totalPaiois", label: "Paióis", href: "/armazem/gestao", icon: IcoWarehouse, accent: "green" },
-];
-
-const QUICK_LINKS = [
-  { href: "/admin/utilizadores", label: "Utilizadores", desc: "Roles e contas", icon: AdminIcons.users },
-  { href: "/admin/logs", label: "Logs", desc: "Auditoria completa", icon: AdminIcons.logs },
-  { href: "/admin/definicoes", label: "Definições", desc: "Backups e sistema", icon: AdminIcons.settings },
-  { href: "/", label: "Operacional", desc: "Home / gestor", icon: AdminIcons.dashboard },
 ];
 
 function AttentionCard({
@@ -155,10 +142,7 @@ function ReferenceMetricCard({
   loading: boolean;
 }) {
   return (
-    <Link
-      href={href}
-      className="block min-w-[10.5rem] flex-[1_1_10.5rem] self-start"
-    >
+    <Link href={href} className="block h-full">
       <div className={REFERENCE_CARD_SHELL}>
         <div
           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${STAT_ACCENT_BG[accent]} ${STAT_ACCENT_TEXT[accent]}`}
@@ -182,7 +166,7 @@ function ReferenceMetricCard({
 
 function ReferenceMetricCardSkeleton() {
   return (
-    <div className={`${REFERENCE_CARD_SHELL} min-w-[10.5rem] flex-[1_1_10.5rem] self-start`} aria-hidden>
+    <div className={REFERENCE_CARD_SHELL} aria-hidden>
       <div className="h-10 w-10 shrink-0 animate-pulse rounded-xl bg-[#e7e5e4] dark:bg-[#333]" />
       <div className="min-w-0 flex-1 space-y-2">
         <div className="h-7 w-12 animate-pulse rounded bg-[#e7e5e4] dark:bg-[#333]" />
@@ -273,129 +257,88 @@ export default function AdminDashboardPage() {
         />
       </div>
 
-      {/* Linha: Totais (2/3) | Atalhos (1/3) */}
-      <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3">
-        <AdminSection
-          className="flex h-full flex-col lg:col-span-2"
-          title="Totais de referência"
-          description="Totais na base de dados — gestão nas respetivas áreas."
-        >
-          <div className="flex flex-wrap gap-3">
-            {loadingStats
-              ? REFERENCE_STATS.map((item) => (
-                  <ReferenceMetricCardSkeleton key={item.key} />
-                ))
-              : REFERENCE_STATS.map((item) => (
-                  <ReferenceMetricCard
-                    key={item.key}
-                    icon={item.icon}
-                    label={item.label}
-                    value={stats ? (stats[item.key] as number) : 0}
-                    href={item.href}
-                    accent={item.accent}
-                    loading={loadingStats}
-                  />
-                ))}
-          </div>
-        </AdminSection>
-
-        <AdminSection
-          className="flex h-full flex-col lg:col-span-1"
-          title="Atalhos"
-          description="Secções do painel e aplicação principal."
-        >
-          <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
-            {QUICK_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`group ${adminTheme.card} flex flex-col p-4 transition-all hover:border-[#f97316]/40 dark:hover:border-[#f97316]/30`}
-              >
-                <span className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-[#f1f5f9] text-[#475569] dark:bg-[#1e293b] dark:text-[#94a3b8]">
-                  {link.icon}
-                </span>
-                <span className="flex items-center gap-1.5 text-sm font-semibold text-[#1c1917] group-hover:text-[#ea580c] dark:text-white dark:group-hover:text-[#f97316]">
-                  {AdminIcons.link}
-                  {link.label}
-                </span>
-                <p className="mt-1 text-xs text-[#78716c] dark:text-[#666]">{link.desc}</p>
-              </Link>
-            ))}
-          </div>
-        </AdminSection>
-      </div>
-
-      {/* Linha: Atividade (2/3) | Estado (1/3) — mesma altura */}
-      <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3">
-        <AdminSection
-          className="flex h-full flex-col lg:col-span-2"
-          title="Atividade recente"
-          description="Pré-visualização — lista completa em Logs do sistema."
-          action={
-            <Link
-              href="/admin/logs"
-              className="shrink-0 text-sm font-medium text-[#ea580c] hover:underline dark:text-[#f97316]"
-            >
-              Ver todos os logs →
-            </Link>
-          }
-        >
-          <AdminCard padding={false} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            {loadingLogs ? (
-              <ul className="divide-y divide-[#f0eeec] dark:divide-[#1a1a1a]">
-                {Array.from({ length: RECENT_LOGS_LIMIT }).map((_, i) => (
-                  <li key={i} className="flex h-7 shrink-0 items-center gap-2 px-3 text-xs">
-                    <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-[#e7e5e4] dark:bg-[#333]" />
-                    <span className="h-3 flex-1 animate-pulse rounded bg-[#e7e5e4] dark:bg-[#333]" />
-                  </li>
-                ))}
-              </ul>
-            ) : ultimosLogs.length === 0 ? (
-              <div className="flex flex-1 items-center justify-center px-4 py-8">
-                <AdminEmptyState
-                  title="Sem atividade recente"
-                  description="As ações dos utilizadores aparecerão aqui."
-                  actionHref="/admin/logs"
-                  actionLabel="Abrir auditoria"
+      {/* Totais de referência */}
+      <AdminSection
+        title="Totais de referência"
+        description="Totais na base de dados — gestão nas respetivas áreas."
+      >
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          {loadingStats
+            ? REFERENCE_STATS.map((item) => <ReferenceMetricCardSkeleton key={item.key} />)
+            : REFERENCE_STATS.map((item) => (
+                <ReferenceMetricCard
+                  key={item.key}
+                  icon={item.icon}
+                  label={item.label}
+                  value={stats ? (stats[item.key] as number) : 0}
+                  href={item.href}
+                  accent={item.accent}
+                  loading={loadingStats}
                 />
-              </div>
-            ) : (
-              <ul className="flex flex-1 flex-col divide-y divide-[#f0eeec] dark:divide-[#1a1a1a]">
-                {ultimosLogs.map((log, idx) => (
-                  <li
-                    key={log.id > 0 ? log.id : `${log.timestamp}-${idx}`}
-                    className="flex h-7 shrink-0 items-center gap-2 px-3 text-xs"
-                  >
-                    <span
-                      className={`h-2 w-2 shrink-0 rounded-full ${logActionDotClass(log.acao)}`}
-                      aria-hidden
-                    />
-                    <span className="min-w-0 flex-1 truncate font-mono font-medium text-[#1c1917] dark:text-white">
-                      {log.acao}
-                    </span>
-                    {log.userName && (
-                      <span className="hidden max-w-[7rem] truncate text-[#78716c] sm:inline dark:text-[#666]">
-                        {log.userName}
-                      </span>
-                    )}
-                    <span className="shrink-0 tabular-nums text-[#a8a29e] dark:text-[#555]">
-                      {log.timestamp ? format(parseISO(log.timestamp), "HH:mm") : "—"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </AdminCard>
-        </AdminSection>
+              ))}
+        </div>
+      </AdminSection>
 
-        <AdminSection
-          className="flex h-full flex-col lg:col-span-1"
-          title="Estado do sistema"
-          description="Ligação à API e base de dados."
-        >
-          <AdminSystemHealth className="flex min-h-0 flex-1 flex-col" />
-        </AdminSection>
-      </div>
+      {/* Atividade recente */}
+      <AdminSection
+        title="Atividade recente"
+        description="Pré-visualização — lista completa em Logs do sistema."
+        action={
+          <Link
+            href="/admin/logs"
+            className="shrink-0 text-sm font-medium text-[#ea580c] hover:underline dark:text-[#f97316]"
+          >
+            Ver todos os logs →
+          </Link>
+        }
+      >
+        <AdminCard padding={false} className="overflow-hidden">
+          {loadingLogs ? (
+            <ul className="divide-y divide-[#f0eeec] dark:divide-[#1a1a1a]">
+              {Array.from({ length: RECENT_LOGS_LIMIT }).map((_, i) => (
+                <li key={i} className="flex h-9 items-center gap-2 px-4 text-xs sm:h-8">
+                  <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-[#e7e5e4] dark:bg-[#333]" />
+                  <span className="h-3 flex-1 animate-pulse rounded bg-[#e7e5e4] dark:bg-[#333]" />
+                </li>
+              ))}
+            </ul>
+          ) : ultimosLogs.length === 0 ? (
+            <div className="flex items-center justify-center px-4 py-10">
+              <AdminEmptyState
+                title="Sem atividade recente"
+                description="As ações dos utilizadores aparecerão aqui."
+                actionHref="/admin/logs"
+                actionLabel="Abrir auditoria"
+              />
+            </div>
+          ) : (
+            <ul className="divide-y divide-[#f0eeec] dark:divide-[#1a1a1a]">
+              {ultimosLogs.map((log, idx) => (
+                <li
+                  key={log.id > 0 ? log.id : `${log.timestamp}-${idx}`}
+                  className="flex h-9 items-center gap-3 px-4 text-xs sm:h-8"
+                >
+                  <span
+                    className={`h-2 w-2 shrink-0 rounded-full ${logActionDotClass(log.acao)}`}
+                    aria-hidden
+                  />
+                  <span className="min-w-0 flex-1 truncate font-mono font-medium text-[#1c1917] dark:text-white">
+                    {log.acao}
+                  </span>
+                  {log.userName && (
+                    <span className="hidden max-w-[12rem] truncate text-[#78716c] sm:inline dark:text-[#666]">
+                      {log.userName}
+                    </span>
+                  )}
+                  <span className="shrink-0 tabular-nums text-[#a8a29e] dark:text-[#555]">
+                    {log.timestamp ? format(parseISO(log.timestamp), "HH:mm") : "—"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </AdminCard>
+      </AdminSection>
     </motion.div>
   );
 }

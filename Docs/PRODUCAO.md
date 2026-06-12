@@ -15,7 +15,6 @@ Verificações automáticas:
 | Regra | Motivo |
 |-------|--------|
 | `Bootstrap:AllowFirstUserRegistration=false` | Impede criar Admin pela internet |
-| `SeedUsers:Enabled=false` | Sem contas de teste automáticas |
 | `AllowedHosts` ≠ `*` | Host header restrito |
 | `Cors:AllowedOrigins` só **HTTPS**, sem localhost | Browser só fala com o domínio real |
 | `Frontend:BaseUrl` em **HTTPS** | Links de email/reset corretos |

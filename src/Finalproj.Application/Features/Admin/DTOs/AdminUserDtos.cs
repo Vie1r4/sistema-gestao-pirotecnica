@@ -21,4 +21,6 @@ public sealed class AdminUserAccountResult
     public string Message { get; init; } = "";
     public IReadOnlyList<string> Errors { get; init; } = Array.Empty<string>();
     public string? UserId { get; init; }
+    /// <summary>True quando as roles mudaram — o cliente deve renovar o JWT.</summary>
+    public bool RequiresTokenRefresh { get; init; }
 }

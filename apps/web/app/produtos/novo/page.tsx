@@ -22,19 +22,13 @@ import {
 import { postCreate } from "@/app/lib/produtosApi";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 
-const cardClass =
-  "card-hover rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1f1f1f] dark:bg-[#111] sm:p-8";
-
-const inputClass =
-  "mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-[#f97316] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-white dark:placeholder-gray-500";
-
-const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300";
-
-const btnPrimary =
-  "data-button rounded-xl bg-[#f97316] px-5 py-2.5 text-sm font-semibold text-black transition-[opacity,background-color] duration-200 hover:opacity-90";
-
-const btnSecondary =
-  "data-button rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition-[border-color,background-color,color] duration-200 hover:bg-gray-50 dark:border-[#333] dark:text-gray-300 dark:hover:bg-[#1a1a1a]";
+import {
+  cardClass,
+  inputClass,
+  labelClass,
+  btnPrimaryLg as btnPrimary,
+  btnSecondaryLg as btnSecondary,
+} from "@/app/components/ui/tokens";
 
 export default function NovoProdutoPage() {
   const router = useRouter();
@@ -59,6 +53,7 @@ export default function NovoProdutoPage() {
     nome: "",
     nemPorUnidade: "" as string | number,
     familiaRisco: "1.3" as ClassificacaoRisco | string,
+    referencia: "",
     grupoCompatibilidade: "",
     filtroTecnico: "",
     calibre: "",
@@ -100,6 +95,7 @@ export default function NovoProdutoPage() {
       nome: form.nome.trim(),
       nemPorUnidade: nem,
       familiaRisco: form.familiaRisco as string,
+      unidade: form.referencia.trim() || undefined,
       grupoCompatibilidade: form.grupoCompatibilidade.trim(),
       filtroTecnico: form.filtroTecnico.trim(),
       calibre: form.calibre.trim(),
@@ -128,7 +124,7 @@ export default function NovoProdutoPage() {
               Criar produto
             </h1>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Nome, NEM, classificação de risco, categoria pirotécnica, grupo de compatibilidade, filtro técnico e calibre.
+              Nome, referência, NEM, classificação de risco, categoria pirotécnica, grupo de compatibilidade, filtro técnico e calibre.
             </p>
           </motion.div>
 
@@ -219,6 +215,18 @@ export default function NovoProdutoPage() {
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     F1–F4 ou FP — usado na declaração PSP.
                   </p>
+                </div>
+                <div>
+                  <label htmlFor="referencia" className={labelClass}>Referência</label>
+                  <input
+                    id="referencia"
+                    type="text"
+                    maxLength={50}
+                    value={form.referencia}
+                    onChange={(e) => setForm((f) => ({ ...f, referencia: e.target.value }))}
+                    className={inputClass}
+                    placeholder="Ex.: ref. interna, código"
+                  />
                 </div>
                 <div>
                   <label htmlFor="grupoCompatibilidade" className={labelClass}>Grupo de compatibilidade *</label>

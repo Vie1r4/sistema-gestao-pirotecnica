@@ -9,11 +9,9 @@ import { textoClassificacao, textoGrupo, textoFiltroTecnico, textoCalibre, CLASS
 import { getToken } from "@/app/lib/auth";
 import { fetchStock } from "@/app/lib/paiolApi";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
+import { inputClassSearch as inputClass } from "@/app/components/ui/tokens";
 
 type ProdutoLinha = { id: string; nome: string; familiaRisco?: string; grupoCompatibilidade?: string; filtroTecnico?: string; calibre?: string; nemPorUnidade: number };
-
-const inputClass =
-  "rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-[#f97316] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-white dark:placeholder-gray-500";
 
 function mapStockData(data: Awaited<ReturnType<typeof fetchStock>>): {
   items: ProdutoLinha[];
@@ -110,7 +108,7 @@ function StockContent() {
                 Stock
               </h1>
               <p className="mt-1 text-[#57534e] dark:text-gray-400">
-                Catálogo de produtos com quantidade agregada nos paióis a que tem acesso.
+                Catálogo de produtos com quantidade agregada nos paióis registados.
               </p>
             </div>
             <Link

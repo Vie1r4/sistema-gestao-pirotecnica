@@ -8,9 +8,7 @@ import { motion } from "framer-motion";
 import { confirmEmail } from "@/app/lib/authApi";
 import { setToken } from "@/app/lib/auth";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
-
-const cardClass =
-  "card-hover rounded-2xl border border-[#e7e5e4] bg-white p-8 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:border-[#1f1f1f] dark:bg-[#111] dark:shadow-none sm:p-10";
+import { authCardClass as cardClass } from "@/app/components/ui/tokens";
 
 function ConfirmEmailContent() {
   const router = useRouter();

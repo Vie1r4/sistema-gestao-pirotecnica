@@ -10,7 +10,7 @@ Frontend **Next.js 16** (React 19) do sistema PIROFAFE. Consome a API do backend
 
 ## Pré-requisitos
 
-- Node.js 18+
+- Node.js 20+
 - Backend da aplicação a correr (por defeito em `https://localhost:7225`)
 
 ## Variáveis de ambiente

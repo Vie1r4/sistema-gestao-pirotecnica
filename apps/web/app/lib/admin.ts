@@ -243,7 +243,7 @@ export async function updateUtilizador(
   token: string,
   id: string,
   model: EditarUtilizadorModel
-): Promise<void> {
+): Promise<{ requiresTokenRefresh: boolean }> {
   const res = await fetch(`${apiPath("api/admin")}/utilizadores/${encodeURIComponent(id)}`, {
     method: "PUT",
     headers: {
@@ -262,9 +262,14 @@ export async function updateUtilizador(
   if (res.status === 401 || res.status === 403) throw new Error("Não autorizado");
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    const err = (body as { error?: string }).error ?? `Erro ${res.status}`;
+    const err =
+      (body as { error?: string; message?: string }).error ??
+      (body as { message?: string }).message ??
+      `Erro ${res.status}`;
     throw new Error(err);
   }
+  const body = (await res.json().catch(() => ({}))) as { requiresTokenRefresh?: boolean };
+  return { requiresTokenRefresh: Boolean(body.requiresTokenRefresh) };
 }
 
 export type AdminUserAccountResponse = {
