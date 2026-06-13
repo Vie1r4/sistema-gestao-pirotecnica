@@ -9,7 +9,7 @@ import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import { useActionGuard } from "@/app/hooks/useActionGuard";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";
-import { textoClassificacao, CLASSIFICACOES_RISCO, GRUPOS_COMPATIBILIDADE, FILTROS_TECNICOS, CALIBRES } from "@/app/lib/produtos";
+import { textoClassificacao, CLASSIFICACOES_RISCO, CATEGORIAS_PIROTECNICAS, FILTROS_TECNICOS, CALIBRES } from "@/app/lib/produtos";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 import {
   cardClass,
@@ -45,7 +45,7 @@ function RegistarEntradaContent() {
   });
   const [filtros, setFiltros] = useState({
     classificacao: searchParams.get("classificacao") ?? "",
-    grupoCompatibilidade: searchParams.get("grupoCompatibilidade") ?? "",
+    categoria: searchParams.get("categoria") ?? "",
     filtroTecnico: searchParams.get("filtroTecnico") ?? "",
     calibre: searchParams.get("calibre") ?? "",
   });
@@ -63,7 +63,7 @@ function RegistarEntradaContent() {
       "entrada-registar",
       form.paiolId,
       filtros.classificacao,
-      filtros.grupoCompatibilidade,
+      filtros.categoria,
       filtros.filtroTecnico,
       filtros.calibre,
     ],
@@ -76,7 +76,7 @@ function RegistarEntradaContent() {
       return fetchEntradaRegistarForm(t, {
         paiolId: form.paiolId,
         classificacao: filtros.classificacao,
-        grupoCompatibilidade: filtros.grupoCompatibilidade,
+        categoria: filtros.categoria,
         filtroTecnico: filtros.filtroTecnico,
         calibre: filtros.calibre,
       });
@@ -91,7 +91,7 @@ function RegistarEntradaContent() {
   const paioisAtivos = paiois.filter((p) => (p.estado ?? "Ativo") === "Ativo");
   let produtosFiltrados = produtos;
   if (filtros.classificacao) produtosFiltrados = produtosFiltrados.filter((p) => p.familiaRisco === filtros.classificacao);
-  if (filtros.grupoCompatibilidade) produtosFiltrados = produtosFiltrados.filter((p) => p.grupoCompatibilidade === filtros.grupoCompatibilidade);
+  if (filtros.categoria) produtosFiltrados = produtosFiltrados.filter((p) => p.categoria === filtros.categoria);
   if (filtros.filtroTecnico) produtosFiltrados = produtosFiltrados.filter((p) => p.filtroTecnico === filtros.filtroTecnico);
   if (filtros.calibre) produtosFiltrados = produtosFiltrados.filter((p) => p.calibre === filtros.calibre);
 
@@ -122,10 +122,13 @@ function RegistarEntradaContent() {
       }
     },
     onSuccess: (data) => {
-      const sucesso = data.entradaSucesso;
-      setMessage({ type: "success", text: sucesso ?? "Entrada registada." });
+      const sucesso = data.entradaSucesso ?? "Entrada registada.";
+      const avisos = data.avisos ?? [];
+      const texto = avisos.length > 0 ? `${sucesso}\n\nAvisos:\n• ${avisos.join("\n• ")}` : sucesso;
+      setMessage({ type: "success", text: texto });
       queryClient.invalidateQueries({ queryKey: ["armazem"] });
-      setTimeout(() => router.push(canGerirArmazem ? "/armazem/movimentos?tipo=Entradas" : "/armazem"), 1500);
+      const atraso = avisos.length > 0 ? 4500 : 1500;
+      setTimeout(() => router.push(canGerirArmazem ? "/armazem/movimentos?tipo=Entradas" : "/armazem"), atraso);
     },
     onError: (err: Error) => {
       setMessage({ type: "error", text: err.message || "Erro de rede. Tente novamente." });
@@ -216,15 +219,15 @@ function RegistarEntradaContent() {
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Grupo compatibilidade</label>
+                <label className={labelClass}>Categoria</label>
                 <select
-                  value={filtros.grupoCompatibilidade}
-                  onChange={(e) => setFiltros((f) => ({ ...f, grupoCompatibilidade: e.target.value }))}
+                  value={filtros.categoria}
+                  onChange={(e) => setFiltros((f) => ({ ...f, categoria: e.target.value }))}
                   className={inputClass}
                 >
-                  <option value="">Todos</option>
-                  {GRUPOS_COMPATIBILIDADE.map((g) => (
-                    <option key={g.value} value={g.value}>{g.text}</option>
+                  <option value="">Todas</option>
+                  {CATEGORIAS_PIROTECNICAS.map((c) => (
+                    <option key={c.value} value={c.value}>{c.text}</option>
                   ))}
                 </select>
               </div>
@@ -372,7 +375,10 @@ function RegistarEntradaContent() {
             </motion.section>
 
             {message && (
-              <p className={`text-sm ${message.type === "error" ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
+              <p
+                role="alert"
+                className={`whitespace-pre-line text-sm ${message.type === "error" ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}
+              >
                 {message.text}
               </p>
             )}

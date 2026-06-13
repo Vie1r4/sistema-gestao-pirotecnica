@@ -54,3 +54,54 @@ export function membrosEquipaParaZonas(
     .filter((f) => equipaIds.has(f.id))
     .map((f) => ({ id: f.id, nomeCompleto: f.nomeCompleto }));
 }
+
+export type EquipaCoordenadorState = {
+  equipaIds: Set<string>;
+  coordenadorPirotecnicoId: string;
+};
+
+/** Ao escolher coordenador, entra automaticamente na equipa. */
+export function applyCoordenadorSelection(
+  state: EquipaCoordenadorState,
+  coordenadorId: string
+): EquipaCoordenadorState {
+  const equipaIds = new Set(state.equipaIds);
+  if (coordenadorId && !equipaIds.has(coordenadorId)) equipaIds.add(coordenadorId);
+  return { equipaIds, coordenadorPirotecnicoId: coordenadorId };
+}
+
+/** Remover da equipa limpa coordenador se for o mesmo membro. */
+export function applyEquipaToggle(
+  state: EquipaCoordenadorState,
+  memberId: string
+): EquipaCoordenadorState {
+  const equipaIds = new Set(state.equipaIds);
+  if (equipaIds.has(memberId)) {
+    equipaIds.delete(memberId);
+    const coordenadorPirotecnicoId =
+      state.coordenadorPirotecnicoId === memberId ? "" : state.coordenadorPirotecnicoId;
+    return { equipaIds, coordenadorPirotecnicoId };
+  }
+  equipaIds.add(memberId);
+  return { ...state, equipaIds };
+}
+
+/** Garante coordenador incluído na equipa (ex.: ao carregar serviço existente). */
+export function ensureCoordenadorNaEquipa(state: EquipaCoordenadorState): EquipaCoordenadorState {
+  const { coordenadorPirotecnicoId, equipaIds } = state;
+  if (!coordenadorPirotecnicoId || equipaIds.has(coordenadorPirotecnicoId)) return state;
+  const next = new Set(equipaIds);
+  next.add(coordenadorPirotecnicoId);
+  return { equipaIds: next, coordenadorPirotecnicoId };
+}
+
+export function validarCoordenadorNaEquipa(
+  coordenadorId: string,
+  equipaIds: Set<string>
+): string | null {
+  if (!coordenadorId) return null;
+  if (!equipaIds.has(coordenadorId)) {
+    return "O coordenador pirotécnico tem de fazer parte da equipa.";
+  }
+  return null;
+}

@@ -9,7 +9,7 @@ import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import {
   textoClassificacao,
   CLASSIFICACOES_RISCO,
-  GRUPOS_COMPATIBILIDADE,
+  CATEGORIAS_PIROTECNICAS,
   FILTROS_TECNICOS,
   CALIBRES,
 } from "@/app/lib/produtos";
@@ -26,11 +26,11 @@ import { useActionGuard } from "@/app/hooks/useActionGuard";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 import { btnPrimary, btnSecondary, inputClassCompact as inputClass } from "@/app/components/ui/tokens";
 
-function filtrarProdutos<T extends { nome?: string; familiaRisco?: string; grupoCompatibilidade?: string; filtroTecnico?: string; calibre?: string }>(
+function filtrarProdutos<T extends { nome?: string; familiaRisco?: string; categoria?: string; filtroTecnico?: string; calibre?: string }>(
   lista: T[],
   pesquisa: string,
   classificacao: string,
-  grupoCompatibilidade: string,
+  categoria: string,
   filtroTecnico: string,
   calibre: string
 ): T[] {
@@ -40,7 +40,7 @@ function filtrarProdutos<T extends { nome?: string; familiaRisco?: string; grupo
     out = out.filter((pr) => (pr.nome ?? "").toLowerCase().includes(p));
   }
   if (classificacao) out = out.filter((pr) => pr.familiaRisco === classificacao);
-  if (grupoCompatibilidade) out = out.filter((pr) => pr.grupoCompatibilidade === grupoCompatibilidade);
+  if (categoria) out = out.filter((pr) => pr.categoria === categoria);
   if (filtroTecnico) out = out.filter((pr) => pr.filtroTecnico === filtroTecnico);
   if (calibre) out = out.filter((pr) => pr.calibre === calibre);
   return out.sort((a, b) => (a.nome ?? "").localeCompare(b.nome ?? ""));
@@ -56,7 +56,7 @@ function AdicionarItensContent() {
   const [mounted, setMounted] = useState(false);
   const [pesquisa, setPesquisa] = useState("");
   const [classificacao, setClassificacao] = useState("");
-  const [grupoCompatibilidade, setGrupoCompatibilidade] = useState("");
+  const [categoria, setCategoria] = useState("");
   const [filtroTecnico, setFiltroTecnico] = useState("");
   const [calibre, setCalibre] = useState("");
   const [produtoId, setProdutoId] = useState("");
@@ -79,11 +79,11 @@ function AdicionarItensContent() {
     () => ({
       pesquisa: pesquisa || undefined,
       classificacao: classificacao || undefined,
-      grupoCompatibilidade: grupoCompatibilidade || undefined,
+      categoria: categoria || undefined,
       filtroTecnico: filtroTecnico || undefined,
       calibre: calibre || undefined,
     }),
-    [pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre]
+    [pesquisa, classificacao, categoria, filtroTecnico, calibre]
   );
 
   const [debouncedFilters, setDebouncedFilters] = useState(filterKey);
@@ -102,7 +102,7 @@ function AdicionarItensContent() {
     const t = setTimeout(() => {
       setPesquisa(searchParams.get("pesquisa") ?? "");
       setClassificacao(searchParams.get("classificacao") ?? "");
-      setGrupoCompatibilidade(searchParams.get("grupoCompatibilidade") ?? "");
+      setCategoria(searchParams.get("categoria") ?? "");
       setFiltroTecnico(searchParams.get("filtroTecnico") ?? "");
       setCalibre(searchParams.get("calibre") ?? "");
     }, 0);
@@ -163,11 +163,11 @@ function AdicionarItensContent() {
     () => ({
       pesquisa: pesquisa || undefined,
       classificacao: classificacao || undefined,
-      grupoCompatibilidade: grupoCompatibilidade || undefined,
+      categoria: categoria || undefined,
       filtroTecnico: filtroTecnico || undefined,
       calibre: calibre || undefined,
     }),
-    [pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre]
+    [pesquisa, classificacao, categoria, filtroTecnico, calibre]
   );
 
   const addMutation = useMutation({
@@ -278,7 +278,7 @@ function AdicionarItensContent() {
     listaProdutosBruta,
     pesquisa,
     classificacao,
-    grupoCompatibilidade,
+    categoria,
     filtroTecnico,
     calibre
   );
@@ -368,7 +368,7 @@ function AdicionarItensContent() {
     p.set("clienteId", clienteId);
     if (pesquisa) p.set("pesquisa", pesquisa);
     if (classificacao) p.set("classificacao", classificacao);
-    if (grupoCompatibilidade) p.set("grupoCompatibilidade", grupoCompatibilidade);
+    if (categoria) p.set("categoria", categoria);
     if (filtroTecnico) p.set("filtroTecnico", filtroTecnico);
     if (calibre) p.set("calibre", calibre);
     return `/encomendas/novo/adicionar-itens?${p.toString()}`;
@@ -461,7 +461,7 @@ function AdicionarItensContent() {
   const listaCompilados = apiData?.compilados ?? [];
   const compiladoSelecionado = listaCompilados.find((c) => String(c.id) === compiladoId);
 
-  const temFiltros = pesquisa || classificacao || grupoCompatibilidade || filtroTecnico || calibre;
+  const temFiltros = pesquisa || classificacao || categoria || filtroTecnico || calibre;
   const itens = draftItens.map((i) => ({ ...i, produtoId: String(i.produtoId) }));
 
   return (
@@ -540,11 +540,11 @@ function AdicionarItensContent() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Grupo</label>
-                      <select value={grupoCompatibilidade} onChange={(e) => setGrupoCompatibilidade(e.target.value)} className={`${inputClass} mt-1 w-full`}>
-                        <option value="">Todos</option>
-                        {GRUPOS_COMPATIBILIDADE.map((g) => (
-                          <option key={g.value} value={g.value}>{g.text}</option>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Categoria</label>
+                      <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className={`${inputClass} mt-1 w-full`}>
+                        <option value="">Todas</option>
+                        {CATEGORIAS_PIROTECNICAS.map((c) => (
+                          <option key={c.value} value={c.value}>{c.text}</option>
                         ))}
                       </select>
                     </div>

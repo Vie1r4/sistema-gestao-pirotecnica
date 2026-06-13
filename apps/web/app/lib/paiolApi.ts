@@ -58,7 +58,7 @@ export async function fetchStock(
   filters?: {
     pesquisa?: string;
     classificacao?: string;
-    grupoCompatibilidade?: string;
+    categoria?: string;
     filtroTecnico?: string;
     calibre?: string;
   }
@@ -67,14 +67,14 @@ export async function fetchStock(
   stockPorProduto: Record<string, number>;
   pesquisa: string;
   classificacao: string;
-  grupoCompatibilidade: string;
+  categoria: string;
   filtroTecnico: string;
   calibre: string;
 }> {
   const params = new URLSearchParams();
   if (filters?.pesquisa) params.set("pesquisa", filters.pesquisa);
   if (filters?.classificacao) params.set("classificacao", filters.classificacao);
-  if (filters?.grupoCompatibilidade) params.set("grupoCompatibilidade", filters.grupoCompatibilidade);
+  if (filters?.categoria) params.set("categoria", filters.categoria);
   if (filters?.filtroTecnico) params.set("filtroTecnico", filters.filtroTecnico);
   if (filters?.calibre) params.set("calibre", filters.calibre);
   const q = params.toString();

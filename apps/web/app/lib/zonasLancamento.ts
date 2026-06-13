@@ -257,7 +257,13 @@ export function validarZonasForm(zonas: ZonaForm[], itens: ItemEncomendaForm[]):
       if (!produtosEncomenda.has(pid)) {
         return "Só pode alocar produtos que fazem parte da encomenda.";
       }
-      if (l.horaInicio && l.horaFim && l.horaFim <= l.horaInicio) {
+      if (!l.horaInicio.trim()) {
+        return `A linha de lançamento na zona «${nomeZona}» deve ter hora de início.`;
+      }
+      if (!l.horaFim.trim()) {
+        return `A linha de lançamento na zona «${nomeZona}» deve ter hora de fim.`;
+      }
+      if (l.horaFim <= l.horaInicio) {
         return "A hora de fim deve ser posterior à hora de início em cada linha de lançamento.";
       }
     }

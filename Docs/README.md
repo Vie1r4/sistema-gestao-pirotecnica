@@ -96,8 +96,8 @@ cd apps/web && npm test && npm run test:e2e
 | Auth, matriz 401/403, IDOR | Feito (integração) |
 | Painel gestor (KPIs vs 7 dias, YoY multi-ano) | Feito |
 | Migração `ServicoPaiolDataRegisto` | Feito |
-| Testes backend | ~50 unitários + ~99 integração |
-| Frontend | ~64 Vitest + ~14 Playwright (mocks) |
+| Testes backend | 57 unitários (+1 skip) + 102 integração |
+| Frontend | 69 Vitest + 17 Playwright |
 | CSP com nonce | Feito (`apps/web/proxy.ts`) |
 | Documentação unificada em `Docs/` | Feito (junho 2026) |
 | Pendente opcional | Threshold cobertura CI ≥60%; lockout login; E2E contra API real |

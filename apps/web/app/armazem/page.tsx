@@ -15,6 +15,7 @@ import { useUser } from "@/app/context/UserContext";
 import { labelPerfilRisco, mapPaiolComOcupacao, type PaiolComOcupacao } from "@/app/lib/armazem";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 import { fetchListaPaiol } from "@/app/lib/paiolApi";
+import GuiaRegrasPaiol from "./_components/GuiaRegrasPaiol";
 
 function armazemColumns(): ColumnDef<PaiolComOcupacao, unknown>[] {
   return [
@@ -196,6 +197,7 @@ function ArmazemContent() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <GuiaRegrasPaiol />
               <Link href="/armazem/stock" className={btnSecondary}>
                 Stock
               </Link>

@@ -21,13 +21,13 @@ namespace Finalproj.Controllers
             _produtos = produtos;
         }
 
-        /// <summary>Catálogo com pesquisa e filtros (classificação, grupo, filtro técnico, calibre).</summary>
+        /// <summary>Catálogo com pesquisa e filtros (classificação, categoria, filtro técnico, calibre).</summary>
 
         [HttpGet]
         [Authorize(Policy = PoliticasAutorizacao.PodeVerProdutos)]
-        public async Task<IActionResult> Index(string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default)
+        public async Task<IActionResult> Index(string? pesquisa, string? classificacao, string? categoria, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default)
         {
-            var lista = await _produtos.SearchAsync(pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre, cancellationToken);
+            var lista = await _produtos.SearchAsync(pesquisa, classificacao, categoria, filtroTecnico, calibre, cancellationToken);
             var items = lista.Select(ProdutoResponseDtoMapping.Map).ToList();
 
             return Ok(new
@@ -35,7 +35,7 @@ namespace Finalproj.Controllers
                 items,
                 pesquisa = pesquisa ?? string.Empty,
                 classificacao = classificacao ?? string.Empty,
-                grupoCompatibilidade = grupoCompatibilidade ?? string.Empty,
+                categoria = categoria ?? string.Empty,
                 filtroTecnico = filtroTecnico ?? string.Empty,
                 calibre = calibre ?? string.Empty
             });
@@ -44,9 +44,9 @@ namespace Finalproj.Controllers
         /// <summary>Gestão com os mesmos filtros do catálogo.</summary>
 
         [HttpGet("gerir")]
-        public async Task<IActionResult> Gerir(string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default)
+        public async Task<IActionResult> Gerir(string? pesquisa, string? classificacao, string? categoria, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default)
         {
-            var lista = await _produtos.SearchAsync(pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre, cancellationToken);
+            var lista = await _produtos.SearchAsync(pesquisa, classificacao, categoria, filtroTecnico, calibre, cancellationToken);
             var items = lista.Select(ProdutoResponseDtoMapping.Map).ToList();
 
             return Ok(new
@@ -54,7 +54,7 @@ namespace Finalproj.Controllers
                 items,
                 pesquisa = pesquisa ?? string.Empty,
                 classificacao = classificacao ?? string.Empty,
-                grupoCompatibilidade = grupoCompatibilidade ?? string.Empty,
+                categoria = categoria ?? string.Empty,
                 filtroTecnico = filtroTecnico ?? string.Empty,
                 calibre = calibre ?? string.Empty
             });
@@ -82,6 +82,7 @@ namespace Finalproj.Controllers
                 produto = ProdutoResponseDtoMapping.Map(new Produto()),
                 familiaRisco = DropdownSelectLists.FamiliasParaDropdown(),
                 grupoCompatibilidade = DropdownSelectLists.GruposParaDropdown(),
+                categoriaPirotecnica = DropdownSelectLists.CategoriasPirotecnicasParaDropdown(),
                 filtroTecnico = DropdownSelectLists.FiltrosTecnicosParaDropdown(),
                 calibre = DropdownSelectLists.CalibresParaDropdown()
             });
@@ -101,6 +102,7 @@ namespace Finalproj.Controllers
                 produto = ProdutoResponseDtoMapping.Map(produto),
                 familiaRisco = DropdownSelectLists.FamiliasParaDropdown(),
                 grupoCompatibilidade = DropdownSelectLists.GruposParaDropdown(),
+                categoriaPirotecnica = DropdownSelectLists.CategoriasPirotecnicasParaDropdown(),
                 filtroTecnico = DropdownSelectLists.FiltrosTecnicosParaDropdown(),
                 calibre = DropdownSelectLists.CalibresParaDropdown(),
                 errors = ModelState
@@ -120,6 +122,7 @@ namespace Finalproj.Controllers
                 produto = ProdutoResponseDtoMapping.Map(produto),
                 familiaRisco = DropdownSelectLists.FamiliasParaDropdown(),
                 grupoCompatibilidade = DropdownSelectLists.GruposParaDropdown(),
+                categoriaPirotecnica = DropdownSelectLists.CategoriasPirotecnicasParaDropdown(),
                 filtroTecnico = DropdownSelectLists.FiltrosTecnicosParaDropdown(),
                 calibre = DropdownSelectLists.CalibresParaDropdown()
             });
@@ -142,6 +145,7 @@ namespace Finalproj.Controllers
                 produto = UpdateProdutoRequestDtoMapping.ToResponseDto(request),
                 familiaRisco = DropdownSelectLists.FamiliasParaDropdown(),
                 grupoCompatibilidade = DropdownSelectLists.GruposParaDropdown(),
+                categoriaPirotecnica = DropdownSelectLists.CategoriasPirotecnicasParaDropdown(),
                 filtroTecnico = DropdownSelectLists.FiltrosTecnicosParaDropdown(),
                 calibre = DropdownSelectLists.CalibresParaDropdown(),
                 errors = ModelState

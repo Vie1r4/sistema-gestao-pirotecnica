@@ -48,11 +48,16 @@ describe("zonasLancamento", () => {
     expect(restantePorProduto.get(1)).toBe(0);
   });
 
-  it("validarZonasForm exige coordenadas", () => {
+  it("validarZonasForm exige coordenadas e horários", () => {
     const zonas = createDefaultZonasFromItens(itens, "2026-06-01");
     expect(validarZonasForm(zonas, itens)).toMatch(/coordenadas/i);
     zonas[0].coordenadasLat = "41.5";
     zonas[0].coordenadasLng = "-8.4";
+    expect(validarZonasForm(zonas, itens)).toMatch(/hora de início/i);
+    for (const linha of zonas[0].linhas) {
+      linha.horaInicio = "22:00";
+      linha.horaFim = "22:30";
+    }
     expect(validarZonasForm(zonas, itens)).toBeNull();
   });
 

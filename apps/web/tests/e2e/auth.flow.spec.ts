@@ -30,14 +30,24 @@ test.describe("Auth fluxos", () => {
   test("fluxo login mock e terminar sessão", async ({ page }) => {
     await injectE2eAuth(page);
     await mockAuthMeAdmin(page);
+    await mockAuthRefreshOk(page);
+    await page.route("**/api/home/perfil", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ model: { nome: "Admin E2E", email: "admin-e2e@pirofafe.pt", roles: ["Admin"] } }),
+      });
+    });
     await page.route("**/api/auth/logout", async (route) => {
       await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
     });
 
     await page.goto("/perfil");
     await expect(page.getByRole("heading", { name: /perfil/i })).toBeVisible({ timeout: 15000 });
-    await page.getByRole("button", { name: "Terminar sessão" }).click();
-    await expect(page).toHaveURL(/\/login/, { timeout: 15000 });
+    await Promise.all([
+      page.waitForURL(/\/login/, { timeout: 15000 }),
+      page.getByRole("button", { name: "Terminar sessão" }).click(),
+    ]);
   });
 
   test("reload mantém sessão com refresh mockado", async ({ page }) => {

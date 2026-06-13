@@ -18,6 +18,16 @@ public class ServicoSaveRequestDtoValidatorTests
     }
 
     [Fact]
+    public async Task Deve_Falhar_Sem_HoraInicio()
+    {
+        var dto = ValidDto();
+        dto.Zonas[0].Linhas[0].HoraInicio = null;
+        var result = await _validator.ValidateAsync(dto);
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("hora de início", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task Deve_Falhar_HoraFim_Antes_De_Inicio()
     {
         var dto = ValidDto();

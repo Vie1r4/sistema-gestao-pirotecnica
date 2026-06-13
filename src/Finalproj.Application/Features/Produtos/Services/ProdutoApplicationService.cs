@@ -6,8 +6,8 @@ namespace Finalproj.Application.Features.Produtos.Services;
 
 public sealed class ProdutoApplicationService(IProdutoRepository produtos, IUnitOfWork unitOfWork) : IProdutoApplicationService
 {
-    public Task<IReadOnlyList<Produto>> SearchAsync(string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default) =>
-        produtos.SearchAsync(pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre, cancellationToken);
+    public Task<IReadOnlyList<Produto>> SearchAsync(string? pesquisa, string? classificacao, string? categoria, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default) =>
+        produtos.SearchAsync(pesquisa, classificacao, categoria, filtroTecnico, calibre, cancellationToken);
 
     public Task<Produto?> GetByIdAsync(int id, CancellationToken cancellationToken = default) =>
         produtos.GetByIdAsync(id, cancellationToken);

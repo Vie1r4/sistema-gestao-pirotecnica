@@ -48,14 +48,16 @@ public class ServicoService : IServicoService
         IReadOnlyList<ServicoZonaLancamentoInputDto>? zonas,
         CancellationToken cancellationToken = default)
     {
+        var equipaSet = new HashSet<int>(equipaIds ?? Array.Empty<int>());
+
         if (coordenadorPirotecnicoId.HasValue)
         {
             var coord = await _funcionarioRepository.GetByIdAsync(coordenadorPirotecnicoId.Value, cancellationToken);
             if (coord == null || string.IsNullOrWhiteSpace(coord.LicencaOperadorCaminho))
                 return (false, "O coordenador pirotécnico tem de ser um funcionário com licença de operador.");
+            if (!equipaSet.Contains(coordenadorPirotecnicoId.Value))
+                return (false, "O coordenador pirotécnico tem de ser um membro da equipa.");
         }
-
-        var equipaSet = new HashSet<int>(equipaIds ?? Array.Empty<int>());
         foreach (var fid in equipaSet)
         {
             var func = await _funcionarioRepository.GetByIdAsync(fid, cancellationToken);
@@ -404,7 +406,11 @@ public class ServicoService : IServicoService
                 return $"A zona «{z.Designacao ?? (i + 1).ToString()}» deve ter coordenadas no mapa.";
             foreach (var linha in z.Linhas)
             {
-                if (linha.HoraInicio.HasValue && linha.HoraFim.HasValue && linha.HoraFim <= linha.HoraInicio)
+                if (!linha.HoraInicio.HasValue)
+                    return "A hora de início é obrigatória em cada linha de lançamento.";
+                if (!linha.HoraFim.HasValue)
+                    return "A hora de fim é obrigatória em cada linha de lançamento.";
+                if (linha.HoraFim <= linha.HoraInicio)
                     return "A hora de fim deve ser posterior à hora de início em cada linha de lançamento.";
             }
         }

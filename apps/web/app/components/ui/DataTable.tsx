@@ -7,6 +7,7 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   type ColumnDef,
+  type FilterFn,
   type SortingState,
   type Row,
   flexRender,
@@ -21,6 +22,13 @@ export type DataTableProps<TData> = {
   /** Mostrar caixa de pesquisa local (predefinido: sim) */
   showSearch?: boolean;
   searchPlaceholder?: string;
+  /** Pesquisa controlada (partilhada com listas mobile, etc.) */
+  globalFilter?: string;
+  onGlobalFilterChange?: (value: string) => void;
+  /** Função de filtro global personalizada */
+  globalFilterFn?: FilterFn<TData>;
+  /** Paginação interna (desligar quando a página usa paginação no servidor) */
+  showPagination?: boolean;
   /** Conteúdo quando não há dados */
   emptyMessage?: string;
   /** Conteúdo quando a pesquisa não encontra resultados */
@@ -43,11 +51,17 @@ export function DataTable<TData>({
   pageSize = 10,
   showSearch = true,
   searchPlaceholder = "Pesquisar…",
+  globalFilter: globalFilterProp,
+  onGlobalFilterChange,
+  globalFilterFn: globalFilterFnProp,
+  showPagination = true,
   emptyMessage = "Sem dados para mostrar.",
   noResultsMessage = "Nenhum resultado para a pesquisa.",
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [globalFilter, setGlobalFilter] = useState("");
+  const [internalGlobalFilter, setInternalGlobalFilter] = useState("");
+  const globalFilter = globalFilterProp ?? internalGlobalFilter;
+  const setGlobalFilter = onGlobalFilterChange ?? setInternalGlobalFilter;
 
   const table = useReactTable({
     data,
@@ -58,7 +72,7 @@ export function DataTable<TData>({
     },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn,
+    globalFilterFn: globalFilterFnProp ?? globalFilterFn,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -173,7 +187,7 @@ export function DataTable<TData>({
         </table>
       </div>
 
-      {!isEmpty && !hasNoResults && filteredRows > 0 && filteredRows > pageSize && (
+      {showPagination && !isEmpty && !hasNoResults && filteredRows > 0 && filteredRows > pageSize && (
         <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[#e7e5e4] pt-5 dark:border-[#222]">
           <p className="text-sm text-[#57534e] dark:text-gray-400">
             A mostrar{" "}

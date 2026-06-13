@@ -11,7 +11,7 @@ export type ProdutoOption = {
   nome: string;
   familiaRisco?: string;
   nemPorUnidade: number;
-  grupoCompatibilidade?: string;
+  categoria?: string;
   filtroTecnico?: string;
   calibre?: string;
 };
@@ -26,7 +26,7 @@ function mapProduto(p: Record<string, unknown>): ProdutoOption {
     nome: String(p.Nome ?? p.nome ?? ""),
     familiaRisco: (p.FamiliaRisco ?? p.familiaRisco) as string | undefined,
     nemPorUnidade: Number(p.NEMPorUnidade ?? p.nemPorUnidade ?? 0),
-    grupoCompatibilidade: (p.GrupoCompatibilidade ?? p.grupoCompatibilidade) as string | undefined,
+    categoria: (p.Categoria ?? p.categoria) as string | undefined,
     filtroTecnico: (p.FiltroTecnico ?? p.filtroTecnico) as string | undefined,
     calibre: (p.Calibre ?? p.calibre) as string | undefined,
   };
@@ -38,7 +38,7 @@ export async function fetchEntradaRegistarForm(
   opts: {
     paiolId: string;
     classificacao: string;
-    grupoCompatibilidade: string;
+    categoria: string;
     filtroTecnico: string;
     calibre: string;
   }
@@ -46,7 +46,7 @@ export async function fetchEntradaRegistarForm(
   const params = new URLSearchParams();
   if (opts.paiolId) params.set("paiolId", opts.paiolId);
   if (opts.classificacao) params.set("classificacao", opts.classificacao);
-  if (opts.grupoCompatibilidade) params.set("grupoCompatibilidade", opts.grupoCompatibilidade);
+  if (opts.categoria) params.set("categoria", opts.categoria);
   if (opts.filtroTecnico) params.set("filtroTecnico", opts.filtroTecnico);
   if (opts.calibre) params.set("calibre", opts.calibre);
 
@@ -93,11 +93,33 @@ export type RegistarEntradaBody = {
   DataValidade: string | null;
 };
 
+export type RegistarEntradaResultado = {
+  entradaSucesso?: string;
+  /** Avisos não bloqueantes (ex.: nivelamento de risco, ocupação elevada). */
+  avisos: string[];
+} & Record<string, unknown>;
+
+/** Extrai mensagens de avisos (array de objetos {codigo, mensagem} ou de strings). */
+function extrairAvisos(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((a) => {
+      if (typeof a === "string") return a;
+      if (a && typeof a === "object") {
+        const obj = a as Record<string, unknown>;
+        const m = obj.mensagem ?? obj.Mensagem;
+        if (typeof m === "string") return m;
+      }
+      return "";
+    })
+    .filter((m) => m.trim().length > 0);
+}
+
 /** POST api/entrada-paiol/registar */
 export async function postRegistarEntrada(
   token: string,
   body: RegistarEntradaBody
-): Promise<{ entradaSucesso?: string } & Record<string, unknown>> {
+): Promise<RegistarEntradaResultado> {
   const res = await fetch(`${apiPath("api/entrada-paiol")}/registar`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -105,6 +127,17 @@ export async function postRegistarEntrada(
   });
   if (res.status === 401) throw new Error("UNAUTHORIZED");
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!res.ok) throw new Error(parseApiErrorBody(data).message);
-  return data as { entradaSucesso?: string } & Record<string, unknown>;
+  if (!res.ok) {
+    const parsed = parseApiErrorBody(data);
+    const detail = parsed.message;
+    throw new Error(
+      detail && detail !== "Erro ao processar pedido. Tente novamente."
+        ? `Entrada não registada: ${detail}`
+        : detail
+    );
+  }
+  return {
+    ...data,
+    avisos: extrairAvisos(data.avisos ?? data.Avisos),
+  } as RegistarEntradaResultado;
 }

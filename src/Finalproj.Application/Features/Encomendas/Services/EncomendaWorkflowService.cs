@@ -58,12 +58,12 @@ public sealed class EncomendaWorkflowService(
     public async Task<bool> ClienteExistsAsync(int clienteId, CancellationToken cancellationToken = default) =>
         await clientes.GetByIdAsync(clienteId, cancellationToken) != null;
 
-    public async Task<object?> GetAdicionarItensDataAsync(int clienteId, string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, IReadOnlyList<EncomendaItemCriarViewModel> itensRascunho, CancellationToken cancellationToken = default)
+    public async Task<object?> GetAdicionarItensDataAsync(int clienteId, string? pesquisa, string? classificacao, string? categoria, string? filtroTecnico, string? calibre, IReadOnlyList<EncomendaItemCriarViewModel> itensRascunho, CancellationToken cancellationToken = default)
     {
         var cliente = await clientes.GetByIdAsync(clienteId, cancellationToken);
         if (cliente == null)
             return null;
-        var produtosFiltrados = (await produtos.SearchAsync(pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre, cancellationToken)).Select(ProdutoResponseDtoMapping.Map).ToList();
+        var produtosFiltrados = (await produtos.SearchAsync(pesquisa, classificacao, categoria, filtroTecnico, calibre, cancellationToken)).Select(ProdutoResponseDtoMapping.Map).ToList();
         var compiladosLista = await compilados.ListAsync(cancellationToken);
         return new
         {
@@ -71,7 +71,7 @@ public sealed class EncomendaWorkflowService(
             clienteId,
             pesquisa = pesquisa ?? string.Empty,
             classificacao = classificacao ?? string.Empty,
-            grupoCompatibilidade = grupoCompatibilidade ?? string.Empty,
+            categoria = categoria ?? string.Empty,
             filtroTecnico = filtroTecnico ?? string.Empty,
             calibre = calibre ?? string.Empty,
             produtosFiltrados,

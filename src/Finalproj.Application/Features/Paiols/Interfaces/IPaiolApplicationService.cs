@@ -9,7 +9,7 @@ public interface IPaiolApplicationService
     Task<IReadOnlyList<Paiol>> ListAllOrderedAsync(CancellationToken cancellationToken = default);
     Task<Paiol?> GetByIdAsync(int id, bool includeDocumentos = false, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PaiolComOcupacaoResponseDto>> ListComOcupacaoAsync(IReadOnlyCollection<int>? paiolIds = null, CancellationToken cancellationToken = default);
-    Task<object> GetStockCatalogoAsync(IReadOnlyCollection<int> paiolIds, string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default);
+    Task<object> GetStockCatalogoAsync(IReadOnlyCollection<int> paiolIds, string? pesquisa, string? classificacao, string? categoria, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default);
     Task<object> GetMovimentosAsync(IReadOnlyCollection<int> paiolIds, string? tipo, int? paiolId, int pagina, int itensPorPagina, IReadOnlyDictionary<string, string> nomesUtilizadores, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<string>> GetMovimentoUserIdsAsync(IReadOnlyCollection<int> paiolIds, string? tipo, int? paiolId, int pagina, int itensPorPagina, CancellationToken cancellationToken = default);
     Task<object?> GetConteudoAsync(int id, CancellationToken cancellationToken = default);

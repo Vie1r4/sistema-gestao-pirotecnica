@@ -2,6 +2,8 @@ using System.Globalization;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using Finalproj.Domain.Constants;
+using Finalproj.Domain.Entities;
 using Finalproj.Infrastructure.Configuration;
 
 namespace Finalproj.Infrastructure.DocumentacaoRegulatoria;
@@ -32,6 +34,7 @@ public sealed class GeradorDeclaracaoPspService
             AplicarEmpresaPirotecnicaFixa(body);
             AplicarBlocoEventoFixo(body, servico);
             SubstituirMarcadoresGlobais(body, servico);
+            AplicarFormatacaoCabecalhoPsp(body, servico);
 
             if (EhTemplateOficialPsp(body))
                 PreencherTemplateOficial(body, servico);
@@ -39,6 +42,7 @@ public sealed class GeradorDeclaracaoPspService
                 ExpandirZonas(doc, servico);
 
             NormalizarRodapePsp(doc.MainDocumentPart);
+            WordOpenXmlTextHelper.AplicarEspacamentoMinimoRodapePsp(body);
             doc.MainDocumentPart.Document.Save();
         }
 
@@ -79,34 +83,144 @@ public sealed class GeradorDeclaracaoPspService
         var linhas = MontarLinhasEvento(servico);
         var caixas = body.Descendants<TextBoxContent>().Where(EhCaixaDadosEvento).ToList();
         foreach (var caixa in caixas)
-            WordOpenXmlTextHelper.SetLinhasFixas(caixa, linhas);
+            WordOpenXmlTextHelper.SetPromotorFixa(caixa, linhas);
 
         foreach (var cell in body.Descendants<TableCell>().Where(EhCaixaDadosEvento))
-            WordOpenXmlTextHelper.SetLinhasFixas(cell, linhas);
+            WordOpenXmlTextHelper.SetPromotorFixa(cell, linhas);
 
-        NormalizarRotuloPromotor(body);
+        RemoverRotulosExternosDuplicados(body);
     }
 
     private static List<string> MontarLinhasEvento(Servico servico) =>
     [
         $"Evento: {servico.NomeEvento ?? servico.Encomenda?.Nome ?? "—"}",
-        $"Local: {FormatarLocalGeral(servico)}",
-        $"Data: {FormatarDataEventoLonga(servico.DataServico)}",
+        $"Local: {FormatarLocalPromotor(servico)}",
+        $"Data: {FormatarDataEventoPromotor(servico)}",
     ];
 
-    /// <summary>Rótulo «Promotor:» no template (fora da caixa de evento/local/data).</summary>
-    private static void NormalizarRotuloPromotor(Body body)
+    /// <summary>Remove rótulos soltos fora das caixas (o título passa a estar dentro do card).</summary>
+    private static void RemoverRotulosExternosDuplicados(Body body)
     {
-        foreach (var paragraph in body.Descendants<Paragraph>())
+        foreach (var paragraph in body.Descendants<Paragraph>().ToList())
         {
+            if (paragraph.Ancestors<TextBoxContent>().Any())
+                continue;
+
             var t = paragraph.InnerText.Trim();
-            if (!t.StartsWith("Promotor:", StringComparison.OrdinalIgnoreCase))
-                continue;
-            if (t.Contains("Evento:", StringComparison.OrdinalIgnoreCase)
-                || t.Contains("Local:", StringComparison.OrdinalIgnoreCase))
-                continue;
-            WordOpenXmlTextHelper.SetParagraphText(paragraph, "Promotor:");
+            if (t.Equals("Promotor:", StringComparison.OrdinalIgnoreCase)
+                || t.Equals(EmpresaPirotecnicaTextoFixo.Titulo, StringComparison.OrdinalIgnoreCase))
+            {
+                paragraph.Remove();
+            }
         }
+
+        foreach (var caixa in body.Descendants<TextBoxContent>().ToList())
+        {
+            if (!EhCaixaSoRotulo(caixa))
+                continue;
+
+            RemoverShapeCaixaTexto(caixa);
+        }
+    }
+
+    private static bool EhCaixaSoRotulo(TextBoxContent caixa)
+    {
+        var t = NormalizarTextoCaixa(caixa.InnerText);
+        return t.Equals("Promotor:", StringComparison.OrdinalIgnoreCase)
+               || t.Equals(EmpresaPirotecnicaTextoFixo.Titulo, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizarTextoCaixa(string text) =>
+        string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).Trim();
+
+    private static void RemoverShapeCaixaTexto(TextBoxContent caixa)
+    {
+        foreach (var ancestor in caixa.Ancestors())
+        {
+            if (ancestor.LocalName == "wsp")
+            {
+                ancestor.Remove();
+                return;
+            }
+
+            if (ancestor.LocalName is "shape" or "group" or "rect"
+                && ancestor.NamespaceUri.Contains("vml", StringComparison.OrdinalIgnoreCase))
+            {
+                ancestor.Remove();
+                return;
+            }
+        }
+    }
+
+    private static void AplicarFormatacaoCabecalhoPsp(Body body, Servico servico)
+    {
+        SubstituirCardsCabecalhoPorTabelas(body, servico);
+
+        foreach (var table in body.Descendants<Table>().Where(EhTabelaCoordenadorPirotecnico))
+            WordOpenXmlTextHelper.AplicarEsquerdaTabela(table);
+    }
+
+    /// <summary>Substitui caixas de texto ancoradas (mal suportadas em PDF) por tabelas com grelha, como o coordenador.</summary>
+    private static void SubstituirCardsCabecalhoPorTabelas(Body body, Servico servico)
+    {
+        SubstituirCardPorTabela(
+            body,
+            EhCaixaCardEmpresaPreenchida,
+            EmpresaPirotecnicaTextoFixo.Titulo,
+            EmpresaPirotecnicaTextoFixo.Linhas);
+
+        SubstituirCardPorTabela(
+            body,
+            EhCaixaCardPromotorPreenchida,
+            "Promotor:",
+            MontarLinhasEvento(servico));
+    }
+
+    private static void SubstituirCardPorTabela(
+        Body body,
+        Func<TextBoxContent, bool> predicate,
+        string titulo,
+        IReadOnlyList<string> linhas)
+    {
+        var caixas = body.Descendants<TextBoxContent>().Where(predicate).ToList();
+        if (caixas.Count == 0)
+            return;
+
+        var hosts = body.Elements()
+            .Where(e => e is Paragraph && e.Descendants<TextBoxContent>()
+                .Any(tx => caixas.Any(c => ReferenceEquals(c, tx))))
+            .Cast<Paragraph>()
+            .ToList();
+
+        if (hosts.Count == 0)
+            return;
+
+        var table = WordOpenXmlTextHelper.CriarTabelaCardCabecalho(titulo, linhas);
+        body.InsertBefore(table, hosts[0]);
+
+        foreach (var host in hosts)
+            host.Remove();
+    }
+
+    private static bool EhCaixaCardEmpresaPreenchida(TextBoxContent caixa)
+    {
+        var text = caixa.InnerText;
+        return text.Contains(EmpresaPirotecnicaTextoFixo.Titulo, StringComparison.OrdinalIgnoreCase)
+               && text.Contains("Designação:", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool EhCaixaCardPromotorPreenchida(TextBoxContent caixa)
+    {
+        var text = caixa.InnerText;
+        return text.Contains("Promotor:", StringComparison.OrdinalIgnoreCase)
+               && text.Contains("Evento:", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool EhTabelaCoordenadorPirotecnico(Table table)
+    {
+        var t = table.InnerText;
+        return t.Contains("Coordenador pirotécnico", StringComparison.OrdinalIgnoreCase)
+               && !t.Contains("Zona de lançamento", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool EhCaixaDadosEvento(OpenXmlElement element)
@@ -147,25 +261,35 @@ public sealed class GeradorDeclaracaoPspService
 
         var (zonaTable, meio, artigosTable, acondicionamentoTable) = bloco.Value;
 
-        PreencherBlocoZona(zonaTable, artigosTable, zonas[0], 1);
+        // Cópias limpas do template — zonas extra duplicam só horário; artigos ficam num único bloco consolidado.
+        var zonaTemplate = (Table)zonaTable.CloneNode(true);
+        var meioTemplate = meio.Select(e => (OpenXmlElement)e.CloneNode(true)).ToList();
 
-        OpenXmlElement anchor = artigosTable;
+        PreencherBlocoZonaHorario(zonaTable, zonas[0], 1);
+
+        OpenXmlElement anchor = meio.Count > 0 ? meio[^1] : zonaTable;
         for (var i = 1; i < zonas.Count; i++)
         {
-            var clones = ClonarBlocoZona(zonaTable, meio, artigosTable);
+            var clones = ClonarBlocoZonaHorario(zonaTemplate, meioTemplate);
             foreach (var el in clones)
             {
                 body.InsertAfter(el, anchor);
                 anchor = el;
             }
 
-            var novaZona = (Table)clones.OfType<Table>().First(t => t.InnerText.Contains("Zona de lançamento", StringComparison.OrdinalIgnoreCase));
-            var novosArtigos = (Table)clones.OfType<Table>().First(t => t.InnerText.Contains("Artigos de pirotecnia", StringComparison.OrdinalIgnoreCase));
-            PreencherBlocoZona(novaZona, novosArtigos, zonas[i], i + 1);
+            PreencherBlocoZonaHorario((Table)clones[0], zonas[i], i + 1);
         }
 
+        PreencherTabelaArtigos(artigosTable, ConsolidarLinhasArtigos(zonas));
+
         foreach (var table in body.Descendants<Table>())
-            WordOpenXmlTextHelper.CentralizarTabela(table);
+        {
+            if (EhTabelaCoordenadorPirotecnico(table))
+                continue;
+            if (table.InnerText.Contains("Zona de lançamento", StringComparison.OrdinalIgnoreCase)
+                || table.InnerText.Contains("Artigos de pirotecnia", StringComparison.OrdinalIgnoreCase))
+                WordOpenXmlTextHelper.CentralizarTabela(table);
+        }
 
         _ = acondicionamentoTable;
     }
@@ -211,15 +335,17 @@ public sealed class GeradorDeclaracaoPspService
         return (zonaTable, meio, artigosTable, acondicionamento);
     }
 
-    private static List<OpenXmlElement> ClonarBlocoZona(Table zonaTable, IReadOnlyList<OpenXmlElement> meio, Table artigosTable)
+    private static List<OpenXmlElement> ClonarBlocoZonaHorario(Table zonaTable, IReadOnlyList<OpenXmlElement> meio)
     {
         var clones = new List<OpenXmlElement> { (Table)zonaTable.CloneNode(true) };
         clones.AddRange(meio.Select(e => (OpenXmlElement)e.CloneNode(true)));
-        clones.Add((Table)artigosTable.CloneNode(true));
         return clones;
     }
 
-    private static void PreencherBlocoZona(Table zonaTable, Table artigosTable, ServicoZonaLancamento zona, int numero)
+    private static List<ServicoZonaLinha> ConsolidarLinhasArtigos(IReadOnlyList<ServicoZonaLancamento> zonas) =>
+        zonas.SelectMany(z => z.Linhas ?? []).ToList();
+
+    private static void PreencherBlocoZonaHorario(Table zonaTable, ServicoZonaLancamento zona, int numero)
     {
         var zonaRows = zonaTable.Elements<TableRow>().ToList();
         if (zonaRows.Count >= 1)
@@ -240,7 +366,6 @@ public sealed class GeradorDeclaracaoPspService
         }
 
         PreencherTabelaHorario(zonaTable, zona);
-        PreencherTabelaArtigos(artigosTable, zona);
     }
 
     private static void NormalizarRodapePsp(MainDocumentPart mainPart)
@@ -287,19 +412,17 @@ public sealed class GeradorDeclaracaoPspService
             if (cells.Count < 4)
                 continue;
 
-            var calibre = linha.Produto?.Nome ?? linha.Produto?.Calibre ?? linha.Produto?.FiltroTecnico ?? "—";
-            if (!string.IsNullOrWhiteSpace(linha.Produto?.Calibre) && !calibre.Contains(linha.Produto.Calibre, StringComparison.OrdinalIgnoreCase))
-                calibre = $"{calibre} {linha.Produto.Calibre}".Trim();
+            var tipoCalibre = TextoTipoCalibreHorario(linha.Produto);
 
             WordOpenXmlTextHelper.SetCellText(cells[0], linha.Data.ToString("dd/MM/yyyy"));
             WordOpenXmlTextHelper.SetCellText(cells[1], FormatarHoraPsp(linha.HoraInicio, linha.HoraFim));
-            WordOpenXmlTextHelper.SetCellText(cells[2], calibre);
+            WordOpenXmlTextHelper.SetCellText(cells[2], tipoCalibre);
             WordOpenXmlTextHelper.SetCellText(cells[3], linha.Quantidade.ToString("0.####", CulturaPt));
             table.Append(row);
         }
     }
 
-    private static void PreencherTabelaArtigos(Table table, ServicoZonaLancamento zona)
+    private static void PreencherTabelaArtigos(Table table, IReadOnlyList<ServicoZonaLinha> linhas)
     {
         var rows = table.Elements<TableRow>().ToList();
         if (rows.Count < 2)
@@ -311,8 +434,6 @@ public sealed class GeradorDeclaracaoPspService
 
         foreach (var row in rows.Where(r => r != header && r != totalRow).ToList())
             row.Remove();
-
-        var linhas = (zona.Linhas ?? []).ToList();
         decimal totalQtd = 0;
         decimal totalNem = 0;
         var idx = 1;
@@ -323,19 +444,20 @@ public sealed class GeradorDeclaracaoPspService
             var p = first.Produto;
             var qtd = g.Sum(x => x.Quantidade);
             var nemUnit = p?.NEMPorUnidade ?? 0;
+            var nemLinha = qtd * nemUnit;
             totalQtd += qtd;
-            totalNem += qtd * nemUnit;
+            totalNem += nemLinha;
 
             var row = (TableRow)templateRow.CloneNode(true);
             var cells = row.Elements<TableCell>().ToList();
             if (cells.Count < 5)
                 continue;
 
-            WordOpenXmlTextHelper.SetCellText(cells[0], $"{idx}. {p?.Nome ?? $"Produto #{first.ProdutoId}"}");
-            WordOpenXmlTextHelper.SetCellText(cells[1], qtd.ToString("0.####", CulturaPt));
-            WordOpenXmlTextHelper.SetCellText(cells[2], p?.Calibre ?? "—");
+            WordOpenXmlTextHelper.SetCellText(cells[0], $"{idx}. {TextoFiltroTecnicoProduto(p)}");
+            WordOpenXmlTextHelper.SetCellText(cells[1], FormatarQuantidadePsp(qtd));
+            WordOpenXmlTextHelper.SetCellText(cells[2], TextoCalibreProduto(p));
             WordOpenXmlTextHelper.SetCellText(cells[3], p?.Categoria ?? "—");
-            WordOpenXmlTextHelper.SetCellText(cells[4], nemUnit.ToString("0.###", CulturaPt));
+            WordOpenXmlTextHelper.SetCellText(cells[4], FormatarNemPsp(nemUnit));
             table.InsertBefore(row, totalRow);
             idx++;
         }
@@ -344,9 +466,10 @@ public sealed class GeradorDeclaracaoPspService
         {
             var totalCells = totalRow.Elements<TableCell>().ToList();
             if (totalCells.Count >= 2)
-                WordOpenXmlTextHelper.SetCellText(totalCells[1], totalQtd.ToString("0.####", CulturaPt));
-            if (totalCells.Count >= 5)
-                WordOpenXmlTextHelper.SetCellText(totalCells[^1], totalNem.ToString("0.###", CulturaPt));
+                WordOpenXmlTextHelper.SetCellText(totalCells[1], FormatarQuantidadePsp(totalQtd));
+            // Linha «Total» do template oficial tem 4 células — NEM total na última.
+            if (totalCells.Count >= 3)
+                WordOpenXmlTextHelper.SetCellText(totalCells[^1], FormatarNemPsp(totalNem));
         }
         else if (linhas.Count == 0)
         {
@@ -410,21 +533,17 @@ public sealed class GeradorDeclaracaoPspService
 
             AdicionarParagrafo(body, "DECLARAÇÃO — REGULAMENTO PSP (n.º 1/2025)", negrito: true, tamanho: 24);
             AdicionarParagrafo(body, string.Empty);
-            AdicionarParagrafo(body, EmpresaPirotecnicaTextoFixo.Titulo, negrito: true);
-            foreach (var line in EmpresaPirotecnicaTextoFixo.Linhas)
-                AdicionarParagrafo(body, line);
+            body.Append(WordOpenXmlTextHelper.CriarTabelaCardCabecalho(
+                EmpresaPirotecnicaTextoFixo.Titulo, EmpresaPirotecnicaTextoFixo.Linhas));
             AdicionarParagrafo(body, string.Empty);
-
-            var promotor = servico.Cliente?.Nome ?? servico.Encomenda?.Cliente?.Nome ?? "—";
-            AdicionarParagrafo(body, "Evento / local / data / promotor", negrito: true);
-            AdicionarParagrafo(body, $"Evento: {servico.NomeEvento ?? servico.Encomenda?.Nome ?? "—"}");
-            AdicionarParagrafo(body, $"Local: {FormatarLocalGeral(servico)}");
-            AdicionarParagrafo(body, $"Data: {servico.DataServico:dd/MM/yyyy}");
-            AdicionarParagrafo(body, $"Promotor: {promotor}");
+            body.Append(WordOpenXmlTextHelper.CriarTabelaCardCabecalho("Promotor:", MontarLinhasEvento(servico)));
             if (servico.CoordenadorPirotecnico != null)
             {
                 AdicionarParagrafo(body, string.Empty);
-                AdicionarParagrafo(body, $"Coordenador pirotécnico: {servico.CoordenadorPirotecnico.NomeCompleto} — CRED n.º {servico.CoordenadorPirotecnico.NumeroCredencial ?? "—"}");
+                AdicionarParagrafo(body, "Coordenador pirotécnico (quando aplicável):", negrito: true);
+                AdicionarParagrafo(
+                    body,
+                    $"{servico.CoordenadorPirotecnico.NomeCompleto} — CRED n.º {servico.CoordenadorPirotecnico.NumeroCredencial ?? "—"}");
             }
 
             var zonas = (servico.ZonasLancamento ?? []).OrderBy(z => z.Id).ToList();
@@ -435,8 +554,12 @@ public sealed class GeradorDeclaracaoPspService
                 for (var i = 0; i < zonas.Count; i++)
                 {
                     AdicionarParagrafo(body, string.Empty);
-                    AdicionarSecaoZona(body, zonas[i], i + 1);
+                    AdicionarSecaoZonaHorario(body, zonas[i], i + 1);
                 }
+
+                AdicionarParagrafo(body, string.Empty);
+                AdicionarParagrafo(body, "Artigos de pirotecnia", negrito: true);
+                AdicionarTabelaArtigos(body, ConsolidarLinhasArtigos(zonas));
             }
 
             AdicionarParagrafo(body, string.Empty);
@@ -451,7 +574,7 @@ public sealed class GeradorDeclaracaoPspService
         return ms.ToArray();
     }
 
-    private static void AdicionarSecaoZona(Body body, ServicoZonaLancamento zona, int numero)
+    private static void AdicionarSecaoZonaHorario(Body body, ServicoZonaLancamento zona, int numero)
     {
         var resp = zona.ResponsavelPirotecnico;
         AdicionarParagrafo(body, $"Zona de lançamento n.º {numero} — {zona.Designacao ?? "—"}", negrito: true);
@@ -463,9 +586,6 @@ public sealed class GeradorDeclaracaoPspService
         var linhas = (zona.Linhas ?? []).OrderBy(l => l.Data).ThenBy(l => l.HoraInicio).ToList();
         AdicionarParagrafo(body, "Horário de lançamento", negrito: true);
         AdicionarTabelaHorario(body, linhas);
-
-        AdicionarParagrafo(body, "Artigos pirotécnicos", negrito: true);
-        AdicionarTabelaArtigos(body, linhas);
     }
 
     private static void AdicionarTabelaHorario(Body body, IReadOnlyList<ServicoZonaLinha> linhas)
@@ -474,8 +594,8 @@ public sealed class GeradorDeclaracaoPspService
         foreach (var l in linhas)
         {
             var hora = FormatarHora(l.HoraInicio, l.HoraFim);
-            var calibre = l.Produto?.Calibre ?? l.Produto?.FiltroTecnico ?? "—";
-            rows.Add(new[] { l.Data.ToString("dd/MM/yyyy"), hora, calibre, l.Quantidade.ToString("0.####") });
+            var tipoCalibre = TextoTipoCalibreHorario(l.Produto);
+            rows.Add(new[] { l.Data.ToString("dd/MM/yyyy"), hora, tipoCalibre, l.Quantidade.ToString("0.####") });
         }
         if (linhas.Count == 0)
             rows.Add(new[] { "—", "—", "—", "—" });
@@ -497,17 +617,17 @@ public sealed class GeradorDeclaracaoPspService
             totalNem += qtd * nemUnit;
             rows.Add(new[]
             {
-                p?.Nome ?? $"Produto #{first.ProdutoId}",
-                qtd.ToString("0.####"),
-                p?.Calibre ?? "—",
+                TextoFiltroTecnicoProduto(p),
+                FormatarQuantidadePsp(qtd),
+                TextoCalibreProduto(p),
                 p?.Categoria ?? "—",
-                nemUnit.ToString("0.####")
+                FormatarNemPsp(nemUnit)
             });
         }
         if (linhas.Count == 0)
             rows.Add(new[] { "—", "—", "—", "—", "—" });
         else
-            rows.Add(new[] { "TOTAIS", totalQtd.ToString("0.####"), "", "", totalNem.ToString("0.####") });
+            rows.Add(new[] { "TOTAIS", FormatarQuantidadePsp(totalQtd), "", "", FormatarNemPsp(totalNem) });
         AdicionarTabela(body, rows);
     }
 
@@ -535,21 +655,99 @@ public sealed class GeradorDeclaracaoPspService
             sb.AppendLine($"Responsável: {resp.NomeCompleto} — CRED {resp.NumeroCredencial ?? "—"}");
         foreach (var l in (zona.Linhas ?? []).OrderBy(x => x.Data))
         {
-            var calibre = l.Produto?.Calibre ?? "—";
-            sb.AppendLine($"- {l.Data:dd/MM/yyyy} {FormatarHora(l.HoraInicio, l.HoraFim)} | {calibre} | {l.Quantidade:0.####}");
+            var tipoCalibre = TextoTipoCalibreHorario(l.Produto);
+            sb.AppendLine($"- {l.Data:dd/MM/yyyy} {FormatarHora(l.HoraInicio, l.HoraFim)} | {tipoCalibre} | {l.Quantidade:0.####}");
         }
         return sb.ToString().TrimEnd();
     }
 
-    private static string FormatarLocalGeral(Servico servico)
+    private static string FormatarNemPsp(decimal valor) =>
+        valor.ToString("0.###", CulturaPt);
+
+    private static string FormatarQuantidadePsp(decimal valor) =>
+        valor.ToString("0.####", CulturaPt);
+
+    private static string TextoCalibreProduto(Produto? produto)
     {
-        var partes = new[] { servico.Local, servico.MoradaCompleta, servico.Cidade, servico.Municipio, servico.Distrito }
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .Select(p => p!.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase);
-        var txt = string.Join(", ", partes);
-        return string.IsNullOrWhiteSpace(txt) ? "—" : txt;
+        if (produto == null || string.IsNullOrWhiteSpace(produto.Calibre))
+            return "—";
+        return ConstantesCatalogo.TextoCalibre(produto.Calibre);
     }
+
+    /// <summary>Filtro técnico do produto (coluna «Artigo»).</summary>
+    private static string TextoFiltroTecnicoProduto(Produto? produto)
+    {
+        if (produto == null || string.IsNullOrWhiteSpace(produto.FiltroTecnico))
+            return "—";
+        return ConstantesCatalogo.TextoFiltroTecnico(produto.FiltroTecnico);
+    }
+
+    /// <summary>Coluna «Tipo / Calibre» do horário de lançamento: filtro técnico / calibre.</summary>
+    private static string TextoTipoCalibreHorario(Produto? produto)
+    {
+        var tipo = TextoFiltroTecnicoProduto(produto);
+        var calibre = TextoCalibreProduto(produto);
+        if (tipo == "—" && calibre == "—")
+            return "—";
+        return $"{tipo}/{calibre}";
+    }
+
+    private static string FormatarLocalPromotor(Servico servico)
+    {
+        var cidade = servico.Cidade?.Trim();
+        var concelho = servico.Municipio?.Trim();
+
+        // Concelho à frente da cidade; nunca colapsar quando iguais (ex.: Fafe – Fafe).
+        if (!string.IsNullOrWhiteSpace(cidade) && !string.IsNullOrWhiteSpace(concelho))
+            return FormatarLocalPromotorTexto($"{concelho} – {cidade}");
+
+        if (!string.IsNullOrWhiteSpace(concelho))
+            return FormatarLocalPromotorTexto(concelho);
+        if (!string.IsNullOrWhiteSpace(cidade))
+            return FormatarLocalPromotorTexto(cidade);
+        if (!string.IsNullOrWhiteSpace(servico.Local?.Trim()))
+            return FormatarLocalPromotorTexto(servico.Local.Trim());
+
+        return "—";
+    }
+
+    private static string FormatarLocalPromotorTexto(string texto) =>
+        texto.ToUpper(CulturaPt);
+
+    private static string FormatarDataEventoPromotor(Servico servico)
+    {
+        var datas = (servico.ZonasLancamento ?? [])
+            .SelectMany(z => z.Linhas ?? [])
+            .Select(l => l.Data.Date)
+            .Distinct()
+            .OrderBy(d => d)
+            .ToList();
+
+        if (datas.Count == 0)
+            return FormatarDataEventoLonga(servico.DataServico.Date);
+
+        if (datas.Count == 1)
+            return FormatarDataEventoLonga(datas[0]);
+
+        return FormatarIntervaloDatasEvento(datas[0], datas[^1]);
+    }
+
+    private static string FormatarIntervaloDatasEvento(DateTime inicio, DateTime fim)
+    {
+        if (inicio.Year == fim.Year && inicio.Month == fim.Month)
+            return $"{inicio.Day} A {fim.Day} DE {FormatarMesAnoLongo(inicio)}";
+
+        if (inicio.Year == fim.Year)
+            return $"{FormatarDiaMesLongo(inicio)} A {FormatarDiaMesLongo(fim)} DE {inicio.Year}";
+
+        return $"{FormatarDataEventoLonga(inicio)} A {FormatarDataEventoLonga(fim)}";
+    }
+
+    private static string FormatarDiaMesLongo(DateTime data) =>
+        $"{data.Day} DE {data.ToString("MMMM", CulturaPt).ToUpper(CulturaPt)}";
+
+    private static string FormatarMesAnoLongo(DateTime data) =>
+        data.ToString("MMMM 'de' yyyy", CulturaPt).ToUpper(CulturaPt);
 
     private static string FormatarDataEventoLonga(DateTime data) =>
         data.ToString("d 'de' MMMM 'de' yyyy", CulturaPt).ToUpper(CulturaPt);

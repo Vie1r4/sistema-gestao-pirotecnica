@@ -11,12 +11,12 @@ public sealed class EntradaPaiolApplicationService(
     ISaidaPaiolRepository saidas,
     IUnitOfWork unitOfWork) : IEntradaPaiolApplicationService
 {
-    public async Task<(IReadOnlyList<Paiol> Paiois, IReadOnlyList<Produto> Produtos)> GetFormularioAsync(IReadOnlyCollection<string> roles, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default)
+    public async Task<(IReadOnlyList<Paiol> Paiois, IReadOnlyList<Produto> Produtos)> GetFormularioAsync(IReadOnlyCollection<string> roles, string? classificacao, string? categoria, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default)
     {
         var paioisAcesso = (await paiois.ListAllOrderedAsync(cancellationToken))
             .Where(p => p.Estado == ConstantesPaiol.EstadoAtivo)
             .ToList();
-        var produtosFiltrados = await produtos.SearchAsync(null, classificacao, grupoCompatibilidade, filtroTecnico, calibre, cancellationToken);
+        var produtosFiltrados = await produtos.SearchAsync(null, classificacao, categoria, filtroTecnico, calibre, cancellationToken);
         return (paioisAcesso, produtosFiltrados);
     }
 

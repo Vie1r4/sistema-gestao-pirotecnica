@@ -85,7 +85,7 @@ export default function ServicoDetalhePage() {
     },
     onSuccess: async (res) => {
       setPspErro(null);
-      setPspInfo(`Declaração PSP gerada (licença #${res.licencaId}). A descarregar PDF…`);
+      setPspInfo('Declaração PSP gerada. A descarregar PDF…');
       queryClient.invalidateQueries({ queryKey: ["servicos", id] });
       const token = getToken();
       if (token) {
@@ -213,8 +213,13 @@ export default function ServicoDetalhePage() {
             className="flex flex-wrap items-start justify-between gap-4"
           >
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Serviço #{servico.id}</h1>
+              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                {servico.nomeEvento?.trim() ? servico.nomeEvento.trim() : `Serviço #${servico.id}`}
+              </h1>
               <p className="mt-1 flex items-center gap-2 text-[#57534e] dark:text-gray-400">
+                {servico.nomeEvento?.trim() && (
+                  <span>N.º {servico.id} · </span>
+                )}
                 {new Date(servico.dataServico).toLocaleDateString("pt-PT")} · {servico.cliente?.nome ?? servico.clienteId}
                 {isRefetching && (
                   <span className="inline-flex items-center gap-1.5 text-xs text-[#78716c] dark:text-gray-500">

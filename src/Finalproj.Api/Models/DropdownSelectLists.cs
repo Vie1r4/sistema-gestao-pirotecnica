@@ -38,6 +38,9 @@ public static class DropdownSelectLists
     public static List<ApiDropdownOption> CalibresParaDropdown() =>
         ConstantesCatalogo.Calibres.Select(x => new ApiDropdownOption { Value = x.Value, Text = x.Text }).ToList();
 
+    public static List<ApiDropdownOption> CategoriasPirotecnicasParaDropdown() =>
+        ConstantesCatalogo.CategoriasPirotecnicas.Select(x => new ApiDropdownOption { Value = x.Value, Text = x.Text }).ToList();
+
     public static List<ApiDropdownOption> CargosParaDropdown() =>
         ConstantesFuncionariosClientes.Cargos.Select(c => new ApiDropdownOption { Value = c, Text = c }).ToList();
 

@@ -272,9 +272,12 @@ export default function ZonasLancamentoEditor({
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className={labelClass}>Hora início</label>
+                      <label className={labelClass}>
+                        Hora início <span className="text-[#f97316]">*</span>
+                      </label>
                       <input
                         type="time"
+                        required
                         disabled={disabled}
                         value={linha.horaInicio}
                         onChange={(e) =>
@@ -284,9 +287,12 @@ export default function ZonasLancamentoEditor({
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className={labelClass}>Hora fim</label>
+                      <label className={labelClass}>
+                        Hora fim <span className="text-[#f97316]">*</span>
+                      </label>
                       <input
                         type="time"
+                        required
                         disabled={disabled}
                         value={linha.horaFim}
                         onChange={(e) =>

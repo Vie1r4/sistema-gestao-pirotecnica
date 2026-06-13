@@ -9,7 +9,7 @@ public interface IEncomendaWorkflowService
     Task<EncomendaDetailResponseDto?> GetDetailDtoAsync(int id, CancellationToken cancellationToken = default);
     Task<object> GetCreateDataAsync(int? clienteId, CancellationToken cancellationToken = default);
     Task<bool> ClienteExistsAsync(int clienteId, CancellationToken cancellationToken = default);
-    Task<object?> GetAdicionarItensDataAsync(int clienteId, string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, IReadOnlyList<EncomendaItemCriarViewModel> itensRascunho, CancellationToken cancellationToken = default);
+    Task<object?> GetAdicionarItensDataAsync(int clienteId, string? pesquisa, string? classificacao, string? categoria, string? filtroTecnico, string? calibre, IReadOnlyList<EncomendaItemCriarViewModel> itensRascunho, CancellationToken cancellationToken = default);
     Task<Produto?> GetProdutoAsync(int produtoId, CancellationToken cancellationToken = default);
     Task<Encomenda?> SubmeterAsync(int clienteId, string? nome, DateTime? dataEntrega, string? observacoes, IReadOnlyList<EncomendaItemCriarViewModel> itens, CancellationToken cancellationToken = default);
     Task<(Encomenda? Encomenda, string? Erro)> UpdateAsync(int id, EditEncomendaDto input, CancellationToken cancellationToken = default);

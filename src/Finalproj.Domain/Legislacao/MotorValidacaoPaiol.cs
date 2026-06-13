@@ -113,6 +113,25 @@ public static class MotorValidacaoPaiol
         if (grupoProduto == "C" && produtosNoPaiol.Any(p => ParametrosLegaisPirotecnia.NormalizarGrupo(p.Grupo) == "G"))
             r.Avisos.Add(new AvisoValidacao { Codigo = "AVISO_001", Mensagem = $"Grupos C e G juntos no paiol. Atenção ao limite de {limiteGrupoC:N0} kg MLE de grupo C." });
 
+        // Nivelamento por cima (ADR): se a entrada eleva a divisão dominante, todo o paiol passa a ser
+        // tratado pela divisão mais perigosa. O limite de peso definido mantém-se — apenas avisa.
+        if (produtosNoPaiol.Count > 0)
+        {
+            var divisoesAntes = produtosNoPaiol
+                .Select(p => ParametrosLegaisPirotecnia.NormalizarDivisao(p.Divisao))
+                .ToList();
+            var dominanteAntes = ParametrosLegaisPirotecnia.DivisaoMaisPerigosa(divisoesAntes);
+            var dominanteApos = r.DivisaoDominanteResultante ?? dominanteAntes;
+            if (ParametrosLegaisPirotecnia.DivisaoMaisPerigosaQue(dominanteApos, dominanteAntes))
+            {
+                r.Avisos.Add(new AvisoValidacao
+                {
+                    Codigo = "AVISO_004",
+                    Mensagem = $"Nivelamento de risco: a entrada de divisão {divisaoProduto} eleva a divisão dominante do paiol de {dominanteAntes} para {dominanteApos}. Pela regra ADR, todo o paiol passa a ser tratado como {dominanteApos} (pior caso), agravando as distâncias de segurança e o risco efetivo. O limite de peso definido mantém-se."
+                });
+            }
+        }
+
         if (dataValidadeLote.HasValue && dataValidadeLote.Value.Date < DateTime.UtcNow.Date)
         {
             r.Erros.Add(new ErroValidacao

@@ -60,6 +60,12 @@ public sealed class ServicoSaveRequestDtoValidator : AbstractValidator<ServicoSa
                 linha.RuleFor(l => l.Data)
                     .NotEmpty()
                     .WithMessage("A data de lançamento é obrigatória em cada linha.");
+                linha.RuleFor(l => l.HoraInicio)
+                    .NotNull()
+                    .WithMessage("A hora de início é obrigatória em cada linha de lançamento.");
+                linha.RuleFor(l => l.HoraFim)
+                    .NotNull()
+                    .WithMessage("A hora de fim é obrigatória em cada linha de lançamento.");
                 linha.RuleFor(l => l)
                     .Must(l => !l.HoraInicio.HasValue || !l.HoraFim.HasValue || l.HoraFim > l.HoraInicio)
                     .WithMessage("A hora de fim deve ser posterior à hora de início em cada linha de lançamento.");

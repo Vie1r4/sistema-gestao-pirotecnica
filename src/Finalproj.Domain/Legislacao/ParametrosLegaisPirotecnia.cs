@@ -76,6 +76,12 @@ public static class ParametrosLegaisPirotecnia
     /// <summary>
     /// Famílias de risco (sem sufixo G) que cada licença de paiol pode receber (ADR 7.5.2.2).
     /// Chave = divisão da licença do paiol; valor = divisões de produto aceites.
+    ///
+    /// A "cascata" (uma licença aceitar todos os níveis mais seguros) aplica-se apenas de 1.3 para
+    /// baixo (produtos tipicamente pirotécnicos/baixo risco). Para os altos explosivos (1.1 e 1.2)
+    /// a cascata quebra: um paiol de 1.1 NÃO está automaticamente autorizado a receber 1.3/1.4/1.4S.
+    /// Cada um destes níveis de topo só aceita o próprio nível.
+    /// Ordem de perigo: 1.1 > 1.2 > 1.3 > 1.4 > 1.4S.
     /// </summary>
     public static readonly IReadOnlyDictionary<string, string[]> LicencaPaiolAceitaFamilias =
         new Dictionary<string, string[]>
@@ -83,10 +89,8 @@ public static class ParametrosLegaisPirotecnia
             ["1.1"] = new[] { "1.1" },
             ["1.2"] = new[] { "1.2" },
             ["1.3"] = new[] { "1.3", "1.4", "1.4S" },
-            ["1.4"] = new[] { "1.3", "1.4", "1.4S" },
-            ["1.4S"] = new[] { "1.3", "1.4", "1.4S" },
-            ["1.5"] = new[] { "1.1", "1.3", "1.4", "1.4S", "1.5" },
-            ["1.6"] = new[] { "1.6" }
+            ["1.4"] = new[] { "1.4", "1.4S" },
+            ["1.4S"] = new[] { "1.4S" }
         };
 
     // ----------------------------------------------------------------------------------------------
@@ -142,4 +146,19 @@ public static class ParametrosLegaisPirotecnia
         }
         return lista.FirstOrDefault() ?? "";
     }
+
+    /// <summary>
+    /// Índice de gravidade de uma divisão na hierarquia legal (menor = mais perigosa).
+    /// Divisões desconhecidas ficam no fim (menos perigosas).
+    /// </summary>
+    public static int IndiceGravidadeDivisao(string? divisao)
+    {
+        var d = NormalizarDivisao(divisao);
+        var idx = Array.IndexOf(HierarquiaDivisaoRisco, d);
+        return idx < 0 ? HierarquiaDivisaoRisco.Length : idx;
+    }
+
+    /// <summary>Indica se a divisão A é mais perigosa que a divisão B (segundo a hierarquia legal).</summary>
+    public static bool DivisaoMaisPerigosaQue(string? divisaoA, string? divisaoB) =>
+        IndiceGravidadeDivisao(divisaoA) < IndiceGravidadeDivisao(divisaoB);
 }

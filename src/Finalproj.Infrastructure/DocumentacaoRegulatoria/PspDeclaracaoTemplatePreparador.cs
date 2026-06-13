@@ -44,6 +44,7 @@ public static class PspDeclaracaoTemplatePreparador
             var paras = cell?.Elements<Paragraph>().ToList();
             if (paras is { Count: >= 2 })
                 WordOpenXmlTextHelper.SetParagraphText(paras[1], "{{COORDENADOR_NOME}} — CRED n.º {{COORDENADOR_CRED}}");
+            WordOpenXmlTextHelper.AplicarEsquerdaTabela(coordTable);
         }
 
         doc.MainDocumentPart.Document.Save();

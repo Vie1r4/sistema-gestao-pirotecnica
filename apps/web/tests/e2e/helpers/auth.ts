@@ -24,13 +24,31 @@ export async function mockAuthMeAdmin(page: Page): Promise<void> {
           "admin",
           "clientes.gerir",
           "funcionarios.gerir",
-          "encomendas.gerir",
-          "servicos.gerir",
+          "produtos.ver",
           "produtos.gerir",
+          "encomendas.gerir",
+          "encomendas.apagar",
+          "servicos.gerir",
+          "servicos.apagar",
+          "armazem.stock",
           "armazem.gerir",
+          "documentacao.gerir",
         ],
       }),
     });
+  });
+}
+
+/** Garante contexto sem sessão (rotas protegidas → login). */
+export async function ensureNoAuth(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    delete (window as Window & { __PIROFAFE_E2E_TOKEN__?: string }).__PIROFAFE_E2E_TOKEN__;
+  });
+  await page.route("**/api/auth/refresh", async (route) => {
+    await route.fulfill({ status: 401, contentType: "application/json", body: "{}" });
+  });
+  await page.route("**/api/auth/me", async (route) => {
+    await route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ error: "Unauthorized" }) });
   });
 }
 

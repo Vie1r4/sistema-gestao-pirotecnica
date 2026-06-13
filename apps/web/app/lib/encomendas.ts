@@ -19,6 +19,8 @@ export const TODOS_ESTADOS = [...ESTADOS_ENCOMENDA] as const;
 export type Encomenda = {
   id: string;
   clienteId: string;
+  /** Nome / designação do evento ou encomenda. */
+  nome?: string;
   estado: EstadoEncomenda;
   dataCriacao: string;
   dataEntrega?: string;
@@ -86,6 +88,7 @@ export function podeEditarEncomenda(
 export type EncomendaLinha = {
   id: string;
   clienteId: string;
+  nome?: string;
   estado: EstadoEncomenda | string;
   dataCriacao: string;
   dataEntrega?: string;
@@ -100,9 +103,11 @@ export function mapApiToEncomendaLinha(e: Record<string, unknown>): EncomendaLin
   const dataCriacao = e.dataCriacao ?? e.DataCriacao;
   const dataEntrega = e.dataEntrega ?? e.DataEntrega;
   const cliente = (e.cliente ?? e.Cliente) as { nome?: string } | undefined;
+  const nomeRaw = e.nome ?? e.Nome;
   return {
     id: String(id ?? ""),
     clienteId: String(clienteId ?? ""),
+    nome: typeof nomeRaw === "string" && nomeRaw.trim() ? nomeRaw.trim() : undefined,
     estado: String(estadoVal),
     dataCriacao: typeof dataCriacao === "string" ? dataCriacao : new Date().toISOString(),
     dataEntrega: dataEntrega ? (typeof dataEntrega === "string" ? dataEntrega : "") : undefined,
@@ -135,6 +140,10 @@ export function mapApiToEncomendaDetalhe(data: Record<string, unknown>): Encomen
   return {
     id: String(get("id") ?? ""),
     clienteId: String(get("clienteId") ?? ""),
+    nome: (() => {
+      const n = get("nome");
+      return typeof n === "string" && n.trim() ? n.trim() : undefined;
+    })(),
     estado: (get("estado") ?? "Pendente") as EstadoEncomenda,
     dataCriacao: dataCriacao ? (typeof dataCriacao === "string" ? dataCriacao : new Date(dataCriacao as string).toISOString()) : new Date().toISOString(),
     dataEntrega: dataEntrega ? (typeof dataEntrega === "string" ? dataEntrega : new Date(dataEntrega as string).toISOString().slice(0, 10)) : undefined,

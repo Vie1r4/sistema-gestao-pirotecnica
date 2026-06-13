@@ -28,6 +28,8 @@ import {
 import {
   mapFuncionariosServico,
   membrosEquipaParaZonas,
+  ensureCoordenadorNaEquipa,
+  validarCoordenadorNaEquipa,
 } from "@/app/lib/servicosFuncionariosForm";
 import { labelClass, btnPrimary, btnSecondary, inputClassCompact as inputClass } from "@/app/components/ui/tokens";
 
@@ -96,7 +98,10 @@ export default function EditarServicoPage() {
           : z
       )
     );
-  }, [equipaIds]);
+    if (coordenadorPirotecnicoId && !equipaIds.has(coordenadorPirotecnicoId)) {
+      setCoordenadorPirotecnicoId("");
+    }
+  }, [equipaIds, coordenadorPirotecnicoId]);
 
   const servico: ServicoDetalhe | null | undefined = editData
     ? (() => {
@@ -149,12 +154,17 @@ export default function EditarServicoPage() {
     setCidade(String(s.cidade ?? s.Cidade ?? ""));
     setMunicipio(String(s.municipio ?? s.Municipio ?? ""));
     setPublicoPrivado((s.publicoPrivado ?? s.PublicoPrivado) as PublicoPrivado ?? "");
-    setCoordenadorPirotecnicoId(
+    const coordId =
       (s.coordenadorPirotecnicoId ?? s.CoordenadorPirotecnicoId) != null
         ? String(s.coordenadorPirotecnicoId ?? s.CoordenadorPirotecnicoId)
-        : ""
-    );
-    setEquipaIds(new Set((editData.equipaIds ?? []).map(String)));
+        : "";
+    const equipaInicial = new Set((editData.equipaIds ?? []).map(String));
+    const { equipaIds: equipaComCoord, coordenadorPirotecnicoId: coordFinal } = ensureCoordenadorNaEquipa({
+      equipaIds: equipaInicial,
+      coordenadorPirotecnicoId: coordId,
+    });
+    setCoordenadorPirotecnicoId(coordFinal);
+    setEquipaIds(equipaComCoord);
     setObservacoes(String(s.observacoes ?? s.Observacoes ?? ""));
 
     if (!zonasLoadedRef.current) {
@@ -169,13 +179,15 @@ export default function EditarServicoPage() {
     }
   }, [editData]);
 
-  const toggleEquipa = (fid: string) => {
-    setEquipaIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(fid)) next.delete(fid);
-      else next.add(fid);
-      return next;
-    });
+  const handleEquipaCoordenadorChange = ({
+    equipaIds: nextEquipa,
+    coordenadorPirotecnicoId: nextCoord,
+  }: {
+    equipaIds: Set<string>;
+    coordenadorPirotecnicoId: string;
+  }) => {
+    setEquipaIds(nextEquipa);
+    setCoordenadorPirotecnicoId(nextCoord);
   };
 
   const mutation = useMutation({
@@ -210,6 +222,11 @@ export default function EditarServicoPage() {
     const erroZonas = validarZonasForm(zonas, itensEncomenda);
     if (erroZonas) {
       setErro(erroZonas);
+      return;
+    }
+    const erroCoordenador = validarCoordenadorNaEquipa(coordenadorPirotecnicoId, equipaIds);
+    if (erroCoordenador) {
+      setErro(erroCoordenador);
       return;
     }
     const body: servicosApi.ServicoSaveRequest = {
@@ -360,10 +377,8 @@ export default function EditarServicoPage() {
                 <ServicoFuncionariosFields
                   inputClass={inputClass}
                   funcionarios={funcionarios}
-                  coordenadorPirotecnicoId={coordenadorPirotecnicoId}
-                  equipaIds={equipaIds}
-                  onCoordenadorChange={setCoordenadorPirotecnicoId}
-                  onToggleEquipa={toggleEquipa}
+                  state={{ equipaIds, coordenadorPirotecnicoId }}
+                  onStateChange={handleEquipaCoordenadorChange}
                 />
 
                 <div>

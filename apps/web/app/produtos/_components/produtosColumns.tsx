@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   textoClassificacao,
-  textoGrupo,
+  textoCategoria,
   textoFiltroTecnico,
   textoCalibre,
   type Produto,
@@ -26,10 +26,10 @@ export function produtosCatalogColumns(): ColumnDef<Produto, unknown>[] {
       enableSorting: true,
     },
     {
-      accessorKey: "grupoCompatibilidade",
-      header: "Grupo",
+      accessorKey: "categoria",
+      header: "Categoria",
       cell: ({ getValue }) => (
-        <span className={`whitespace-nowrap ${mutedCell}`}>{textoGrupo(getValue() as string)}</span>
+        <span className={`whitespace-nowrap ${mutedCell}`}>{textoCategoria(getValue() as string)}</span>
       ),
       enableSorting: true,
     },
@@ -98,10 +98,10 @@ export function produtosGerirColumns(): ColumnDef<Produto, unknown>[] {
       enableSorting: true,
     },
     {
-      accessorKey: "grupoCompatibilidade",
-      header: "Grupo",
+      accessorKey: "categoria",
+      header: "Categoria",
       cell: ({ getValue }) => (
-        <span className={`whitespace-nowrap ${mutedCell}`}>{textoGrupo(getValue() as string)}</span>
+        <span className={`whitespace-nowrap ${mutedCell}`}>{textoCategoria(getValue() as string)}</span>
       ),
       enableSorting: true,
     },

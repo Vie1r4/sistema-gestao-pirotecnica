@@ -11,7 +11,7 @@ public interface IProdutoRepository
     Task<IReadOnlyList<Produto>> SearchAsync(
         string? pesquisa,
         string? classificacao,
-        string? grupoCompatibilidade,
+        string? categoria,
         string? filtroTecnico,
         string? calibre,
         CancellationToken cancellationToken = default);

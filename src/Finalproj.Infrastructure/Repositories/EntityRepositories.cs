@@ -89,7 +89,7 @@ public sealed class ProdutoRepository(FinalprojContext context) : IProdutoReposi
     public async Task<IReadOnlyList<Produto>> SearchAsync(
         string? pesquisa,
         string? classificacao,
-        string? grupoCompatibilidade,
+        string? categoria,
         string? filtroTecnico,
         string? calibre,
         CancellationToken cancellationToken = default)
@@ -99,8 +99,8 @@ public sealed class ProdutoRepository(FinalprojContext context) : IProdutoReposi
             query = query.Where(p => p.Nome.Contains(pesquisa));
         if (!string.IsNullOrEmpty(classificacao))
             query = query.Where(p => p.FamiliaRisco == classificacao);
-        if (!string.IsNullOrEmpty(grupoCompatibilidade))
-            query = query.Where(p => p.GrupoCompatibilidade == grupoCompatibilidade);
+        if (!string.IsNullOrEmpty(categoria))
+            query = query.Where(p => p.Categoria == categoria);
         if (!string.IsNullOrEmpty(filtroTecnico))
             query = query.Where(p => p.FiltroTecnico == filtroTecnico);
         if (!string.IsNullOrEmpty(calibre))

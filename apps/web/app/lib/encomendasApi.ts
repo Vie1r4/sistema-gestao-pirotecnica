@@ -78,7 +78,7 @@ export async function fetchAdicionarItens(
   filtros: {
     pesquisa?: string;
     classificacao?: string;
-    grupoCompatibilidade?: string;
+    categoria?: string;
     filtroTecnico?: string;
     calibre?: string;
   } = {}
@@ -92,7 +92,7 @@ export async function fetchAdicionarItens(
   const params = new URLSearchParams({ clienteId: String(clienteId) });
   if (filtros.pesquisa) params.set("pesquisa", filtros.pesquisa);
   if (filtros.classificacao) params.set("classificacao", filtros.classificacao);
-  if (filtros.grupoCompatibilidade) params.set("grupoCompatibilidade", filtros.grupoCompatibilidade);
+  if (filtros.categoria) params.set("categoria", filtros.categoria);
   if (filtros.filtroTecnico) params.set("filtroTecnico", filtros.filtroTecnico);
   if (filtros.calibre) params.set("calibre", filtros.calibre);
   const res = await fetch(`${apiPath("api/encomendas")}/adicionar-itens?${params}`, {
@@ -145,7 +145,7 @@ export async function postAdicionarItem(
     quantidade: number;
     pesquisa?: string;
     classificacao?: string;
-    grupoCompatibilidade?: string;
+    categoria?: string;
     filtroTecnico?: string;
     calibre?: string;
   }
@@ -156,7 +156,7 @@ export async function postAdicionarItem(
   q.set("quantidade", String(params.quantidade));
   if (params.pesquisa) q.set("pesquisa", params.pesquisa);
   if (params.classificacao) q.set("classificacao", params.classificacao);
-  if (params.grupoCompatibilidade) q.set("grupoCompatibilidade", params.grupoCompatibilidade);
+  if (params.categoria) q.set("categoria", params.categoria);
   if (params.filtroTecnico) q.set("filtroTecnico", params.filtroTecnico);
   if (params.calibre) q.set("calibre", params.calibre);
   const res = await fetch(`${apiPath("api/encomendas")}/adicionar-item?${q}`, {
@@ -188,7 +188,7 @@ export async function postAdicionarCompilado(
     quantidade: number;
     pesquisa?: string;
     classificacao?: string;
-    grupoCompatibilidade?: string;
+    categoria?: string;
     filtroTecnico?: string;
     calibre?: string;
   }
@@ -199,7 +199,7 @@ export async function postAdicionarCompilado(
   q.set("quantidade", String(params.quantidade));
   if (params.pesquisa) q.set("pesquisa", params.pesquisa);
   if (params.classificacao) q.set("classificacao", params.classificacao);
-  if (params.grupoCompatibilidade) q.set("grupoCompatibilidade", params.grupoCompatibilidade);
+  if (params.categoria) q.set("categoria", params.categoria);
   if (params.filtroTecnico) q.set("filtroTecnico", params.filtroTecnico);
   if (params.calibre) q.set("calibre", params.calibre);
   const res = await fetch(`${apiPath("api/encomendas")}/adicionar-compilado?${q}`, {
@@ -230,7 +230,7 @@ export async function postRemoverItem(
     produtoId: number;
     pesquisa?: string;
     classificacao?: string;
-    grupoCompatibilidade?: string;
+    categoria?: string;
     filtroTecnico?: string;
     calibre?: string;
   }
@@ -240,7 +240,7 @@ export async function postRemoverItem(
   q.set("produtoId", String(params.produtoId));
   if (params.pesquisa) q.set("pesquisa", params.pesquisa);
   if (params.classificacao) q.set("classificacao", params.classificacao);
-  if (params.grupoCompatibilidade) q.set("grupoCompatibilidade", params.grupoCompatibilidade);
+  if (params.categoria) q.set("categoria", params.categoria);
   if (params.filtroTecnico) q.set("filtroTecnico", params.filtroTecnico);
   if (params.calibre) q.set("calibre", params.calibre);
   const res = await fetch(`${apiPath("api/encomendas")}/remover-item?${q}`, {

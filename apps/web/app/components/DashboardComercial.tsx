@@ -248,9 +248,10 @@ export default function DashboardComercial({
                       className="flex items-center justify-between gap-3 px-6 py-4 text-sm transition-colors hover:bg-[#fafaf9] dark:hover:bg-[#111]"
                     >
                       <span className="font-medium text-[#1c1917] dark:text-white">
-                        #{enc.id}
+                        {enc.nome?.trim() || `#${enc.id}`}
                       </span>
                       <span className="truncate text-[#57534e] dark:text-[#a3a3a3]">
+                        {enc.nome?.trim() ? `#${enc.id} · ` : ""}
                         {enc.clienteNome ?? `Cliente ${enc.clienteId}`}
                       </span>
                       <span

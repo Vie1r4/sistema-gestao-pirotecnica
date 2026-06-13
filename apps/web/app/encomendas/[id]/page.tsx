@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -56,6 +56,14 @@ export default function EncomendaDetalhePage() {
 
   const numId = parseInt(id, 10);
   const validId = !Number.isNaN(numId);
+
+  // Após ações noutras páginas (ex.: registar preparação), forçar dados frescos ao voltar.
+  useEffect(() => {
+    if (preparacao || rejeitada) {
+      void queryClient.invalidateQueries({ queryKey: ["encomendas", id] });
+      void queryClient.invalidateQueries({ queryKey: ["encomendas"] });
+    }
+  }, [preparacao, rejeitada, id, queryClient]);
 
   const {
     data: encomenda,
@@ -213,9 +221,12 @@ export default function EncomendaDetalhePage() {
           >
             <div>
               <h1 className="font-heading text-2xl tracking-tight sm:text-3xl">
-                Encomenda #{encomenda.id}
+                {encomenda.nome?.trim() ? encomenda.nome.trim() : `Encomenda #${encomenda.id}`}
               </h1>
               <p className="mt-1 flex flex-wrap items-center gap-2 text-[#57534e] dark:text-gray-400">
+                {encomenda.nome?.trim() && (
+                  <span>N.º {encomenda.id} · </span>
+                )}
                 Cliente:{" "}
                 {cliente ? (
                   <ReferenciaIndisponivel
@@ -264,6 +275,12 @@ export default function EncomendaDetalhePage() {
               Cliente e datas
             </h2>
             <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+              {encomenda.nome?.trim() && (
+                <div className="sm:col-span-2">
+                  <dt className={labelClass}>Encomenda</dt>
+                  <dd className={valueClass}>{encomenda.nome.trim()}</dd>
+                </div>
+              )}
               <div>
                 <dt className={labelClass}>Cliente</dt>
                 <dd className={valueClass}>

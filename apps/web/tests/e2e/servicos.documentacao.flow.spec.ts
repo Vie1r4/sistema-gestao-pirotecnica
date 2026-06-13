@@ -138,15 +138,18 @@ test.describe("Serviços/Documentação E2E", () => {
       });
     });
 
+    await page.route("**/api/servicos/1/documentos-extras/55", async (route) => {
+      if (route.request().method() === "DELETE") {
+        removeChamado = true;
+        await route.fulfill({ status: 204, body: "" });
+        return;
+      }
+      await route.fallback();
+    });
+
     await page.route("**/api/servicos/1", async (route) => {
-      if (route.request().method() === "PUT") {
-        const raw = route.request().postData() ?? "";
-        if (raw.includes("RemoverDocumentoExtraIds") && raw.includes("55")) removeChamado = true;
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({ ok: true }),
-        });
+      if (route.request().method() !== "GET") {
+        await route.fallback();
         return;
       }
 

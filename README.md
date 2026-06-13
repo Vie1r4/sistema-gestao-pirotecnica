@@ -92,7 +92,7 @@ Ver [Docs/TESTES.md](Docs/TESTES.md).
 O JWT e credenciais de email **não** devem estar em `appsettings.json`. Use **User Secrets** em desenvolvimento:
 
 ```bash
-cd C:\Users\shovi\source\repos\Finalproj
+cd <raiz-do-projeto>
 dotnet user-secrets set "Jwt:Secret" "sua-chave-secreta-longa-com-pelo-menos-32-caracteres" --project src/Finalproj.Api/Finalproj.Api.csproj
 dotnet user-secrets set "Jwt:Issuer" "Finalproj" --project src/Finalproj.Api/Finalproj.Api.csproj
 dotnet user-secrets set "Jwt:Audience" "FinalprojUsers" --project src/Finalproj.Api/Finalproj.Api.csproj
@@ -130,7 +130,7 @@ O backend inclui um serviço automático de backups SQL Server (`BackgroundServi
 ### 1. Backend
 
 ```bash
-cd C:\Users\shovi\source\repos\Finalproj
+cd <raiz-do-projeto>
 dotnet run --project src/Finalproj.Api/Finalproj.Api.csproj
 ```
 

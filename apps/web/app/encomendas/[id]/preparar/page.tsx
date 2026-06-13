@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
 import { getToken } from "@/app/lib/auth";
@@ -22,6 +23,7 @@ type PaiolPreparar = { id: string; nome: string };
 export default function PrepararEncomendaPage() {
   const params = useParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const id = params.id as string;
   const [mounted, setMounted] = useState(false);
   const [retiradas, setRetiradas] = useState<Record<string, Record<string, number>>>({});
@@ -81,7 +83,18 @@ export default function PrepararEncomendaPage() {
     }
     fetchPreparar(token, idNum)
       .then((data) => {
+        const dataAny = data as unknown as Record<string, unknown>;
+        const erroApi = dataAny.error ?? dataAny.Error;
+        if (typeof erroApi === "string" && erroApi.trim()) {
+          setApiData(null);
+          setErro(erroApi);
+          return;
+        }
         const enc = data.encomenda as Record<string, unknown>;
+        if (!enc || typeof enc !== "object") {
+          setApiData(null);
+          return;
+        }
         const itensRaw = enc?.itens ?? enc?.Itens ?? [];
         const itens: ItemPreparar[] = Array.isArray(itensRaw)
           ? itensRaw.map((i: Record<string, unknown>) => {
@@ -97,7 +110,6 @@ export default function PrepararEncomendaPage() {
               };
             })
           : [];
-        const dataAny = data as unknown as Record<string, unknown>;
         const paioisRaw = (dataAny["paióis"] ?? dataAny["paiois"] ?? []) as unknown;
         const paioisMapped: PaiolPreparar[] = Array.isArray(paioisRaw)
           ? paioisRaw.map((p: { id?: number; nome?: string }) => ({ id: String(p.id ?? ""), nome: String(p.nome ?? "") }))
@@ -203,10 +215,10 @@ export default function PrepararEncomendaPage() {
         <Navbar />
         <main  className="p-8 pt-content-offset">
           <p className="text-gray-600 dark:text-gray-400">
-            Encomenda não encontrada ou estado não permite preparação (tem de estar Aceite).
+            {erro ?? "Encomenda não encontrada ou estado não permite preparação (tem de estar Aceite)."}
           </p>
-          <Link href="/encomendas" className="mt-4 inline-block text-[#f97316] hover:underline">
-            ← Voltar às Encomendas
+          <Link href={`/encomendas/${id}`} className="mt-4 inline-block text-[#f97316] hover:underline">
+            ← Voltar à encomenda
           </Link>
         </main>
       </div>
@@ -243,6 +255,8 @@ export default function PrepararEncomendaPage() {
     setSubmitting(true);
     try {
       await postRegistarPreparacao(token, idNum, listaApi);
+      await queryClient.invalidateQueries({ queryKey: ["encomendas", id] });
+      await queryClient.invalidateQueries({ queryKey: ["encomendas"] });
       router.push(`/encomendas/${id}?preparacao=1`);
     } catch (err) {
       const raw = err instanceof Error ? err.message : "Erro ao registar preparação.";

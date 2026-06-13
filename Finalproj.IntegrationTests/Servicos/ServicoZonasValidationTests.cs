@@ -57,7 +57,9 @@ public class ServicoZonasValidationTests : IntegrationTestBase
                         {
                             data = DateTime.Today.ToString("yyyy-MM-dd"),
                             produtoId,
-                            quantidade = 15m
+                            quantidade = 15m,
+                            horaInicio = "22:00:00",
+                            horaFim = "22:30:00"
                         }
                     }
                 }

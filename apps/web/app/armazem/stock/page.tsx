@@ -5,13 +5,13 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
-import { textoClassificacao, textoGrupo, textoFiltroTecnico, textoCalibre, CLASSIFICACOES_RISCO, GRUPOS_COMPATIBILIDADE, FILTROS_TECNICOS, CALIBRES } from "@/app/lib/produtos";
+import { textoClassificacao, textoCategoria, textoFiltroTecnico, textoCalibre, CLASSIFICACOES_RISCO, CATEGORIAS_PIROTECNICAS, FILTROS_TECNICOS, CALIBRES } from "@/app/lib/produtos";
 import { getToken } from "@/app/lib/auth";
 import { fetchStock } from "@/app/lib/paiolApi";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";
 import { inputClassSearch as inputClass } from "@/app/components/ui/tokens";
 
-type ProdutoLinha = { id: string; nome: string; familiaRisco?: string; grupoCompatibilidade?: string; filtroTecnico?: string; calibre?: string; nemPorUnidade: number };
+type ProdutoLinha = { id: string; nome: string; familiaRisco?: string; categoria?: string; filtroTecnico?: string; calibre?: string; nemPorUnidade: number };
 
 function mapStockData(data: Awaited<ReturnType<typeof fetchStock>>): {
   items: ProdutoLinha[];
@@ -26,7 +26,7 @@ function mapStockData(data: Awaited<ReturnType<typeof fetchStock>>): {
       id: String(id ?? ""),
       nome: String(nome ?? ""),
       familiaRisco: (p.familiaRisco ?? p.FamiliaRisco) as string | undefined,
-      grupoCompatibilidade: (p.grupoCompatibilidade ?? p.GrupoCompatibilidade) as string | undefined,
+      categoria: (p.categoria ?? p.Categoria) as string | undefined,
       filtroTecnico: (p.filtroTecnico ?? p.FiltroTecnico) as string | undefined,
       calibre: (p.calibre ?? p.Calibre) as string | undefined,
       nemPorUnidade: Number(nem ?? 0),
@@ -42,7 +42,7 @@ function StockContent() {
   const [mounted, setMounted] = useState(false);
   const [pesquisa, setPesquisa] = useState("");
   const [classificacao, setClassificacao] = useState("");
-  const [grupoCompatibilidade, setGrupoCompatibilidade] = useState("");
+  const [categoria, setCategoria] = useState("");
   const [filtroTecnico, setFiltroTecnico] = useState("");
   const [calibre, setCalibre] = useState("");
   const token = getToken();
@@ -55,11 +55,11 @@ function StockContent() {
     () => ({
       pesquisa: pesquisa || undefined,
       classificacao: classificacao || undefined,
-      grupoCompatibilidade: grupoCompatibilidade || undefined,
+      categoria: categoria || undefined,
       filtroTecnico: filtroTecnico || undefined,
       calibre: calibre || undefined,
     }),
-    [pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre]
+    [pesquisa, classificacao, categoria, filtroTecnico, calibre]
   );
 
   const { data: apiData, isLoading: loadingApi } = useQuery({
@@ -86,7 +86,7 @@ function StockContent() {
   const produtos: ProdutoLinha[] = apiData?.items ?? [];
   const stockPorProduto = apiData?.stockMap ?? new Map<string, number>();
 
-  const temFiltros = pesquisa || classificacao || grupoCompatibilidade || filtroTecnico || calibre;
+  const temFiltros = pesquisa || classificacao || categoria || filtroTecnico || calibre;
 
   return (
     <div className="min-h-screen bg-[#f8f7f5] text-[#1c1917] dark:bg-[#0a0a0a] dark:text-white">
@@ -159,18 +159,18 @@ function StockContent() {
                 </select>
               </div>
               <div>
-                <label htmlFor="grupo" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Grupo compatibilidade
+                <label htmlFor="categoria" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Categoria
                 </label>
                 <select
-                  id="grupo"
-                  value={grupoCompatibilidade}
-                  onChange={(e) => setGrupoCompatibilidade(e.target.value)}
+                  id="categoria"
+                  value={categoria}
+                  onChange={(e) => setCategoria(e.target.value)}
                   className={`${inputClass} mt-1 w-full`}
                 >
-                  <option value="">Todos</option>
-                  {GRUPOS_COMPATIBILIDADE.map((g) => (
-                    <option key={g.value} value={g.value}>{g.text}</option>
+                  <option value="">Todas</option>
+                  {CATEGORIAS_PIROTECNICAS.map((c) => (
+                    <option key={c.value} value={c.value}>{c.text}</option>
                   ))}
                 </select>
               </div>
@@ -213,7 +213,7 @@ function StockContent() {
                 onClick={() => {
                   setPesquisa("");
                   setClassificacao("");
-                  setGrupoCompatibilidade("");
+                  setCategoria("");
                   setFiltroTecnico("");
                   setCalibre("");
                 }}
@@ -236,7 +236,7 @@ function StockContent() {
                     <p className="font-medium text-[#1c1917] dark:text-white">{pr.nome}</p>
                     <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#57534e] dark:text-gray-400">
                       <span>Risco: {textoClassificacao(pr.familiaRisco ?? "")}</span>
-                      <span>Grupo: {textoGrupo(pr.grupoCompatibilidade ?? "")}</span>
+                      <span>Categoria: {textoCategoria(pr.categoria ?? "")}</span>
                       <span>NEM: {pr.nemPorUnidade} kg/un</span>
                       <span className="font-medium text-[#1c1917] dark:text-white">Stock: {stockPorProduto.get(pr.id) ?? 0}</span>
                     </div>
@@ -250,7 +250,7 @@ function StockContent() {
                     <tr className="border-b border-[#e7e5e4] dark:border-[#222]">
                       <th className="whitespace-nowrap pb-2 pr-4 font-semibold text-[#444] dark:text-gray-300">Nome</th>
                       <th className="whitespace-nowrap pb-2 pr-4 font-semibold text-[#444] dark:text-gray-300">Classif. risco</th>
-                      <th className="whitespace-nowrap pb-2 pr-4 font-semibold text-[#444] dark:text-gray-300">Grupo</th>
+                      <th className="whitespace-nowrap pb-2 pr-4 font-semibold text-[#444] dark:text-gray-300">Categoria</th>
                       <th className="whitespace-nowrap pb-2 pr-4 font-semibold text-[#444] dark:text-gray-300">Filtro técn.</th>
                       <th className="whitespace-nowrap pb-2 pr-4 font-semibold text-[#444] dark:text-gray-300">Calibre</th>
                       <th className="whitespace-nowrap pb-2 pr-4 font-semibold text-[#444] dark:text-gray-300">NEM (kg/un)</th>
@@ -265,7 +265,7 @@ function StockContent() {
                       >
                         <td className="py-2 pr-4 font-medium text-[#1c1917] dark:text-white">{pr.nome}</td>
                         <td className="whitespace-nowrap py-2 pr-4 text-[#57534e] dark:text-gray-400">{textoClassificacao(pr.familiaRisco ?? "")}</td>
-                        <td className="whitespace-nowrap py-2 pr-4 text-[#57534e] dark:text-gray-400">{textoGrupo(pr.grupoCompatibilidade ?? "")}</td>
+                        <td className="whitespace-nowrap py-2 pr-4 text-[#57534e] dark:text-gray-400">{textoCategoria(pr.categoria ?? "")}</td>
                         <td className="whitespace-nowrap py-2 pr-4 text-[#57534e] dark:text-gray-400">{textoFiltroTecnico(pr.filtroTecnico ?? "")}</td>
                         <td className="whitespace-nowrap py-2 pr-4 text-[#57534e] dark:text-gray-400">{textoCalibre(pr.calibre ?? "")}</td>
                         <td className="whitespace-nowrap py-2 pr-4 text-[#57534e] dark:text-gray-400">{pr.nemPorUnidade}</td>

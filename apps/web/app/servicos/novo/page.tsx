@@ -19,6 +19,7 @@ import { labelClass, btnPrimary, btnSecondary, inputClassCompact as inputClass }
 import {
   mapFuncionariosServico,
   membrosEquipaParaZonas,
+  validarCoordenadorNaEquipa,
 } from "@/app/lib/servicosFuncionariosForm";
 import {
   createDefaultZonasFromItens,
@@ -101,7 +102,10 @@ function NovoServicoContent() {
           : z
       )
     );
-  }, [equipaIds]);
+    if (coordenadorPirotecnicoId && !equipaIds.has(coordenadorPirotecnicoId)) {
+      setCoordenadorPirotecnicoId("");
+    }
+  }, [equipaIds, coordenadorPirotecnicoId]);
 
   useEffect(() => {
     const sug = createData?.servico?.nomeEventoSugerido;
@@ -150,13 +154,15 @@ function NovoServicoContent() {
     return () => clearTimeout(t);
   }, [encomendaIdParam, encomendaId]);
 
-  const toggleEquipa = (id: string) => {
-    setEquipaIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const handleEquipaCoordenadorChange = ({
+    equipaIds: nextEquipa,
+    coordenadorPirotecnicoId: nextCoord,
+  }: {
+    equipaIds: Set<string>;
+    coordenadorPirotecnicoId: string;
+  }) => {
+    setEquipaIds(nextEquipa);
+    setCoordenadorPirotecnicoId(nextCoord);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -179,6 +185,11 @@ function NovoServicoContent() {
     const erroZonas = validarZonasForm(zonas, itensEncomenda);
     if (erroZonas) {
       setErro(erroZonas);
+      return;
+    }
+    const erroCoordenador = validarCoordenadorNaEquipa(coordenadorPirotecnicoId, equipaIds);
+    if (erroCoordenador) {
+      setErro(erroCoordenador);
       return;
     }
     const body: servicosApi.ServicoSaveRequest = {
@@ -315,10 +326,8 @@ function NovoServicoContent() {
                 <ServicoFuncionariosFields
                   inputClass={inputClass}
                   funcionarios={funcionarios}
-                  coordenadorPirotecnicoId={coordenadorPirotecnicoId}
-                  equipaIds={equipaIds}
-                  onCoordenadorChange={setCoordenadorPirotecnicoId}
-                  onToggleEquipa={toggleEquipa}
+                  state={{ equipaIds, coordenadorPirotecnicoId }}
+                  onStateChange={handleEquipaCoordenadorChange}
                 />
 
                 <div>

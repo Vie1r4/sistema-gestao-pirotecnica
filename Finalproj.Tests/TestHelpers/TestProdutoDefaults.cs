@@ -8,7 +8,7 @@ namespace Finalproj.Tests.TestHelpers;
 public static class TestProdutoDefaults
 {
     public const string FiltroTecnico = "Baterias";
-    public const string Calibre = "BateriasPadrao";
+    public const string Calibre = "20_25_30MM";
     public const string Categoria = "F2";
     public const string GrupoCompatibilidade = "G";
     public const int DistanciaSegurancaPublico_m = 50;

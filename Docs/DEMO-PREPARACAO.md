@@ -16,7 +16,7 @@ Guia para **instalar, popular dados manualmente e ensaiar** o PIROFAFE antes da 
 ### Segredos obrigatórios
 
 ```powershell
-cd C:\Users\shovi\source\repos\Finalproj
+cd <raiz-do-projeto>
 dotnet user-secrets set "Jwt:Secret" "sua-chave-secreta-longa-com-pelo-menos-32-caracteres" --project src/Finalproj.Api/Finalproj.Api.csproj
 dotnet user-secrets set "Frontend:BaseUrl" "http://localhost:3000" --project src/Finalproj.Api/Finalproj.Api.csproj
 ```

@@ -15,27 +15,39 @@ export const GRUPOS_COMPATIBILIDADE: { value: string; text: string }[] = [
 ];
 
 export const FILTROS_TECNICOS: { value: string; text: string }[] = [
-  { value: "Baterias", text: "Baterias (Cakes)" },
-  { value: "BombasArremesso", text: "Bombas de Arremesso (Shells)" },
-  { value: "Morteiros", text: "Morteiros (Mortars)" },
-  { value: "Foguetes", text: "Foguetes (Rockets)" },
+  { value: "Baterias", text: "Baterias" },
+  { value: "BombasArremesso", text: "Bombas de Arremesso" },
+  { value: "Morteiros", text: "Morteiros" },
+  { value: "Foguetes", text: "Foguetes" },
   { value: "Cascatas", text: "Cascatas / Fontes" },
-  { value: "Bengalas", text: "Bengalas (Sparklers)" },
-  { value: "Candelas", text: "Candelas (Roman Candles)" },
-  { value: "Monotiros", text: "Monotiros (Single Shots)" },
+  { value: "Bengalas", text: "Bengalas" },
+  { value: "Candelas", text: "Candelas" },
+  { value: "Monotiros", text: "Monotiros" },
   { value: "GerbsVulcoes", text: "Gerbs / Vulcões" },
 ];
 
-/** Categoria pirotécnica (F1–F4, FP) para declaração PSP. */
-export const CATEGORIAS_PIROTECNICAS = ["F1", "F2", "F3", "F4", "FP"] as const;
-export type CategoriaPirotecnica = (typeof CATEGORIAS_PIROTECNICAS)[number];
+/** Categorias pirotécnicas (declaração PSP). */
+export const CATEGORIAS_PIROTECNICAS: { value: string; text: string }[] = [
+  { value: "F1", text: "F1" },
+  { value: "F2", text: "F2" },
+  { value: "F3", text: "F3" },
+  { value: "F4", text: "F4" },
+  { value: "T1", text: "T1" },
+  { value: "T2", text: "T2" },
+  { value: "P1", text: "P1" },
+  { value: "P2", text: "P2" },
+  { value: "FP", text: "FP — Fabrico próprio" },
+];
+export type CategoriaPirotecnica = (typeof CATEGORIAS_PIROTECNICAS)[number]["value"];
 
 export const CALIBRES: { value: string; text: string }[] = [
-  { value: "MuitoPequeno", text: "< 20 mm" },
-  { value: "BateriasPadrao", text: "20–30 mm" },
-  { value: "BombasPequenas", text: "50–75 mm" },
-  { value: "BombasMedias", text: "100–125 mm" },
-  { value: "BombasGrandes", text: "> 150 mm" },
+  { value: "20_25_30MM", text: "20/25/30MM" },
+  { value: "50MM", text: "50MM" },
+  { value: "65MM", text: "65MM" },
+  { value: "75MM", text: "75MM" },
+  { value: "100MM", text: "100MM" },
+  { value: "120MM", text: "120MM" },
+  { value: "150MM", text: "150MM" },
 ];
 
 export type Produto = {
@@ -105,5 +117,11 @@ export function textoFiltroTecnico(valor: string | undefined): string {
 export function textoCalibre(valor: string | undefined): string {
   if (!valor) return "—";
   const c = CALIBRES.find((x) => x.value === valor);
+  return c?.text ?? valor;
+}
+
+export function textoCategoria(valor: string | undefined): string {
+  if (!valor) return "—";
+  const c = CATEGORIAS_PIROTECNICAS.find((x) => x.value === valor);
   return c?.text ?? valor;
 }

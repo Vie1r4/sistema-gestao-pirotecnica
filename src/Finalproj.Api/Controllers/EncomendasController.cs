@@ -151,7 +151,7 @@ public class EncomendasController : ControllerBase
         int clienteId,
         string? pesquisa,
         string? classificacao,
-        string? grupoCompatibilidade,
+        string? categoria,
         string? filtroTecnico,
         string? calibre,
         CancellationToken cancellationToken = default)
@@ -165,7 +165,7 @@ public class EncomendasController : ControllerBase
             SetDraft(draft);
         }
 
-        return Ok(await _workflow.GetAdicionarItensDataAsync(clienteId, pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre, draft.Itens, cancellationToken));
+        return Ok(await _workflow.GetAdicionarItensDataAsync(clienteId, pesquisa, classificacao, categoria, filtroTecnico, calibre, draft.Itens, cancellationToken));
     }
 
     [HttpPost("adicionar-item")]
@@ -176,7 +176,7 @@ public class EncomendasController : ControllerBase
         decimal quantidade,
         string? pesquisa,
         string? classificacao,
-        string? grupoCompatibilidade,
+        string? categoria,
         string? filtroTecnico,
         string? calibre,
         CancellationToken cancellationToken = default)
@@ -211,7 +211,7 @@ public class EncomendasController : ControllerBase
         decimal quantidade,
         string? pesquisa,
         string? classificacao,
-        string? grupoCompatibilidade,
+        string? categoria,
         string? filtroTecnico,
         string? calibre,
         CancellationToken cancellationToken = default)
@@ -250,7 +250,7 @@ public class EncomendasController : ControllerBase
 
     [HttpPost("remover-item")]
     [Authorize(Policy = PoliticasAutorizacao.PodeGerirEncomendas)]
-    public IActionResult RemoverItem(int clienteId, int produtoId, string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre)
+    public IActionResult RemoverItem(int clienteId, int produtoId, string? pesquisa, string? classificacao, string? categoria, string? filtroTecnico, string? calibre)
     {
         var draft = GetDraft();
         if (draft != null && draft.ClienteId == clienteId)

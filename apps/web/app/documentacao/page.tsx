@@ -72,7 +72,7 @@ export default function DocumentacaoPage() {
     },
     onSuccess: async (res) => {
       setErroApi(null);
-      setMsgApi(`Declaração PSP gerada (licença #${res.licencaId}). A descarregar PDF…`);
+      setMsgApi('Declaração PSP gerada. A descarregar PDF…');
       queryClient.invalidateQueries({ queryKey: ["servicos", selectedServicoId] });
       const t = getToken();
       if (t) {

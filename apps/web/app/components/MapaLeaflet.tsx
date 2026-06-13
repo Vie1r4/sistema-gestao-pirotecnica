@@ -65,6 +65,27 @@ function limparContainerLeaflet(el: HTMLDivElement | null) {
   el.replaceChildren();
 }
 
+function isMapAlive(map: L.Map | null): map is L.Map {
+  if (!map) return false;
+  try {
+    const container = map.getContainer();
+    return Boolean(container?.isConnected);
+  } catch {
+    return false;
+  }
+}
+
+function destroyMap(map: L.Map | null) {
+  if (!map) return;
+  try {
+    map.stop();
+    map.off();
+    map.remove();
+  } catch {
+    // Mapa já destruído ou DOM inconsistente durante transição de zoom.
+  }
+}
+
 export default function MapaLeaflet({
   center = CENTRO_PT,
   zoom = ZOOM_DEFAULT,
@@ -84,36 +105,58 @@ export default function MapaLeaflet({
   const markersRef = useRef<L.Marker[]>([]);
   const circleRef = useRef<L.Circle | null>(null);
   const onMapClickRef = useRef(onMapClick);
+  const timeoutIdsRef = useRef<number[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   onMapClickRef.current = onMapClick;
 
+  const scheduleMapTask = useCallback((fn: () => void, delayMs: number) => {
+    const id = window.setTimeout(() => {
+      timeoutIdsRef.current = timeoutIdsRef.current.filter((x) => x !== id);
+      fn();
+    }, delayMs);
+    timeoutIdsRef.current.push(id);
+    return id;
+  }, []);
+
+  const clearScheduledTasks = useCallback(() => {
+    timeoutIdsRef.current.forEach((id) => window.clearTimeout(id));
+    timeoutIdsRef.current = [];
+  }, []);
+
   const toggleFullscreen = useCallback(() => {
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
-    const map = mapRef.current;
     if (!document.fullscreenElement) {
       wrapper.requestFullscreen?.().then(() => {
         setIsFullscreen(true);
-        setTimeout(() => map?.invalidateSize(), 100);
+        scheduleMapTask(() => {
+          if (isMapAlive(mapRef.current)) mapRef.current.invalidateSize();
+        }, 100);
       });
     } else {
       document.exitFullscreen?.().then(() => {
         setIsFullscreen(false);
-        setTimeout(() => map?.invalidateSize(), 100);
+        scheduleMapTask(() => {
+          if (isMapAlive(mapRef.current)) mapRef.current.invalidateSize();
+        }, 100);
       });
     }
-  }, []);
+  }, [scheduleMapTask]);
 
   useEffect(() => {
     const onFullscreenChange = () => {
       const full = Boolean(document.fullscreenElement);
       setIsFullscreen(full);
-      if (!full) setTimeout(() => mapRef.current?.invalidateSize(), 100);
+      if (!full) {
+        scheduleMapTask(() => {
+          if (isMapAlive(mapRef.current)) mapRef.current.invalidateSize();
+        }, 100);
+      }
     };
     document.addEventListener("fullscreenchange", onFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
-  }, []);
+  }, [scheduleMapTask]);
 
   const pontos = useMemo(() => {
     if (markers.length > 0) return markers;
@@ -145,31 +188,49 @@ export default function MapaLeaflet({
 
     mapRef.current = map;
 
-    const resize = () => map.invalidateSize();
-    const t1 = window.setTimeout(resize, 0);
-    const t2 = window.setTimeout(resize, 250);
+    scheduleMapTask(() => {
+      if (isMapAlive(map)) map.invalidateSize();
+    }, 0);
+    scheduleMapTask(() => {
+      if (isMapAlive(map)) map.invalidateSize();
+    }, 250);
 
     return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
+      clearScheduledTasks();
       map.off("click", clickHandler);
-      markersRef.current.forEach((m) => m.remove());
+      markersRef.current.forEach((m) => {
+        try {
+          m.remove();
+        } catch {
+          /* ignore */
+        }
+      });
       markersRef.current = [];
       if (circleRef.current) {
-        circleRef.current.remove();
+        try {
+          circleRef.current.remove();
+        } catch {
+          /* ignore */
+        }
         circleRef.current = null;
       }
-      map.remove();
+      destroyMap(map);
       mapRef.current = null;
       limparContainerLeaflet(container);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mapa criado uma vez por instância
-  }, []);
+  }, [clearScheduledTasks, scheduleMapTask]);
 
   useEffect(() => {
-    if (!mapRef.current) return;
     const map = mapRef.current;
-    markersRef.current.forEach((m) => m.remove());
+    if (!isMapAlive(map)) return;
+    markersRef.current.forEach((m) => {
+      try {
+        m.remove();
+      } catch {
+        /* ignore */
+      }
+    });
     markersRef.current = [];
     pontos.forEach((p) => {
       const marker = L.marker([p.lat, p.lng], { icon: createIcon(p.type) }).addTo(map);
@@ -179,9 +240,14 @@ export default function MapaLeaflet({
   }, [pontos]);
 
   useEffect(() => {
-    if (!mapRef.current) return;
+    const map = mapRef.current;
+    if (!isMapAlive(map)) return;
     if (circleRef.current) {
-      circleRef.current.remove();
+      try {
+        circleRef.current.remove();
+      } catch {
+        /* ignore */
+      }
       circleRef.current = null;
     }
     const hasCenter = lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng);
@@ -193,20 +259,24 @@ export default function MapaLeaflet({
         fillColor: "#f97316",
         fillOpacity: 0.15,
         weight: 2,
-      }).addTo(mapRef.current);
-      if (fitToRadius) {
-        mapRef.current.fitBounds(circleRef.current.getBounds(), { padding: [28, 28], maxZoom: 17 });
+      }).addTo(map);
+      if (fitToRadius && circleRef.current) {
+        map.fitBounds(circleRef.current.getBounds(), {
+          padding: [28, 28],
+          maxZoom: 17,
+          animate: false,
+        });
       }
     }
   }, [lat, lng, raioMetros, fitToRadius]);
 
   useEffect(() => {
-    if (!mapRef.current) return;
+    const map = mapRef.current;
+    if (!isMapAlive(map)) return;
     if (fitToRadius && raioMetros != null && raioMetros > 0) return;
     if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
-    const map = mapRef.current;
     const targetZoom = Math.max(map.getZoom(), 15);
-    map.setView([lat, lng], targetZoom, { animate: true });
+    map.setView([lat, lng], targetZoom, { animate: false });
   }, [lat, lng, fitToRadius, raioMetros]);
 
   const wrapClass = isFullscreen

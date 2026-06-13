@@ -13,7 +13,7 @@ import { useUser } from "@/app/context/UserContext";
 import {
   textoClassificacao,
   CLASSIFICACOES_RISCO,
-  GRUPOS_COMPATIBILIDADE,
+  CATEGORIAS_PIROTECNICAS,
   FILTROS_TECNICOS,
   CALIBRES,
   type Produto,
@@ -29,14 +29,14 @@ function ProdutosContent() {
   const canGerirProdutos = permissions.includes("produtos.gerir");
   const [pesquisa, setPesquisa] = useState("");
   const [classificacao, setClassificacao] = useState("");
-  const [grupoCompatibilidade, setGrupoCompatibilidade] = useState("");
+  const [categoria, setCategoria] = useState("");
   const [filtroTecnico, setFiltroTecnico] = useState("");
   const [calibre, setCalibre] = useState("");
 
   useEffect(() => {
     setPesquisa(searchParams.get("pesquisa") ?? "");
     setClassificacao(searchParams.get("classificacao") ?? "");
-    setGrupoCompatibilidade(searchParams.get("grupoCompatibilidade") ?? "");
+    setCategoria(searchParams.get("categoria") ?? "");
     setFiltroTecnico(searchParams.get("filtroTecnico") ?? "");
     setCalibre(searchParams.get("calibre") ?? "");
   }, [searchParams]);
@@ -47,14 +47,14 @@ function ProdutosContent() {
     isRefetching,
     error: queryError,
   } = useQuery({
-    queryKey: ["produtos", pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre],
+    queryKey: ["produtos", pesquisa, classificacao, categoria, filtroTecnico, calibre],
     queryFn: async (): Promise<Produto[]> => {
       const token = getToken();
       if (!token) return [];
       const r = await fetchList(token, {
         pesquisa,
         classificacao,
-        grupoCompatibilidade,
+        categoria,
         filtroTecnico,
         calibre,
       });
@@ -65,7 +65,7 @@ function ProdutosContent() {
     enabled: !!getToken(),
   });
 
-  const temFiltros = pesquisa || classificacao || grupoCompatibilidade || filtroTecnico || calibre;
+  const temFiltros = pesquisa || classificacao || categoria || filtroTecnico || calibre;
   const criado = searchParams.get("criado") === "1";
   const columns = useMemo(() => produtosCatalogColumns(), []);
 
@@ -73,7 +73,7 @@ function ProdutosContent() {
     const p = new URLSearchParams();
     if (pesquisa) p.set("pesquisa", pesquisa);
     if (classificacao) p.set("classificacao", classificacao);
-    if (grupoCompatibilidade) p.set("grupoCompatibilidade", grupoCompatibilidade);
+    if (categoria) p.set("categoria", categoria);
     if (filtroTecnico) p.set("filtroTecnico", filtroTecnico);
     if (calibre) p.set("calibre", calibre);
     return `/produtos?${p.toString()}`;
@@ -165,7 +165,7 @@ function ProdutosContent() {
             >
               <input type="hidden" name="pesquisa" value={pesquisa} />
               <input type="hidden" name="classificacao" value={classificacao} />
-              <input type="hidden" name="grupoCompatibilidade" value={grupoCompatibilidade} />
+              <input type="hidden" name="categoria" value={categoria} />
               <input type="hidden" name="filtroTecnico" value={filtroTecnico} />
               <input type="hidden" name="calibre" value={calibre} />
               <div>
@@ -198,18 +198,18 @@ function ProdutosContent() {
                 </select>
               </div>
               <div>
-                <label htmlFor="produtos-grupo" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Grupo compatibilidade
+                <label htmlFor="produtos-categoria" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Categoria
                 </label>
                 <select
-                  id="produtos-grupo"
-                  value={grupoCompatibilidade}
-                  onChange={(e) => setGrupoCompatibilidade(e.target.value)}
+                  id="produtos-categoria"
+                  value={categoria}
+                  onChange={(e) => setCategoria(e.target.value)}
                   className={`${inputClass} mt-1 w-full`}
                 >
-                  <option value="">Todos</option>
-                  {GRUPOS_COMPATIBILIDADE.map((g) => (
-                    <option key={g.value} value={g.value}>{g.text}</option>
+                  <option value="">Todas</option>
+                  {CATEGORIAS_PIROTECNICAS.map((c) => (
+                    <option key={c.value} value={c.value}>{c.text}</option>
                   ))}
                 </select>
               </div>

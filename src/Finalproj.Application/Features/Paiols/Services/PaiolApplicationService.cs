@@ -38,17 +38,17 @@ public sealed class PaiolApplicationService(
         }).ToList();
     }
 
-    public async Task<object> GetStockCatalogoAsync(IReadOnlyCollection<int> paiolIds, string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default)
+    public async Task<object> GetStockCatalogoAsync(IReadOnlyCollection<int> paiolIds, string? pesquisa, string? classificacao, string? categoria, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default)
     {
         var stockPorProduto = await ObterStockFisicoPorProdutoAsync(paiolIds, cancellationToken);
-        var lista = await produtos.SearchAsync(pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre, cancellationToken);
+        var lista = await produtos.SearchAsync(pesquisa, classificacao, categoria, filtroTecnico, calibre, cancellationToken);
         return new
         {
             items = lista.Select(ProdutoResponseDtoMapping.Map).ToList(),
             stockPorProduto,
             pesquisa = pesquisa ?? string.Empty,
             classificacao = classificacao ?? string.Empty,
-            grupoCompatibilidade = grupoCompatibilidade ?? string.Empty,
+            categoria = categoria ?? string.Empty,
             filtroTecnico = filtroTecnico ?? string.Empty,
             calibre = calibre ?? string.Empty
         };

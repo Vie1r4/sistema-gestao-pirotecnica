@@ -53,7 +53,7 @@ test.describe("Documentação flow", () => {
 
     await page.getByRole("button", { name: "Gerar declaração PSP (oficial)" }).click();
 
-    await expect(page.getByText(/Declaração PSP gerada \(licença #42\)/i)).toBeVisible();
+    await expect(page.getByText(/Declaração PSP gerada\. A descarregar PDF/i)).toBeVisible();
     await expect.poll(() => ficheiroPedido).toBe(true);
   });
 });

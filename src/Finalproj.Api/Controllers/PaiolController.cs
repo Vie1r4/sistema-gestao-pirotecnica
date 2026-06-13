@@ -58,10 +58,10 @@ namespace Finalproj.Controllers
 
         [HttpGet("stock")]
         [Authorize(Policy = PoliticasAutorizacao.PodeVerArmazemStock)]
-        public async Task<IActionResult> Stock(string? pesquisa, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default)
+        public async Task<IActionResult> Stock(string? pesquisa, string? classificacao, string? categoria, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default)
         {
             var idsAcesso = await ObterPaiolIdsComAcessoAsync(cancellationToken);
-            return Ok(await _paiois.GetStockCatalogoAsync(idsAcesso, pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre, cancellationToken));
+            return Ok(await _paiois.GetStockCatalogoAsync(idsAcesso, pesquisa, classificacao, categoria, filtroTecnico, calibre, cancellationToken));
         }
 
         /// <summary>Movimentos - entradas ou saídas, com filtro por paiol.</summary>

@@ -94,6 +94,7 @@ export function logout(): void {
       body: JSON.stringify({}),
     }).catch(() => {});
     useAuthStore.getState().setToken(null);
+    delete window.__PIROFAFE_E2E_TOKEN__;
     localStorage.removeItem("pirofafe-user");
     localStorage.removeItem("token");
   } catch {}

@@ -209,11 +209,11 @@ export default function NovoProdutoPage() {
                   >
                     <option value="">— Selecionar —</option>
                     {CATEGORIAS_PIROTECNICAS.map((c) => (
-                      <option key={c} value={c}>{c}</option>
+                      <option key={c.value} value={c.value}>{c.text}</option>
                     ))}
                   </select>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    F1–F4 ou FP — usado na declaração PSP.
+                    F1–F4, T1–T2, P1–P2 ou FP — usado na declaração PSP.
                   </p>
                 </div>
                 <div>

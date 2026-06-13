@@ -47,19 +47,19 @@ namespace Finalproj.Controllers
         /// <summary>Formulário com filtros (paiol, classificação, grupo, etc.).</summary>
 
         [HttpGet("registar")]
-        public async Task<IActionResult> Registar(int? paiolId, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default)
+        public async Task<IActionResult> Registar(int? paiolId, string? classificacao, string? categoria, string? filtroTecnico, string? calibre, CancellationToken cancellationToken = default)
         {
             var model = new EntradaPaiolViewModel();
             if (paiolId.HasValue)
                 model.PaiolId = paiolId.Value;
 
-            var (paióisComAcesso, produtos) = await PopularDropdownsAsync(paiolId, null, classificacao, grupoCompatibilidade, filtroTecnico, calibre, cancellationToken);
+            var (paióisComAcesso, produtos) = await PopularDropdownsAsync(paiolId, null, classificacao, categoria, filtroTecnico, calibre, cancellationToken);
 
             return Ok(new
             {
                 model,
                 classificacao = classificacao ?? string.Empty,
-                grupoCompatibilidade = grupoCompatibilidade ?? string.Empty,
+                categoria = categoria ?? string.Empty,
                 filtroTecnico = filtroTecnico ?? string.Empty,
                 calibre = calibre ?? string.Empty,
                 paióis = paióisComAcesso,
@@ -86,7 +86,16 @@ namespace Finalproj.Controllers
                 foreach (var err in resultado.Erros)
                     ModelState.AddModelError(string.Empty, err);
                 var (paióisComAcesso, produtos) = await PopularDropdownsAsync(model.PaiolId, model.ProdutoId, null, null, null, null, cancellationToken);
-                return BadRequest(new { model, paióis = paióisComAcesso, produtos, errors = ModelState, avisos = resultado.Avisos });
+                return BadRequest(new
+                {
+                    error = resultado.Erros[0],
+                    erros = resultado.Erros,
+                    model,
+                    paióis = paióisComAcesso,
+                    produtos,
+                    errors = ModelState,
+                    avisos = resultado.Avisos
+                });
             }
 
             var user = await _userManager.GetUserAsync(User);
@@ -110,12 +119,12 @@ namespace Finalproj.Controllers
         }
 
         // Preenche dropdowns paiol (com acesso) e produtos (com filtros)
-        private async Task<(List<PaiolResponseDto> paióisComAcesso, List<ProdutoResponseDto> produtos)> PopularDropdownsAsync(int? paiolId, int? produtoId, string? classificacao, string? grupoCompatibilidade, string? filtroTecnico, string? calibre, CancellationToken cancellationToken)
+        private async Task<(List<PaiolResponseDto> paióisComAcesso, List<ProdutoResponseDto> produtos)> PopularDropdownsAsync(int? paiolId, int? produtoId, string? classificacao, string? categoria, string? filtroTecnico, string? calibre, CancellationToken cancellationToken)
         {
             var user = await _userManager.GetUserAsync(User);
             var rolesDoUtilizador = user == null ? Array.Empty<string>() : (await _userManager.GetRolesAsync(user)).ToArray();
 
-            var (paióisComAcesso, produtosEnt) = await _entradas.GetFormularioAsync(rolesDoUtilizador, classificacao, grupoCompatibilidade, filtroTecnico, calibre, cancellationToken);
+            var (paióisComAcesso, produtosEnt) = await _entradas.GetFormularioAsync(rolesDoUtilizador, classificacao, categoria, filtroTecnico, calibre, cancellationToken);
 
             return (
                 paióisComAcesso.Select(PaiolResponseDtoMapping.Map).ToList(),

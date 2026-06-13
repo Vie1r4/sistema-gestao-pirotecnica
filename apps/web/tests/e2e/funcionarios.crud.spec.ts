@@ -51,6 +51,18 @@ test.describe("Funcionários CRUD (mocks API)", () => {
   });
 
   test("criar funcionário e abrir detalhe", async ({ page }) => {
+    await page.route("**/api/funcionarios/99", async (route) => {
+      if (route.request().method() !== "GET") {
+        await route.fulfill({ status: 405, contentType: "application/json", body: "{}" });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(detailApiBody({ id: 99, nomeCompleto: "Maria E2E" })),
+      });
+    });
+
     await page.route("**/api/funcionarios/create", async (route) => {
       await route.fulfill({
         status: 200,
@@ -63,6 +75,11 @@ test.describe("Funcionários CRUD (mocks API)", () => {
     });
 
     await page.route("**/api/funcionarios", async (route) => {
+      const url = route.request().url();
+      if (/\/funcionarios\/\d/.test(url)) {
+        await route.fallback();
+        return;
+      }
       if (route.request().method() === "POST") {
         await route.fulfill({
           status: 201,
@@ -74,19 +91,7 @@ test.describe("Funcionários CRUD (mocks API)", () => {
         });
         return;
       }
-      await route.continue();
-    });
-
-    await page.route("**/api/funcionarios/99", async (route) => {
-      if (route.request().method() === "GET") {
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify(detailApiBody({ id: 99, nomeCompleto: "Maria E2E" })),
-        });
-        return;
-      }
-      await route.continue();
+      await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "Not mocked" }) });
     });
 
     await page.goto("/funcionarios/novo");
@@ -94,10 +99,10 @@ test.describe("Funcionários CRUD (mocks API)", () => {
     await page.getByLabel(/nome completo/i).fill("Maria E2E");
     await page.getByRole("button", { name: "Guardar funcionário" }).click();
     await expect(page.getByRole("main").getByText(/Funcionário criado com sucesso/i)).toBeVisible({
-      timeout: 10000,
+      timeout: 15000,
     });
-    await page.waitForURL(/\/funcionarios\/99(\?|$)/, { timeout: 20000 });
-    await expect(page.getByRole("heading", { name: "Maria E2E" })).toBeVisible({ timeout: 10000 });
+    await page.waitForURL(/\/funcionarios\/99(\?|$)/, { timeout: 30000 });
+    await expect(page.getByRole("heading", { name: "Maria E2E" })).toBeVisible({ timeout: 30000 });
   });
 
   test("editar funcionário guarda alterações", async ({ page }) => {

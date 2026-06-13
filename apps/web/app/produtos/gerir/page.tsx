@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import {
   textoClassificacao,
   CLASSIFICACOES_RISCO,
-  GRUPOS_COMPATIBILIDADE,
+  CATEGORIAS_PIROTECNICAS,
   FILTROS_TECNICOS,
   CALIBRES,
   type Produto,
@@ -31,7 +31,7 @@ function GerirContent() {
   const [mounted, setMounted] = useState(false);
   const [pesquisa, setPesquisa] = useState("");
   const [classificacao, setClassificacao] = useState("");
-  const [grupoCompatibilidade, setGrupoCompatibilidade] = useState("");
+  const [categoria, setCategoria] = useState("");
   const [filtroTecnico, setFiltroTecnico] = useState("");
   const [calibre, setCalibre] = useState("");
   const token = getToken();
@@ -39,7 +39,7 @@ function GerirContent() {
   useEffect(() => {
     setPesquisa(searchParams.get("pesquisa") ?? "");
     setClassificacao(searchParams.get("classificacao") ?? "");
-    setGrupoCompatibilidade(searchParams.get("grupoCompatibilidade") ?? "");
+    setCategoria(searchParams.get("categoria") ?? "");
     setFiltroTecnico(searchParams.get("filtroTecnico") ?? "");
     setCalibre(searchParams.get("calibre") ?? "");
   }, [searchParams]);
@@ -56,8 +56,8 @@ function GerirContent() {
   }, [mounted, canGerirProdutos, user, router]);
 
   const filterKey = useMemo(
-    () => ({ pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre }),
-    [pesquisa, classificacao, grupoCompatibilidade, filtroTecnico, calibre]
+    () => ({ pesquisa, classificacao, categoria, filtroTecnico, calibre }),
+    [pesquisa, classificacao, categoria, filtroTecnico, calibre]
   );
 
   const { data: gerirData, isLoading: loadingApi } = useQuery({
@@ -81,7 +81,7 @@ function GerirContent() {
       </div>
     );
   }
-  const temFiltros = pesquisa || classificacao || grupoCompatibilidade || filtroTecnico || calibre;
+  const temFiltros = pesquisa || classificacao || categoria || filtroTecnico || calibre;
   const criado = searchParams.get("criado") === "1";
   const eliminado = searchParams.get("eliminado") === "1";
 
@@ -89,7 +89,7 @@ function GerirContent() {
     const p = new URLSearchParams();
     if (pesquisa) p.set("pesquisa", pesquisa);
     if (classificacao) p.set("classificacao", classificacao);
-    if (grupoCompatibilidade) p.set("grupoCompatibilidade", grupoCompatibilidade);
+    if (categoria) p.set("categoria", categoria);
     if (filtroTecnico) p.set("filtroTecnico", filtroTecnico);
     if (calibre) p.set("calibre", calibre);
     return `/produtos/gerir?${p.toString()}`;
@@ -176,15 +176,15 @@ function GerirContent() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Grupo</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Categoria</label>
                 <select
-                  value={grupoCompatibilidade}
-                  onChange={(e) => setGrupoCompatibilidade(e.target.value)}
+                  value={categoria}
+                  onChange={(e) => setCategoria(e.target.value)}
                   className={`${inputClass} mt-1 w-full`}
                 >
-                  <option value="">Todos</option>
-                  {GRUPOS_COMPATIBILIDADE.map((g) => (
-                    <option key={g.value} value={g.value}>{g.text}</option>
+                  <option value="">Todas</option>
+                  {CATEGORIAS_PIROTECNICAS.map((c) => (
+                    <option key={c.value} value={c.value}>{c.text}</option>
                   ))}
                 </select>
               </div>
