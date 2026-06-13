@@ -9,6 +9,17 @@ const nextConfig: NextConfig = {
     sri: {
       algorithm: "sha256",
     },
+    /**
+     * Tree-shaking dirigido por barrel files: só compila os ícones/componentes usados
+     * em vez do pacote inteiro. Acelera a 1.ª compilação de cada rota em dev.
+     */
+    optimizePackageImports: [
+      "framer-motion",
+      "recharts",
+      "date-fns",
+      "@tanstack/react-table",
+      "@tanstack/react-query",
+    ],
   },
   // Em dev, Strict Mode monta componentes duas vezes; desativar reduz a sensação de "carregar duas vezes"
   reactStrictMode: false,

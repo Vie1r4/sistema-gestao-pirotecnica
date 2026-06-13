@@ -5,8 +5,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
-import VolumeChart from "@/app/components/gestor-analytics/VolumeChart";
-import YoYChart from "@/app/components/gestor-analytics/YoYChart";
+import dynamic from "next/dynamic";
 import ClienteConsumoList from "@/app/components/gestor-analytics/ClienteConsumoList";
 import TopClientesBlock from "@/app/components/gestor-analytics/TopClientesBlock";
 import { pt } from "date-fns/locale";
@@ -24,6 +23,23 @@ import {
   dashboardPanelHeaderClass,
   dashboardPanelHoverClass,
 } from "@/app/components/gestor-analytics/dashboardPanelStyles";
+
+/**
+ * Charts (recharts) carregados sob demanda: tira a lib pesada do bundle inicial
+ * e acelera a 1.ª compilação/render desta rota. Skeleton evita salto de layout.
+ */
+const ChartLoading = () => (
+  <div className="h-72 w-full animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800/50" />
+);
+
+const VolumeChart = dynamic(
+  () => import("@/app/components/gestor-analytics/VolumeChart"),
+  { ssr: false, loading: ChartLoading }
+);
+const YoYChart = dynamic(
+  () => import("@/app/components/gestor-analytics/YoYChart"),
+  { ssr: false, loading: ChartLoading }
+);
 
 type TabId = "atividade" | "clientes" | "armazem";
 

@@ -69,11 +69,14 @@ function padEnd(str, width) {
   return str.length >= width ? str : str + " ".repeat(width - str.length);
 }
 
+/** Turbopack é o default (Next 16, muito mais rápido em dev). Forçar Webpack com NEXT_DEV_BUNDLER=webpack. */
+function shouldUseTurbo() {
+  return process.env.NEXT_DEV_BUNDLER !== "webpack";
+}
+
 function printDevBanner() {
   const { lan, virtual } = collectNetworkTargets();
-  const useTurbo =
-    process.env.NEXT_DEV_BUNDLER === "turbo" ||
-    process.env.NEXT_DEV_BUNDLER === "turbopack";
+  const useTurbo = shouldUseTurbo();
   const bundlerLabel = useTurbo ? "Turbopack" : "Webpack";
 
   const lines = [];
@@ -114,9 +117,12 @@ function printDevBanner() {
   lines.push("");
   lines.push("  Notas");
   lines.push("    · Não abra http://0.0.0.0 no browser");
-  if (!useTurbo) {
+  if (useTurbo) {
+    lines.push("    · Turbopack ativo: a 1.ª visita a cada rota compila sob demanda (rápido)");
+    lines.push("    · Forçar Webpack: NEXT_DEV_BUNDLER=webpack npm run dev");
+  } else {
     lines.push("    · Webpack: a 1.ª compilação pode demorar 1–3 min");
-    lines.push("    · Turbopack: NEXT_DEV_BUNDLER=turbo npm run dev");
+    lines.push("    · Voltar a Turbopack: remova NEXT_DEV_BUNDLER (é o default)");
   }
   lines.push(`  ${rule}`);
   lines.push("");
@@ -138,11 +144,7 @@ function sanitizeNextOutput(chunk) {
 
 printDevBanner();
 
-const bundler =
-  process.env.NEXT_DEV_BUNDLER === "turbo" ||
-  process.env.NEXT_DEV_BUNDLER === "turbopack"
-    ? ["--turbopack"]
-    : ["--webpack"];
+const bundler = shouldUseTurbo() ? ["--turbopack"] : ["--webpack"];
 
 const child = spawn(
   process.execPath,
