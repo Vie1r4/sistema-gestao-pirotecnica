@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import Navbar from "@/app/components/Navbar";
 import ReferenciaIndisponivel from "@/app/components/ReferenciaIndisponivel";
 import {
   podeEditarEncomenda,

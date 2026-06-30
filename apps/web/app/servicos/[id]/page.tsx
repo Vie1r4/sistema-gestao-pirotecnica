@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import Navbar from "@/app/components/Navbar";
 import MapaCoordenadas from "@/app/components/MapaCoordenadas";
 import MapaZonaPreview from "@/app/components/MapaZonaPreview";
 import ReferenciaIndisponivel from "@/app/components/ReferenciaIndisponivel";

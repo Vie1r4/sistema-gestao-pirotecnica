@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import Navbar from "@/app/components/Navbar";
 import { useActionGuard } from "@/app/hooks/useActionGuard";
 import { getToken } from "@/app/lib/auth";
 import { fetchSaidaRegistarForm, postRegistarSaida } from "@/app/lib/saidaPaiolApi";

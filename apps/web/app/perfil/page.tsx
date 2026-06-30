@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import Navbar, { CONTENT_OFFSET_TOP } from "../components/Navbar";
+import Navbar from "../components/Navbar";
 import ThemeToggle from "../components/ThemeToggle";
 import { getToken, logout } from "../lib/auth";
 import { useUser } from "@/app/context/UserContext";

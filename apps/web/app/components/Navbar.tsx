@@ -35,8 +35,6 @@ export default function Navbar() {
   const { user } = useUser();
   const userName = user?.nome ?? null;
   const permissions = user?.permissions ?? [];
-  const roles = user?.roles ?? [];
-  const isAdminOrGestor = roles.includes("Admin") || roles.includes("Gestor");
   const visibleLinks = NAV_LINKS.filter((link) =>
     link.permission.some((p) => permissions.includes(p))
   ).filter((link) =>

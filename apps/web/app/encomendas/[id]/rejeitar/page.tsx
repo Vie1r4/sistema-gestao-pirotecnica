@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import Navbar from "@/app/components/Navbar";
 import { getToken } from "@/app/lib/auth";
 import { fetchRejeitar, postRejeitar } from "@/app/lib/encomendasApi";
 import { fadeInUp, transitionSmooth } from "@/app/lib/animations";

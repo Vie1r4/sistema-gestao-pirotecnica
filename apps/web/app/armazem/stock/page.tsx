@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense, useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import Navbar from "@/app/components/Navbar";
 import { textoClassificacao, textoCategoria, textoFiltroTecnico, textoCalibre, CLASSIFICACOES_RISCO, CATEGORIAS_PIROTECNICAS, FILTROS_TECNICOS, CALIBRES } from "@/app/lib/produtos";
 import { getToken } from "@/app/lib/auth";
 import { fetchStock } from "@/app/lib/paiolApi";

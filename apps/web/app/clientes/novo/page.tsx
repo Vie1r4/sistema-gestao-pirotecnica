@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import Navbar, { CONTENT_OFFSET_TOP } from "../../components/Navbar";
+import Navbar from "../../components/Navbar";
 import {
   createClienteApi,
   TIPOS_CLIENTE,

@@ -122,6 +122,13 @@ builder.Services.AddScoped<Finalproj.Application.Features.Servicos.Interfaces.IS
 builder.Services.AddSingleton<Finalproj.Infrastructure.DocumentacaoRegulatoria.GeradorDeclaracaoPspService>();
 builder.Services.AddScoped<Finalproj.Application.Features.DocumentacaoRegulatoria.Interfaces.IDocumentacaoRegulatoriaService, Finalproj.Infrastructure.Services.DocumentacaoRegulatoriaService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Auth.Interfaces.IAuthAccountInfoService, Finalproj.Application.Features.Auth.Services.AuthAccountInfoService>();
+builder.Services.AddScoped<Finalproj.Application.Features.Auth.Interfaces.IAuthTokenService, Finalproj.Application.Features.Auth.Services.AuthTokenService>();
+builder.Services.AddScoped<Finalproj.Application.Features.Auth.Interfaces.IAuthPasswordResetService, Finalproj.Application.Features.Auth.Services.AuthPasswordResetService>();
+builder.Services.AddScoped<Finalproj.Application.Features.Auth.Interfaces.IAuthEmailConfirmationService, Finalproj.Application.Features.Auth.Services.AuthEmailConfirmationService>();
+builder.Services.AddScoped<Finalproj.Application.Features.Auth.Interfaces.IAuthIdentityGateway, Finalproj.Infrastructure.Services.AuthIdentityGateway>();
+builder.Services.AddScoped<Finalproj.Application.Features.Auth.Interfaces.IAuthBootstrapService, Finalproj.Infrastructure.Services.AuthBootstrapService>();
+builder.Services.AddScoped<Finalproj.Api.Services.IAuthRefreshCookieAccessor, Finalproj.Api.Services.AuthRefreshCookieAccessor>();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<Finalproj.Application.Services.Interfaces.IIdentityUserLookupService, Finalproj.Infrastructure.Services.IdentityUserLookupService>();
 builder.Services.AddScoped<Finalproj.Application.Services.Interfaces.IPasswordValidationService, Finalproj.Infrastructure.Services.IdentityPasswordValidationService>();
 builder.Services.AddScoped<Finalproj.Application.Services.Interfaces.IDatabaseCleanupService, Finalproj.Infrastructure.Services.DatabaseCleanupService>();

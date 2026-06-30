@@ -39,92 +39,139 @@ public class EncomendaService : IEncomendaService
         string? userName,
         CancellationToken cancellationToken = default)
     {
-        var encomenda = await _encomendaRepository.GetByIdWithItensAndProdutosTrackedAsync(encomendaId, cancellationToken);
-        if (encomenda == null)
-            return (false, "Encomenda não encontrada.");
-        if (encomenda.Estado != ConstantesEncomenda.ACEITE)
-            return (false, "Apenas encomendas aceites podem ser preparadas.");
-
-        var erroCred = ValidarCoordenadorCred(encomenda);
-        if (erroCred != null)
-            return (false, erroCred);
-
         var retiradasComQuantidade = (retiradas ?? new List<RetiradaPreparacaoInput>()).Where(r => r.Quantidade > 0).ToList();
-        var itensPorId = encomenda.Itens.ToDictionary(i => i.Id);
 
-        foreach (var r in retiradasComQuantidade)
+        await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        try
         {
-            if (!itensPorId.ContainsKey(r.EncomendaItemId))
-                return (false, "Dados de preparação inválidos (item não pertence à encomenda).");
-            if (!idsPaióisComAcesso.Contains(r.PaiolId))
-                return (false, "Não tem acesso a um dos paióis selecionados.");
-        }
+            var encomenda = await _encomendaRepository.GetByIdWithItensAndProdutosForPreparacaoLockedAsync(encomendaId, cancellationToken);
+            if (encomenda == null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "Encomenda não encontrada.");
+            }
 
-        foreach (var item in encomenda.Itens)
-        {
-            var somaRetiradas = retiradasComQuantidade.Where(rt => rt.EncomendaItemId == item.Id).Sum(rt => rt.Quantidade);
-            if (Math.Abs(somaRetiradas - item.QuantidadePedida) > 0.0001m)
-                return (false, $"Para o produto {item.Produto?.Nome}, a soma das quantidades a retirar ({somaRetiradas:N2}) deve ser igual à quantidade pedida ({item.QuantidadePedida:N2}).");
-        }
+            if (encomenda.Estado != ConstantesEncomenda.ACEITE)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "Apenas encomendas aceites podem ser preparadas.");
+            }
 
-        var produtoIds = retiradasComQuantidade
-            .Select(r => itensPorId[r.EncomendaItemId].ProdutoId)
-            .Distinct()
-            .ToList();
+            var erroCred = ValidarCoordenadorCred(encomenda);
+            if (erroCred != null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, erroCred);
+            }
 
-        var entradasComSaldo = await _entradaPaiolRepository.ListComSaldoParaPreparacaoAsync(
-            idsPaióisComAcesso.ToList(),
-            produtoIds,
-            cancellationToken);
-        var restantePorEntrada = entradasComSaldo.ToDictionary(e => e.Id, e => e.QuantidadeRestante);
+            var itensPorId = encomenda.Itens.ToDictionary(i => i.Id);
 
-        foreach (var r in retiradasComQuantidade)
-        {
-            var item = itensPorId[r.EncomendaItemId];
-            var falta = r.Quantidade;
-            var entradasPaiolProduto = entradasComSaldo
-                .Where(e => e.PaiolId == r.PaiolId && e.ProdutoId == item.ProdutoId && restantePorEntrada.GetValueOrDefault(e.Id, 0) > 0)
+            foreach (var r in retiradasComQuantidade)
+            {
+                if (!itensPorId.ContainsKey(r.EncomendaItemId))
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return (false, "Dados de preparação inválidos (item não pertence à encomenda).");
+                }
+
+                if (!idsPaióisComAcesso.Contains(r.PaiolId))
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return (false, "Não tem acesso a um dos paióis selecionados.");
+                }
+            }
+
+            foreach (var item in encomenda.Itens)
+            {
+                var somaRetiradas = retiradasComQuantidade.Where(rt => rt.EncomendaItemId == item.Id).Sum(rt => rt.Quantidade);
+                if (Math.Abs(somaRetiradas - item.QuantidadePedida) > 0.0001m)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return (false, $"Para o produto {item.Produto?.Nome}, a soma das quantidades a retirar ({somaRetiradas:N2}) deve ser igual à quantidade pedida ({item.QuantidadePedida:N2}).");
+                }
+            }
+
+            var produtoIds = retiradasComQuantidade
+                .Select(r => itensPorId[r.EncomendaItemId].ProdutoId)
+                .Distinct()
                 .ToList();
 
-            foreach (var ent in entradasPaiolProduto)
-            {
-                if (falta <= 0) break;
-                var rest = restantePorEntrada.GetValueOrDefault(ent.Id, 0);
-                if (rest <= 0) continue;
-                var qty = Math.Min(falta, rest);
-                await _saidaPaiolRepository.AddAsync(new SaidaPaiol
-                {
-                    PaiolId = ent.PaiolId,
-                    ProdutoId = ent.ProdutoId,
-                    Quantidade = qty,
-                    DataSaida = DateTime.UtcNow,
-                    EncomendaId = encomenda.Id,
-                    EntradaPaiolId = ent.Id,
-                    FuncionarioRetirouUserId = userId
-                }, cancellationToken);
-                restantePorEntrada[ent.Id] = rest - qty;
-                falta -= qty;
+            var entradasComSaldo = await _entradaPaiolRepository.ListComSaldoParaPreparacaoLockedAsync(
+                idsPaióisComAcesso.ToList(),
+                produtoIds,
+                cancellationToken);
+            var restantePorEntrada = entradasComSaldo.ToDictionary(e => e.Id, e => e.QuantidadeRestante);
+            var logsPendentes = new List<SaidaStockLogPendente>();
 
+            foreach (var r in retiradasComQuantidade)
+            {
+                var item = itensPorId[r.EncomendaItemId];
+                var falta = r.Quantidade;
+                var entradasPaiolProduto = entradasComSaldo
+                    .Where(e => e.PaiolId == r.PaiolId && e.ProdutoId == item.ProdutoId && restantePorEntrada.GetValueOrDefault(e.Id, 0) > 0)
+                    .ToList();
+
+                foreach (var ent in entradasPaiolProduto)
+                {
+                    if (falta <= 0) break;
+                    var rest = restantePorEntrada.GetValueOrDefault(ent.Id, 0);
+                    if (rest <= 0) continue;
+                    var qty = Math.Min(falta, rest);
+                    await _saidaPaiolRepository.AddAsync(new SaidaPaiol
+                    {
+                        PaiolId = ent.PaiolId,
+                        ProdutoId = ent.ProdutoId,
+                        Quantidade = qty,
+                        DataSaida = DateTime.UtcNow,
+                        EncomendaId = encomenda.Id,
+                        EntradaPaiolId = ent.Id,
+                        FuncionarioRetirouUserId = userId
+                    }, cancellationToken);
+                    restantePorEntrada[ent.Id] = rest - qty;
+                    falta -= qty;
+
+                    logsPendentes.Add(new SaidaStockLogPendente(
+                        ent.ProdutoId,
+                        ent.NumeroLote,
+                        qty,
+                        ent.PaiolId,
+                        ent.PaiolNome,
+                        encomenda.Id));
+                }
+
+                if (falta > 0)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return (false, $"Stock insuficiente no paiol selecionado para o produto {item.Produto?.Nome}. Reduza a quantidade ou escolha outro paiol.");
+                }
+            }
+
+            encomenda.Estado = ConstantesEncomenda.EM_PREPARACAO;
+            encomenda.FuncionarioPreparouUserId = userId;
+            encomenda.DataEmPreparacao ??= DateTime.UtcNow;
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            foreach (var log in logsPendentes)
+            {
                 await _logSistema.RegistarAsync("SAIDA_STOCK", userId, userName, new
                 {
-                    produto_id = ent.ProdutoId,
-                    numero_lote = ent.NumeroLote,
-                    quantidade_retirada_kg = qty,
-                    paiol_id = ent.PaiolId,
-                    paiol_nome = ent.PaiolNome,
-                    encomenda_id = encomenda.Id
+                    produto_id = log.ProdutoId,
+                    numero_lote = log.NumeroLote,
+                    quantidade_retirada_kg = log.Quantidade,
+                    paiol_id = log.PaiolId,
+                    paiol_nome = log.PaiolNome,
+                    encomenda_id = log.EncomendaId
                 }, cancellationToken);
             }
 
-            if (falta > 0)
-                return (false, $"Stock insuficiente no paiol selecionado para o produto {item.Produto?.Nome}. Reduza a quantidade ou escolha outro paiol.");
+            return (true, null);
         }
-
-        encomenda.Estado = ConstantesEncomenda.EM_PREPARACAO;
-        encomenda.FuncionarioPreparouUserId = userId;
-        encomenda.DataEmPreparacao ??= DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return (true, null);
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
     }
 
     /// <summary>
@@ -150,4 +197,12 @@ public class EncomendaService : IEncomendaService
 
         return null;
     }
+
+    private sealed record SaidaStockLogPendente(
+        int ProdutoId,
+        string? NumeroLote,
+        decimal Quantidade,
+        int PaiolId,
+        string? PaiolNome,
+        int EncomendaId);
 }

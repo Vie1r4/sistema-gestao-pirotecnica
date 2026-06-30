@@ -2,6 +2,7 @@ using Finalproj.Infrastructure.Persistence.Data;
 using Finalproj.Infrastructure.Repositories;
 using Finalproj.Application.Features.Encomendas.DTOs;
 using Finalproj.Application.Features.Encomendas.Services;
+using Finalproj.Application.Services;
 using Finalproj.Tests.TestHelpers;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -10,8 +11,8 @@ namespace Finalproj.Tests.Domain;
 
 public class EncomendaServiceTests
 {
-    private static EncomendaService CreateSut(FinalprojContext ctx) =>
-        new(new EncomendaRepository(ctx), new EntradaPaiolRepository(ctx), new SaidaPaiolRepository(ctx), new UnitOfWork(ctx), new NoOpLogSistemaService());
+    private static EncomendaService CreateSut(FinalprojContext ctx, ILogSistemaService? log = null) =>
+        new(new EncomendaRepository(ctx), new EntradaPaiolRepository(ctx), new SaidaPaiolRepository(ctx), new UnitOfWork(ctx), log ?? new NoOpLogSistemaService());
 
     [Fact]
     public async Task RegistarPreparacaoAsync_EncomendaInexistente_Falha()
@@ -142,6 +143,52 @@ public class EncomendaServiceTests
         Assert.NotNull(erro);
         Assert.Contains("Stock insuficiente", erro, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(nomeProduto, erro, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RegistarPreparacaoAsync_StockInsuficiente_NaoRegistaLog()
+    {
+        await using var ctx = TestDbContextFactory.Create();
+        var log = new CountingLogSistemaService();
+        var (encId, itemId, paiolId, _, _) = await SeedEncomendaComStockAsync(
+            ctx,
+            quantidadeEntrada: 3m,
+            quantidadePedida: 10m);
+        var sut = CreateSut(ctx, log);
+
+        await sut.RegistarPreparacaoAsync(
+            encId,
+            "u1",
+            new[] { paiolId },
+            new List<RetiradaPreparacaoInput>
+            {
+                new() { EncomendaItemId = itemId, PaiolId = paiolId, Quantidade = 10m },
+            },
+            "User");
+
+        Assert.Equal(0, log.Registos);
+    }
+
+    [Fact]
+    public async Task RegistarPreparacaoAsync_Sucesso_RegistaLogAposCommit()
+    {
+        await using var ctx = TestDbContextFactory.Create();
+        var log = new CountingLogSistemaService();
+        var (encId, itemId, paiolId, _, _) = await SeedEncomendaComStockAsync(ctx);
+        var sut = CreateSut(ctx, log);
+
+        var (ok, _) = await sut.RegistarPreparacaoAsync(
+            encId,
+            "u1",
+            new[] { paiolId },
+            new List<RetiradaPreparacaoInput>
+            {
+                new() { EncomendaItemId = itemId, PaiolId = paiolId, Quantidade = 10m },
+            },
+            "User");
+
+        Assert.True(ok);
+        Assert.Equal(1, log.Registos);
     }
 
     [Fact]

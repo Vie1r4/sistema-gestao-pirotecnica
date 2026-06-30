@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import Navbar, { CONTENT_OFFSET_TOP } from "../components/Navbar";
+import Navbar from "../components/Navbar";
 import PageHeader from "../components/ui/PageHeader";
 import { DataTable } from "../components/ui/DataTable";
 import { btnPrimary } from "../components/ui/tokens";

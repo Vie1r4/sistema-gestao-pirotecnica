@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import Navbar from "@/app/components/Navbar";
 import EmptyState from "@/app/components/ui/EmptyState";
 import { getToken } from "@/app/lib/auth";
 import { useUser } from "@/app/context/UserContext";

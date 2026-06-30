@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import Navbar from "@/app/components/Navbar";
 import MapaCoordenadas from "@/app/components/MapaCoordenadas";
 import {
   PERFIS_RISCO,
@@ -13,7 +13,6 @@ import {
   labelPerfilRisco,
   validarLimiteMLE,
   mapPaiolFromApi,
-  type Paiol,
   type PaiolDocumentoExtra,
   type PerfilRiscoPaiol,
   type EstadoPaiol,

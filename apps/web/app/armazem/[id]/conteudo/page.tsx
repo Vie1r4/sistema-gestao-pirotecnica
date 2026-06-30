@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import Navbar from "@/app/components/Navbar";
 import { getToken } from "@/app/lib/auth";
 import { type Paiol } from "@/app/lib/armazem";
 import { fetchConteudoPaiol } from "@/app/lib/paiolApi";

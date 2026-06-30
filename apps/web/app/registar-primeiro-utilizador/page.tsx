@@ -56,7 +56,6 @@ export default function RegistarPrimeiroUtilizadorPage() {
       const data = (await safeParseJson(res)) as Record<string, unknown>;
       const token =
         (data.token ?? data.Token ?? data.accessToken ?? data.AccessToken) as string | undefined;
-      const refreshToken = (data.refreshToken ?? data.RefreshToken) as string | undefined;
       if (res.ok && token) {
         // refresh token passou para cookie HttpOnly no backend
         setToken(token);

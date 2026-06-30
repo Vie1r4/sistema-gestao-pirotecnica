@@ -77,7 +77,7 @@ function ServicosContent() {
     enabled: !!getToken(),
   });
 
-  const lista = apiData?.lista ?? [];
+  const lista = useMemo(() => apiData?.lista ?? [], [apiData?.lista]);
   const total = apiData?.total ?? 0;
   const clientes = apiData?.clientes ?? [];
   const totalPaginas = Math.max(1, Math.ceil(total / ITENS_POR_PAGINA));

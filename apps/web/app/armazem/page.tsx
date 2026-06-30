@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import type { ColumnDef } from "@tanstack/react-table";
-import Navbar, { CONTENT_OFFSET_TOP } from "@/app/components/Navbar";
+import Navbar from "@/app/components/Navbar";
 import { DataTable } from "@/app/components/ui/DataTable";
 import EmptyState from "@/app/components/ui/EmptyState";
 import { btnPrimary, btnSecondary } from "@/app/components/ui/tokens";

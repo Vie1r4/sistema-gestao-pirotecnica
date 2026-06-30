@@ -22,7 +22,7 @@ public static class AuthClientExtensions
     }
 
     public static async Task<HttpClient> CreateAuthenticatedClientAsync(
-        this CustomWebApplicationFactory factory,
+        this WebApplicationFactory<Program> factory,
         string role)
     {
         var email = role switch

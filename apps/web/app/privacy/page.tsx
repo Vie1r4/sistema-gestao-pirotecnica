@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import Navbar, { CONTENT_OFFSET_TOP } from "../components/Navbar";
+import Navbar from "../components/Navbar";
 import { getToken } from "../lib/auth";
 import { getPrivacy } from "../lib/home";
 import { fadeInUp, transitionSmooth } from "../lib/animations";

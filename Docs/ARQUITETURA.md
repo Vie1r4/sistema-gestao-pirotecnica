@@ -65,7 +65,7 @@ Regras centrais: stock disponível = saldo por lote não esgotado (SQL) − saí
 
 Roles: **Admin**, **Gestor**, **Comercial**, **Armazém**. Políticas em `PoliticasAutorizacao`; detalhe em [ROLES-E-PERMISSOES.md](ROLES-E-PERMISSOES.md).
 
-Auth: JWT + refresh HttpOnly; endpoints em `AuthController`. Listagem completa de recursos: [API.md](API.md).
+Auth: JWT + refresh HttpOnly; endpoints em `AuthController` (fino — lógica em `AuthTokenService`, `AuthPasswordResetService`, `AuthEmailConfirmationService`, `AuthBootstrapService`). Listagem completa de recursos: [API.md](API.md).
 
 ---
 
@@ -97,15 +97,17 @@ Paginação habitual: `pagina`, `itensPorPagina`; resposta com `totalRegistos`.
 
 ## Stock FIFO — implementação e dívida técnica
 
-**Implementado:** `StockDisponivelService` usa `SumSaldoDisponivelPorProdutoAsync` (saldo por lote não esgotado − saídas avulsas − reservas). `EncomendaService.RegistarPreparacaoAsync` usa `ListComSaldoParaPreparacaoAsync`, que devolve read models `EntradaPaiolSaldoPreparacao` (`src/Finalproj.Domain/ReadModels/`) ordenados FIFO (`DataFabrico ?? DataEntrada`, depois `DataEntrada`). Agregação e filtro `saldo > 0` no EF/SQL Server; testes de domínio em `StockDisponivelServiceTests` e `EncomendaServiceTests`.
+**Implementado:** `StockDisponivelService` usa `SumSaldoDisponivelPorProdutoAsync` (saldo por lote não esgotado − saídas avulsas − reservas). `EncomendaService.RegistarPreparacaoAsync` usa `ListComSaldoParaPreparacaoLockedAsync` (SQL Server: `UPDLOCK`/`HOLDLOCK`; InMemory: LINQ equivalente **sem isolamento real**), ordenados FIFO (`DataFabrico ?? DataEntrada`, depois `DataEntrada`), dentro de transacção explícita com lock na linha da encomenda. Logs `SAIDA_STOCK` só após commit bem-sucedido. Testes de domínio em `StockDisponivelServiceTests` e `EncomendaServiceTests`; prova de concorrência em `FifoPreparacaoConcorrenciaTests` (SQL Server via Testcontainers — skipped localmente sem Docker; corre no CI).
 
-**Dívida técnica conhecida (não bloqueia merge, bloqueia produção em escala/concorrência):**
+**Nota sobre testes:** a suite habitual (EF InMemory + integração HTTP) **não reproduz** locks SQL nem race conditions. Isso não invalida o fix em produção (SQL Server); valida regras de negócio e contratos HTTP. A prova de concorrência fica no teste Docker (CI) ou quando tiveres Docker local.
+
+**Dívida técnica conhecida:**
 
 | Gap | Descrição | Endurecimento sugerido |
 |-----|-----------|------------------------|
 | **Índices FIFO** | `EntradasPaiol` só tem índices em `PaiolId` e `ProdutoId`; ordenação composta por data pode forçar sort costoso em volume. | Migration com índice composto (ex. `PaiolId`, `ProdutoId`, `DataFabrico`, `DataEntrada`); validar plano com `.ToQueryString()` / `EXPLAIN` em SQL Server. |
-| **Concorrência na preparação** | `RegistarPreparacaoAsync` lê saldos (`AsNoTracking`) e grava saídas sem transacção serializável, lock pessimista ou `RowVersion`. Dois operadores podem over-alocar o mesmo lote. | Transacção + `UPDLOCK`/`HOLDLOCK` nas entradas afectadas, ou validação atómica pós-gravação. |
-| **Saídas avulsas vs FIFO por lote** | Saídas com `EntradaPaiolId == null` reduzem stock global (`StockDisponivelService`) mas **não** reduzem saldo por lote em `ListComSaldoParaPreparacaoAsync`. Soma dos lotes pode exceder stock global após saídas manuais. | Pro-rata de avulsas nos lotes, proibir saída avulsa quando há stock lotado, ou validar `SUM(lotes) − avulsas ≥ quantidade` antes de alocar. |
+| **Concorrência na preparação** | ~~`RegistarPreparacaoAsync` lê saldos (`AsNoTracking`) e grava saídas sem transacção serializável, lock pessimista ou `RowVersion`. Dois operadores podem over-alocar o mesmo lote.~~ **Resolvido (2026-07):** transacção explícita + `UPDLOCK`/`HOLDLOCK` em `Encomendas` e `EntradasPaiol` dentro de `RegistarPreparacaoAsync`; teste `FifoPreparacaoConcorrenciaTests` (SQL Server via Testcontainers). | — |
+| **Saídas avulsas vs FIFO por lote** | Saídas com `EntradaPaiolId == null` reduzem stock global (`StockDisponivelService`) mas **não** reduzem saldo por lote em `ListComSaldoParaPreparacaoLockedAsync`. Soma dos lotes pode exceder stock global após saídas manuais. | Pro-rata de avulsas nos lotes, proibir saída avulsa quando há stock lotado, ou validar `SUM(lotes) − avulsas ≥ quantidade` antes de alocar. |
 | **Testes vs SQL real** | Suite unitária usa EF In-Memory; não valida tradução T-SQL (`COALESCE`, subqueries correlacionadas). | Teste de integração opcional contra SQL Server LocalDB para queries de stock/FIFO. |
 
 ---

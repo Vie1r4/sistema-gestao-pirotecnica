@@ -9,6 +9,9 @@ public interface IEncomendaRepository
     Task DeleteAsync(Encomenda entity, CancellationToken cancellationToken = default);
 
     Task<Encomenda?> GetByIdWithItensAndProdutosTrackedAsync(int id, CancellationToken cancellationToken = default);
+
+    /// <summary>Carrega encomenda para preparação com lock de linha (SQL Server) dentro de transação activa.</summary>
+    Task<Encomenda?> GetByIdWithItensAndProdutosForPreparacaoLockedAsync(int id, CancellationToken cancellationToken = default);
     Task<Encomenda?> GetByIdWithClienteAsync(int id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Encomenda>> ListConcluidasComClienteExceptEncomendaIdsAsync(IReadOnlyCollection<int> encomendaIdsUsadas, CancellationToken cancellationToken = default);
 

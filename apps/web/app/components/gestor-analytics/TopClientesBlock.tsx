@@ -140,12 +140,10 @@ function ClienteDetalhe({ cliente, tab }: { cliente: TopClienteLinha; tab: TabId
 
 function ListaRanking({
   linhas,
-  tab,
   selecionadoId,
   onSelecionar,
 }: {
   linhas: TopClienteLinha[];
-  tab: TabId;
   selecionadoId: number | null;
   onSelecionar: (id: number) => void;
 }) {
@@ -303,7 +301,6 @@ export default function TopClientesBlock({
               </p>
               <ListaRanking
                 linhas={linhas}
-                tab={tab}
                 selecionadoId={selecionado?.clienteId ?? null}
                 onSelecionar={setSelecionadoId}
               />

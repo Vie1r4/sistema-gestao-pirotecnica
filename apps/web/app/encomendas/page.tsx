@@ -92,7 +92,7 @@ function EncomendasContent() {
   const totalGeral = apiData?.totalGeral ?? 0;
   const totalAtivas =
     (totais["Pendente"] ?? 0) + (totais["Aceite"] ?? 0) + (totais["Em preparação"] ?? 0);
-  const lista: EncomendaLinha[] = apiData?.lista ?? [];
+  const lista = useMemo(() => apiData?.lista ?? [], [apiData?.lista]);
   const total = apiData?.totalRegistos ?? 0;
   const totalPaginas = Math.max(1, Math.ceil(total / ITENS_POR_PAGINA));
   const start = total === 0 ? 0 : (pagina - 1) * ITENS_POR_PAGINA + 1;

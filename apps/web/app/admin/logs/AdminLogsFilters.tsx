@@ -158,7 +158,7 @@ export default function AdminLogsFilters({
     const d30 = format(subDays(new Date(), 29), "yyyy-MM-dd");
     if (start === d30 && end === today) return "30d" as const;
     return null;
-  }, [value.dataInicio, value.dataFim]);
+  }, [value]);
 
   const activeCount = useMemo(() => {
     let n = 0;

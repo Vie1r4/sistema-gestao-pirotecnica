@@ -16,8 +16,11 @@ Em CI (GitHub Actions), estes testes correm automaticamente em cada push/PR — 
 ## Comandos
 
 ```bash
-# Tudo backend
-dotnet test Finalproj.sln -c Release
+# Tudo backend (exclui teste Docker de concorrência FIFO)
+dotnet test Finalproj.sln -c Release --filter "Category!=Docker"
+
+# Concorrência FIFO — requer Docker a correr
+dotnet test Finalproj.IntegrationTests/Finalproj.IntegrationTests.csproj -c Release --filter "Category=Docker"
 
 # Frontend — obrigatório estar em apps/web/ (não há package.json na raiz)
 cd apps/web
@@ -34,7 +37,8 @@ npx playwright install chromium   # primeira vez
 ### `Finalproj.Tests` (domínio)
 
 - EF InMemory, xUnit.
-- `EncomendaService` — preparação, FIFO, validações.
+- `EncomendaService` — preparação, FIFO, validações, logs após commit.
+- `AuthTokenService` — refresh, emissão JWT (mocks).
 - `StockDisponivelService` — entradas, saídas, reservas.
 - Helpers: `TestDbContextFactory`, `NoOpLogSistemaService`.
 
@@ -44,6 +48,7 @@ npx playwright install chromium   # primeira vez
 - Auth (login, refresh, me, logout).
 - Matriz **401/403** (GET + mutação).
 - **IDOR** — documentos, paiol, admin, serviços.
+- **FIFO concorrência** — `FifoPreparacaoConcorrenciaTests` (Docker + SQL Server; trait `Category=Docker`).
 
 Regra: alterar autorização → actualizar `InlineData` ou teste IDOR; documentar em [ROLES-E-PERMISSOES.md](ROLES-E-PERMISSOES.md).
 
@@ -67,7 +72,7 @@ Login, rota protegida, CRUD funcionários (mocks), encomenda submeter, documenta
 
 | Workflow | Conteúdo |
 |----------|----------|
-| `.github/workflows/dotnet-tests.yml` | `dotnet test`, cobertura HTML (informativa), bloqueio pacotes HIGH |
+| `.github/workflows/dotnet-tests.yml` | `dotnet test` (sem Docker), teste FIFO concorrência (Docker), cobertura HTML (informativa), bloqueio pacotes HIGH |
 | `.github/workflows/client-ci.yml` | `npm audit --audit-level=high`, typecheck, lint, Vitest, build, Playwright |
 
 Cobertura ≥60% Domain/Application: meta futura; CI ainda não falha por %.

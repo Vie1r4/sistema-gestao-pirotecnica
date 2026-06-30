@@ -155,6 +155,14 @@ public sealed class EncomendaRepository(FinalprojContext context) : IEncomendaRe
             .Include(e => e.CoordenadorPirotecnico)
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
+    public async Task<Encomenda?> GetByIdWithItensAndProdutosForPreparacaoLockedAsync(int id, CancellationToken cancellationToken = default)
+    {
+        if (!await PreparacaoStockLockSql.TryLockEncomendaAsync(_context, id, cancellationToken))
+            return null;
+
+        return await GetByIdWithItensAndProdutosTrackedAsync(id, cancellationToken);
+    }
+
     public Task<Encomenda?> GetByIdWithClienteAsync(int id, CancellationToken cancellationToken = default) =>
         _context.Encomendas.AsNoTracking()
             .Include(e => e.Cliente)
@@ -662,37 +670,15 @@ public sealed class EntradaPaiolRepository(FinalprojContext context) : IEntradaP
         return resultado;
     }
 
-    public async Task<IReadOnlyList<EntradaPaiolSaldoPreparacao>> ListComSaldoParaPreparacaoAsync(
+    public Task<IReadOnlyList<EntradaPaiolSaldoPreparacao>> ListComSaldoParaPreparacaoLockedAsync(
         IReadOnlyList<int> paiolIds,
         IReadOnlyCollection<int>? produtoIds = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (paiolIds.Count == 0)
-            return [];
-
-        var query = _context.EntradasPaiol.AsNoTracking().Where(e => paiolIds.Contains(e.PaiolId));
-        if (produtoIds is { Count: > 0 })
-            query = query.Where(e => produtoIds.Contains(e.ProdutoId));
-
-        return await query
-            .Select(e => new EntradaPaiolSaldoPreparacao
-            {
-                Id = e.Id,
-                PaiolId = e.PaiolId,
-                ProdutoId = e.ProdutoId,
-                QuantidadeRestante = e.Quantidade - (_context.SaidasPaiol
-                    .Where(s => s.EntradaPaiolId == e.Id)
-                    .Sum(s => (decimal?)s.Quantidade) ?? 0m),
-                DataEntrada = e.DataEntrada,
-                DataFabrico = e.DataFabrico,
-                NumeroLote = e.NumeroLote,
-                PaiolNome = e.Paiol.Nome
-            })
-            .Where(x => x.QuantidadeRestante > 0)
-            .OrderBy(x => x.DataFabrico ?? x.DataEntrada)
-            .ThenBy(x => x.DataEntrada)
-            .ToListAsync(cancellationToken);
-    }
+        CancellationToken cancellationToken = default) =>
+        PreparacaoStockLockSql.ListSaldoFifoLockedAsync(
+            _context,
+            paiolIds,
+            produtoIds?.ToList() ?? [],
+            cancellationToken);
 
     public async Task<IReadOnlyList<EntradaPaiol>> ListRecentWithPaiolProdutoAsync(int take, CancellationToken cancellationToken = default) =>
         await _context.EntradasPaiol.AsNoTracking()

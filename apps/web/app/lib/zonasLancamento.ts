@@ -212,7 +212,7 @@ export function calcularAllocacao(zonas: ZonaForm[], itens: ItemEncomendaForm[])
     restante.set(pid, Math.max(0, max - a));
     if (a > max) excede = true;
   }
-  for (const [pid, a] of alocado) {
+  for (const [pid] of alocado) {
     if (!pedido.has(pid)) excede = true;
   }
   return { alocadoPorProduto: alocado, restantePorProduto: restante, excede };

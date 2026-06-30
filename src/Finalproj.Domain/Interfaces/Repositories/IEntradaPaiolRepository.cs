@@ -19,8 +19,9 @@ public interface IEntradaPaiolRepository
 
     /// <summary>
     /// Entradas com saldo &gt; 0 nos paióis indicados, ordenadas FIFO (data fabrico, depois data entrada).
+    /// Com lock pessimista em SQL Server — usar dentro de transacção em <see cref="EncomendaService.RegistarPreparacaoAsync"/>.
     /// </summary>
-    Task<IReadOnlyList<EntradaPaiolSaldoPreparacao>> ListComSaldoParaPreparacaoAsync(
+    Task<IReadOnlyList<EntradaPaiolSaldoPreparacao>> ListComSaldoParaPreparacaoLockedAsync(
         IReadOnlyList<int> paiolIds,
         IReadOnlyCollection<int>? produtoIds = null,
         CancellationToken cancellationToken = default);
