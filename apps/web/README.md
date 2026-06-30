@@ -1,27 +1,30 @@
-# PIROFAFE — Frontend
+# Frontend — sistema de gestão pirotécnica
 
-Frontend **Next.js 16** (React 19) do sistema PIROFAFE. Consome a API do backend ASP.NET Core (raiz do repositório).
+Frontend **Next.js 16** (React 19) da aplicação desenvolvida para a **Pirofafe**. Consome a API ASP.NET Core na raiz do repositório.
+
+A interface usa a marca da empresa (Pirofafe) nos ecrãs de autenticação; o repositório documenta o **software**, não um produto comercial com esse nome.
 
 ## Documentação
 
 - **Índice geral:** [Docs/README.md](../../Docs/README.md)
+- **Organização do frontend:** [Docs/frontend/ORGANIZACAO-FRONTEND.md](../../Docs/frontend/ORGANIZACAO-FRONTEND.md)
 - **Segurança (tokens, CSP):** [Docs/SEGURANCA.md](../../Docs/SEGURANCA.md)
 - **Testes:** [Docs/TESTES.md](../../Docs/TESTES.md)
 
 ## Pré-requisitos
 
 - Node.js 20+
-- Backend da aplicação a correr (por defeito em `https://localhost:7225`)
+- Backend a correr (por defeito `https://localhost:7225`)
 
 ## Variáveis de ambiente
 
-Copie `.env.example` para `.env.local` (opcional; por defeito usa `https://localhost:7225`):
+Copie [`.env.example`](.env.example) para `.env.local` (opcional):
 
 ```env
 NEXT_PUBLIC_API_URL=https://localhost:7225
 ```
 
-Em produção, use `.env.production.example` como modelo e veja [Docs/PRODUCAO.md](../../Docs/PRODUCAO.md).
+Produção: ver [Docs/PRODUCAO.md](../../Docs/PRODUCAO.md) e [`.env.example`](../../.env.example) na raiz.
 
 ## Executar
 
@@ -30,9 +33,9 @@ npm install
 npm run dev
 ```
 
-O script `scripts/dev.mjs` mostra um **banner** com URLs organizadas (este PC, rede Wi‑Fi, adaptadores virtuais) e a porta da API para telemóvel (`5078`). Abre [http://localhost:3000](http://localhost:3000) no PC.
+O script `scripts/dev.mjs` mostra URLs (PC, rede, API). Abre [http://localhost:3000](http://localhost:3000).
 
-## Build para produção
+## Build
 
 ```bash
 npm run build
@@ -41,45 +44,14 @@ npm start
 
 ## CI
 
-Em PRs e em `push` às branches `main` e `next`, alterações em `apps/web/**` executam [`.github/workflows/client-ci.yml`](../../.github/workflows/client-ci.yml): `npm ci`, em paralelo `npm run typecheck` (`tsc --noEmit`), `npm run lint` e `npm run test` (Vitest), depois `npm run build`, instalação do Chromium do Playwright e `npm run test:e2e` (sem backend real — os specs usam `page.route` onde necessário).
+Alterações em `apps/web/**` disparam [`.github/workflows/client-ci.yml`](../../.github/workflows/client-ci.yml): typecheck, lint, Vitest, build, Playwright E2E.
 
-No `eslint.config.mjs`, as regras `react-hooks/set-state-in-effect` e `react-hooks/incompatible-library` estão **desligadas** (`off`): com Next.js e TanStack Query/Table geram avisos em padrões válidos; ver comentários no próprio ficheiro.
+## Estrutura relevante
 
-## Layout do conteúdo
+| Pasta | Conteúdo |
+|-------|----------|
+| `app/lib/*Api.ts` | Chamadas HTTP à API |
+| `app/components/` | UI reutilizável |
+| `tests/unit/`, `tests/e2e/` | Vitest e Playwright |
 
-Largura e padding horizontais estão centralizados em `app/globals.css`:
-
-- `.content-container` — listagens e dashboards (**90rem** / 1440px).
-- `.content-container--admin` — painel `/admin` (**96rem** / 1536px).
-- `.page-shell` — `<main>` com padding alinhado à navbar.
-
-Para afinar no futuro, altere `--content-max-width` e `--content-max-width-admin` em `:root`.
-
-## Chamadas API (lib)
-
-**Regra de equipa:** na **segunda vez** que o **mesmo endpoint** (mesmo método + caminho) for usado noutro sítio, extrair para uma **função** no módulo `app/lib/*Api.ts` adequado (ex.: `encomendasApi.ts`, `paiolApi.ts`). A primeira ocorrência pode ficar inline; não é obrigatório refatorar código já existente de uma só vez.
-
-## Testes (organizados)
-
-- Stack: `Vitest` + `Testing Library` + `jsdom`.
-- Estrutura:
-  - `tests/unit/` para lógica pura;
-  - `tests/component/` para componentes/páginas;
-  - `tests/setup/` para setup global;
-  - `tests/mocks/` para mocks/fixtures partilhados.
-- Scripts:
-  - `npm run test`
-  - `npm run test:watch`
-  - `npm run test:coverage`
-  - `npm run test:e2e`
-  - `npm run test:e2e:headed`
-- E2E Playwright: ver `tests/e2e/README.md`
-- Checklist de PR: [CONTRIBUTING.md](../../CONTRIBUTING.md)
-
-## Área de documentação de serviços
-
-- Nova rota: `"/documentacao"`.
-- Objetivo: centralizar ações de documentação por serviço (ex.: licenças/papelada por tipo).
-- Acesso: apenas utilizadores com role `Admin` ou `Gestor`.
-- A página de detalhe `"/servicos/[id]"` mantém dados operacionais e encaminha para esta área para gerir documentação.
-
+Convenções: [CONTRIBUTING.md](../../CONTRIBUTING.md).

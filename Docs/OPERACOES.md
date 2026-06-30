@@ -1,6 +1,6 @@
 # Operações
 
-Backups da base de dados e observabilidade HTTP. **Junho 2026.**
+Backups da base de dados e observabilidade HTTP.
 
 ---
 
@@ -41,7 +41,7 @@ Para o backup/restauro funcionar **à primeira** em qualquer máquina, sem ter d
 
 ## RPO e RTO (objetivos de recuperação)
 
-Definições usadas na operação do PIROFAFE.
+Definições usadas na operação da aplicação (dados locais da instalação Pirofafe).
 
 | Sigla | Significado | Pergunta que responde |
 |-------|-------------|------------------------|

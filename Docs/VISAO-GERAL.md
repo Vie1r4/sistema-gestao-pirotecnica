@@ -1,14 +1,14 @@
-# PIROFAFE — Visão geral
+# Visão geral
 
-Resumo do sistema, da organização do código e de como backend e frontend se ligam.
+Resumo do sistema de gestão (cliente: **Pirofafe**), da organização do código e de como backend e frontend se ligam.
 
-**Atualização:** junho de 2026 — roles em [ROLES-E-PERMISSOES.md](ROLES-E-PERMISSOES.md); índice em [README.md](README.md) (pasta `Docs/`).
+Roles: [ROLES-E-PERMISSOES.md](ROLES-E-PERMISSOES.md) · Índice: [README.md](README.md) (pasta `Docs/`).
 
 ---
 
-## 1. O que é o PIROFAFE?
+## 1. O que é este sistema?
 
-Aplicação de **gestão pirotécnica**: armazéns (paióis), produtos, encomendas, serviços no terreno, clientes, funcionários e documentação regulamentar.
+Aplicação de **gestão pirotécnica** feita para a empresa Pirofafe: armazéns (paióis), produtos, encomendas, serviços no terreno, clientes, funcionários e documentação regulamentar.
 
 São **duas aplicações** que trabalham em conjunto:
 

@@ -1,4 +1,4 @@
-# Contribuir para o PIROFAFE
+# Contribuir
 
 Obrigado por contribuir. Este documento resume como configurar o ambiente, as convenções e o que verificar antes de abrir um pull request.
 

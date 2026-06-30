@@ -1,6 +1,6 @@
 # Mapeamento campos — Declaração PSP
 
-| Campo no documento | Origem PIROFAFE |
+| Campo no documento | Origem na aplicação |
 |--------------------|-----------------|
 | Bloco «Empresa pirotécnica» (título + designação, endereço, alvará, contacto) | **Texto fixo** no gerador (`EmpresaPirotecnicaTextoFixo`) — **tabela Word** (estilo «Table Grid») com título e dados na mesma célula |
 | Bloco «Promotor» (título + evento/local/data) | **Reescrito na geração** — **tabela Word** com título «Promotor:» + `Evento:`, `Local:` (`Municipio`/concelho + ` – ` + `Cidade`, maiúsculas; concelho primeiro; se iguais, mantém os dois — ex.: «FAFE – FAFE», «ANTIME – FAFE»), `Data:` |

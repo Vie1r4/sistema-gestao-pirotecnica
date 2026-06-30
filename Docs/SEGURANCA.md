@@ -1,8 +1,8 @@
 # Segurança
 
-Resumo do que está implementado. **Junho 2026.**
+Resumo do que está implementado.
 
-**Antes de expor na internet:** [PRODUCAO.md](PRODUCAO.md) (checklist Fase 1 + validação automática no arranque em `Production`).
+**Antes de expor na internet:** [PRODUCAO.md](PRODUCAO.md) (checklist inicial de produção + validação automática no arranque em `Production`).
 
 ---
 

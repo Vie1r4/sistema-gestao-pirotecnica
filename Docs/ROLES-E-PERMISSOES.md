@@ -2,8 +2,6 @@
 
 Alinhado ao código: `ConstantesRoles`, `PoliticasAutorizacao`, `AuthController`.
 
-**Última revisão:** junho de 2026 (paióis visíveis a todos os cargos com stock; soft-delete clientes/funcionários).
-
 ---
 
 ## 1. Roles (cargos)

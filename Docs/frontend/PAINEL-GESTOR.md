@@ -6,9 +6,9 @@ O role **Gestor** (e **Admin** na home) vê o painel em `/` — secção `#dashb
 
 | Cargo | O que vê na `/` |
 |-------|-----------------|
-| **Admin / Gestor** | **Só o painel** (`DashboardGestor`), começando no «Bem-vindo». O hero PIROFAFE **não** aparece. |
-| **Comercial / Armazém** (e outros logados) | **Só o hero PIROFAFE**. Sem os cards de estatísticas e sem botões. |
-| **Visitante** (sem sessão) | Hero PIROFAFE com o botão **«Aceder à aplicação»** (login). |
+| **Admin / Gestor** | **Só o painel** (`DashboardGestor`), começando no «Bem-vindo». O hero com branding da Pirofafe **não** aparece. |
+| **Comercial / Armazém** (e outros logados) | **Só o hero** (marca Pirofafe). Sem os cards de estatísticas e sem botões. |
+| **Visitante** (sem sessão) | Hero com marca Pirofafe e botão **«Aceder à aplicação»** (login). |
 
 Os antigos cards de estatísticas do hero (clientes, serviços, produtos, paióis) e o botão «Ver painel» foram removidos. A condição‑chave é `showDashboardGestor = token && !apenasArmazem && !melhorCargoComercial`.
 

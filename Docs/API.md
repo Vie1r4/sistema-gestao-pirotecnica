@@ -1,8 +1,8 @@
-# Documentação da API PIROFAFE
+# Documentação da API
 
-**Última revisão:** junho de 2026 (analytics gestor, KPIs vs há 7 dias, comparação anual multi-ano, soft-delete clientes/funcionários). Índice: [README.md](README.md).
+Índice: [README.md](README.md).
 
-API REST do sistema de gestão pirotécnica; backend em **ASP.NET Core 8**; documentação interativa via **Swagger** (UI disponível **apenas em ambiente Development** — em produção o Swagger está desligado por segurança).
+API REST do sistema de gestão pirotécnica (cliente Pirofafe); backend em **ASP.NET Core 8**; documentação interativa via **Swagger** (UI disponível **apenas em ambiente Development** — em produção o Swagger está desligado por segurança).
 
 ---
 

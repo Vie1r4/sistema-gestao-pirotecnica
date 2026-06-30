@@ -1,6 +1,6 @@
-# Produção — checklist de segurança (Fase 1)
+# Produção — checklist inicial de segurança
 
-Guia para expor o PIROFAFE na internet **sem defaults de desenvolvimento**. **Junho 2026.**
+Guia para expor a aplicação na internet **sem defaults de desenvolvimento**.
 
 Relacionado: [SEGURANCA.md](SEGURANCA.md) · [OPERACOES.md](OPERACOES.md) · [README na raiz](../README.md)
 

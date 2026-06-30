@@ -1,12 +1,12 @@
 # Arquitetura
 
-Visão técnica do PIROFAFE (backend + frontend). **Junho 2026.**
+Visão técnica do sistema de gestão (backend + frontend).
 
 ---
 
 ## O que é
 
-Sistema de gestão pirotécnica: paióis e stock (MLE/NEM, FIFO), catálogo de produtos, encomendas com reservas, serviços no terreno (1:1 com encomenda concluída), clientes, funcionários e documentos.
+Sistema de gestão pirotécnica desenvolvido para a **Pirofafe**: paióis e stock (MLE/NEM, FIFO), catálogo de produtos, encomendas com reservas, serviços no terreno (1:1 com encomenda concluída), clientes, funcionários e documentos.
 
 - **Backend:** `src/Finalproj.*` — API ASP.NET Core 8, EF Core, SQL Server, Identity + JWT.
 - **Frontend:** `apps/web/` — Next.js 16, React 19, TanStack Query, Tailwind.
@@ -97,7 +97,7 @@ Paginação habitual: `pagina`, `itensPorPagina`; resposta com `totalRegistos`.
 
 ## Stock FIFO — implementação e dívida técnica
 
-**Implementado (2026):** `StockDisponivelService` usa `SumSaldoDisponivelPorProdutoAsync` (saldo por lote não esgotado − saídas avulsas − reservas). `EncomendaService.RegistarPreparacaoAsync` usa `ListComSaldoParaPreparacaoAsync`, que devolve read models `EntradaPaiolSaldoPreparacao` (`src/Finalproj.Domain/ReadModels/`) ordenados FIFO (`DataFabrico ?? DataEntrada`, depois `DataEntrada`). Agregação e filtro `saldo > 0` no EF/SQL Server; testes de domínio em `StockDisponivelServiceTests` e `EncomendaServiceTests`.
+**Implementado:** `StockDisponivelService` usa `SumSaldoDisponivelPorProdutoAsync` (saldo por lote não esgotado − saídas avulsas − reservas). `EncomendaService.RegistarPreparacaoAsync` usa `ListComSaldoParaPreparacaoAsync`, que devolve read models `EntradaPaiolSaldoPreparacao` (`src/Finalproj.Domain/ReadModels/`) ordenados FIFO (`DataFabrico ?? DataEntrada`, depois `DataEntrada`). Agregação e filtro `saldo > 0` no EF/SQL Server; testes de domínio em `StockDisponivelServiceTests` e `EncomendaServiceTests`.
 
 **Dívida técnica conhecida (não bloqueia merge, bloqueia produção em escala/concorrência):**
 

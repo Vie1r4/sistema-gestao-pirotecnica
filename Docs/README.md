@@ -1,6 +1,6 @@
-# Documentação PIROFAFE
+# Documentação — sistema de gestão pirotécnica
 
-Índice da documentação do projeto. Toda a documentação vive **nesta pasta `Docs/`**.
+Índice da documentação do software desenvolvido para a **Pirofafe**. Toda a documentação vive **nesta pasta `Docs/`**.
 
 Arranque rápido: [README na raiz](../README.md) · Contribuição: [CONTRIBUTING.md](../CONTRIBUTING.md).
 
@@ -16,7 +16,7 @@ Docs/
 ├── API.md                       ← endpoints, JWT, exemplos
 ├── ROLES-E-PERMISSOES.md        ← cargos e políticas
 ├── SEGURANCA.md                 ← tokens, CSP, backups
-├── PRODUCAO.md                  ← checklist HTTPS, CORS, segredos
+├── PRODUCAO.md                  ← checklist inicial de produção
 ├── TESTES.md                    ← unitários, integração, E2E, CI
 ├── OPERACOES.md                 ← backups, RPO/RTO, correlation id
 ├── frontend/
@@ -38,7 +38,7 @@ Docs/
 | **Integrar com a API** | [API.md](API.md) |
 | **Permissões e roles** | [ROLES-E-PERMISSOES.md](ROLES-E-PERMISSOES.md) |
 | **Arquitetura e domínio** | [ARQUITETURA.md](ARQUITETURA.md) |
-| **Publicar em produção** | [PRODUCAO.md](PRODUCAO.md) |
+| **Produção** | [PRODUCAO.md](PRODUCAO.md) — checklist inicial de segurança |
 
 ---
 
@@ -51,7 +51,7 @@ Docs/
 | [API.md](API.md) | Referência HTTP, JWT, endpoints, exemplos |
 | [ROLES-E-PERMISSOES.md](ROLES-E-PERMISSOES.md) | Roles, políticas e `permissions` em `/api/auth/me` |
 | [SEGURANCA.md](SEGURANCA.md) | Sessão, CSP, armazenamento no browser |
-| [PRODUCAO.md](PRODUCAO.md) | Checklist de produção (HTTPS, CORS, segredos, fail-fast) |
+| [PRODUCAO.md](PRODUCAO.md) | Checklist inicial de produção (HTTPS, CORS, segredos, fail-fast) |
 | [TESTES.md](TESTES.md) | Unitários, integração, Vitest, Playwright, CI |
 | [OPERACOES.md](OPERACOES.md) | Backups (BD + docs), RPO/RTO, testes de restauro |
 | [frontend/ORGANIZACAO-FRONTEND.md](frontend/ORGANIZACAO-FRONTEND.md) | Onde vive cada coisa (`lib`, `_components`, tokens) |

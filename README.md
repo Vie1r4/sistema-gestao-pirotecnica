@@ -1,6 +1,11 @@
-# PIROFAFE — Sistema de Gestão Pirotécnica
+# Sistema de Gestão Pirotécnica
 
-Aplicação **full-stack** para gestão de armazéns (paióis), stock (MLE/NEM), encomendas, serviços no terreno, clientes, funcionários e documentação regulamentar (PSP).
+[![.NET tests](https://github.com/Vie1r4/Finalproj/actions/workflows/dotnet-tests.yml/badge.svg)](https://github.com/Vie1r4/Finalproj/actions/workflows/dotnet-tests.yml)
+[![Client](https://github.com/Vie1r4/Finalproj/actions/workflows/client-ci.yml/badge.svg)](https://github.com/Vie1r4/Finalproj/actions/workflows/client-ci.yml)
+
+Aplicação **full-stack** desenvolvida para a **Pirofafe**, empresa pirotécnica. Cobre armazéns (paióis), stock (MLE/NEM), encomendas, serviços no terreno, clientes, funcionários e documentação regulamentar (PSP).
+
+> **Nota:** Pirofafe é o **cliente**; este repositório é o **software de gestão** feito para essa empresa, não um produto comercial com o mesmo nome.
 
 **Stack:** ASP.NET Core 8 · EF Core · SQL Server · Next.js 16 · React 19 · TypeScript
 
@@ -81,11 +86,11 @@ CI: [.NET tests](.github/workflows/dotnet-tests.yml) e [Client](.github/workflow
 - Node.js 20+
 - SQL Server (LocalDB ou instância)
 
-## Configuração do backend
+## Configuração
 
-### Segredos (obrigatório)
+### Backend — segredos (obrigatório)
 
-O JWT e credenciais de email **não** devem estar em `appsettings.json`. Use **User Secrets** em desenvolvimento:
+O JWT **não** deve estar em `appsettings.json`. Use **User Secrets** em desenvolvimento:
 
 ```bash
 cd <raiz-do-projeto>
@@ -95,9 +100,13 @@ dotnet user-secrets set "Jwt:Audience" "FinalprojUsers" --project src/Finalproj.
 dotnet user-secrets set "Frontend:BaseUrl" "http://localhost:3000" --project src/Finalproj.Api/Finalproj.Api.csproj
 ```
 
-Em **produção**, use variáveis de ambiente ou Azure Key Vault (`Jwt__Secret`, `Cors__AllowedOrigins`). Checklist: [Docs/PRODUCAO.md](Docs/PRODUCAO.md).
+Produção: variáveis de ambiente — ver [`.env.example`](.env.example) e [Docs/PRODUCAO.md](Docs/PRODUCAO.md).
 
-Opcional (email de reset de palavra-passe, confirmação de conta): `Email:SmtpHost`, `Email:SmtpUser`, `Email:SmtpPassword`, `Email:From` — ver [Docs/SEGURANCA.md](Docs/SEGURANCA.md).
+Opcional (email): `Email:SmtpHost`, `Email:SmtpUser`, `Email:SmtpPassword`, `Email:From` — ver [Docs/SEGURANCA.md](Docs/SEGURANCA.md).
+
+### Frontend
+
+Copiar [`apps/web/.env.example`](apps/web/.env.example) para `apps/web/.env.local` e ajustar `NEXT_PUBLIC_API_URL` se necessário.
 
 ### CORS
 
@@ -106,9 +115,9 @@ Por defeito: `http://localhost:3000` e `https://localhost:3000`. Em produção, 
 ### Logs e backups
 
 - Pedidos HTTP incluem **`X-Correlation-Id`** — ver [Docs/OPERACOES.md](Docs/OPERACOES.md#observabilidade-http).
-- Backups automáticos diários da BD + documentos — secção `Backups` em `appsettings`; detalhe em [Docs/OPERACOES.md](Docs/OPERACOES.md).
+- Backups automáticos diários da BD + documentos — [Docs/OPERACOES.md](Docs/OPERACOES.md).
 
-## Executar
+## Executar (local)
 
 ### Backend
 
@@ -126,11 +135,7 @@ npm install
 npm run dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000). Para alterar a API, crie `apps/web/.env.local`:
-
-```
-NEXT_PUBLIC_API_URL=https://localhost:7225
-```
+Abre [http://localhost:3000](http://localhost:3000).
 
 ## Primeiro utilizador
 
@@ -144,3 +149,19 @@ Rotas em `apps/web/app/admin/`. Documentação: [Docs/frontend/PAINEL-ADMIN.md](
 
 - **Limpar todos os dados:** só visível fora de `production` (a API exige ambiente Development).
 - **Backups e restauro:** [Docs/OPERACOES.md](Docs/OPERACOES.md).
+
+## Autor
+
+**Sérgio Henrique Oliveira Vieira** — [GitHub @Vie1r4](https://github.com/Vie1r4)
+
+Software de gestão pirotécnica desenvolvido para a **Pirofafe** — full-stack (.NET, Next.js, domínio regulado).
+
+### Sugestão para o repositório GitHub
+
+| Campo | Valor sugerido |
+|-------|----------------|
+| **Description** | Full-stack management system for a pyrotechnics company — ASP.NET Core 8 + Next.js 16 |
+| **Topics** | `aspnet-core`, `nextjs`, `ef-core`, `typescript`, `full-stack`, `sql-server` |
+| **Website** | *(deixar vazio até haver deploy)* |
+
+Não é necessário renomear o repositório para «pirofafe» — o nome `Finalproj` ou algo como `gestao-pirotecnica` funciona bem para portfólio.
