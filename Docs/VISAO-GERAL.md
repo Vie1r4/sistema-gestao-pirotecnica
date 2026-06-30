@@ -1,42 +1,40 @@
-# PIROFAFE — Guia em linguagem simples (para programadores iniciantes)
+# PIROFAFE — Visão geral
 
-Este texto explica **o que é** o projeto, **como está organizado** e **porquê** se faz assim. Não é preciso dominar todas as tecnologias para perceber a ideia geral.
+Resumo do sistema, da organização do código e de como backend e frontend se ligam.
 
-**Atualização:** junho de 2026 — roles em [ROLES-E-PERMISSOES.md](ROLES-E-PERMISSOES.md); documentação em [Docs/README.md](README.md); preparação para demo em [DEMO-PREPARACAO.md](DEMO-PREPARACAO.md).
-
----
-
-## 1. O que é este projeto?
-
-**PIROFAFE** é uma aplicação de **gestão** para contexto pirotécnico: armazéns (paióis), produtos, encomendas, serviços no terreno, clientes, funcionários, etc.
-
-Na prática são **dois programas** que trabalham em conjunto:
-
-1. Um **servidor** (backend) que guarda dados numa **base de dados** e expõe **regras de negócio**.
-2. Um **site / aplicação web** (frontend) que as pessoas usam no **browser** (Chrome, Edge, etc.).
-
-Juntos formam o que se chama uma aplicação **full-stack**: há “frente” (o que vês) e “trás” (servidor e dados).
+**Atualização:** junho de 2026 — roles em [ROLES-E-PERMISSOES.md](ROLES-E-PERMISSOES.md); índice em [README.md](README.md) (pasta `Docs/`).
 
 ---
 
-## 2. Porque é que existem duas partes (backend e frontend)?
+## 1. O que é o PIROFAFE?
+
+Aplicação de **gestão pirotécnica**: armazéns (paióis), produtos, encomendas, serviços no terreno, clientes, funcionários e documentação regulamentar.
+
+São **duas aplicações** que trabalham em conjunto:
+
+1. **Backend** — servidor que guarda dados na base de dados e aplica regras de negócio.
+2. **Frontend** — aplicação web usada no browser.
+
+---
+
+## 2. Backend e frontend
 
 ### Backend (`src/Finalproj.*`)
 
 - **ASP.NET Core** (C#, .NET 8) — API em `src/Finalproj.Api`.
-- Corre como um **serviço** (por exemplo na porta `7225` em desenvolvimento).
-- **Valida**, **calcula** e **grava** na base de dados.
-- Expõe uma **API REST** com respostas em **JSON**.
+- Porta `7225` em desenvolvimento (ver `launchSettings.json`).
+- Valida, calcula e grava na base de dados.
+- Expõe **API REST** com respostas em **JSON**.
 
 ### Frontend (`apps/web/`)
 
 - **Next.js**, **TypeScript** e **React**.
-- Porta **3000** em desenvolvimento — ecrãs, formulários, mapas.
-- Pedidos HTTP concentrados em **`apps/web/app/lib/*Api.ts`** e `apiConfig.ts`.
+- Porta **3000** em desenvolvimento.
+- Pedidos HTTP em **`apps/web/app/lib/*Api.ts`** e `apiConfig.ts`.
 
 ---
 
-## 3. Como é que as duas partes “falam”?
+## 3. Comunicação entre as partes
 
 O browser faz pedidos a `https://localhost:7225/api/...` (ou `NEXT_PUBLIC_API_URL`). O backend responde em JSON.
 
@@ -44,7 +42,7 @@ O browser faz pedidos a `https://localhost:7225/api/...` (ou `NEXT_PUBLIC_API_UR
 
 ---
 
-## 4. Autenticação — login e token
+## 4. Autenticação
 
 1. Login → JWT + refresh token.
 2. Pedidos seguintes: `Authorization: Bearer ...`
@@ -69,8 +67,8 @@ O browser faz pedidos a `https://localhost:7225/api/...` (ou `NEXT_PUBLIC_API_UR
 | Pasta | Função |
 |-------|--------|
 | `src/Finalproj.Api/` | Controllers, `Program.cs`, middleware |
-| `src/Finalproj.Domain/` | Entidades, constantes |
-| `src/Finalproj.Application/` | Serviços, DTOs |
+| `src/Finalproj.Domain/` | Entidades, constantes, `Legislacao/` |
+| `src/Finalproj.Application/` | Serviços, DTOs, validadores |
 | `src/Finalproj.Infrastructure/` | EF, email, ficheiros, backups |
 
 **Frontend:**
@@ -96,7 +94,7 @@ O browser faz pedidos a `https://localhost:7225/api/...` (ou `NEXT_PUBLIC_API_UR
 
 | Documento | Para quê |
 |-----------|----------|
-| [README.md](README.md) | Índice |
+| [README.md](README.md) | Índice da documentação |
 | [ARQUITETURA.md](ARQUITETURA.md) | Stack, domínio, módulos |
 | [API.md](API.md) | Endpoints e exemplos |
 | [README na raiz](../README.md) | Instalar e correr o projeto |
@@ -113,5 +111,3 @@ O browser faz pedidos a `https://localhost:7225/api/...` (ou `NEXT_PUBLIC_API_UR
 | **Migration** | Alteração versionada à BD |
 | **DTO** | Objeto só para transporte na API |
 | **CORS** | Regras do browser entre portas diferentes |
-
-*Dica:* pergunta **“backend ou frontend?”** e **“já existe num `*Api.ts`?”** antes de procurar no código.

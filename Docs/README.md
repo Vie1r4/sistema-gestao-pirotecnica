@@ -1,10 +1,8 @@
 # Documentação PIROFAFE
 
-Índice único da documentação do projeto. Toda a documentação vive **nesta pasta `Docs/`** (não existe pasta `docs/` separada).
+Índice da documentação do projeto. Toda a documentação vive **nesta pasta `Docs/`**.
 
 Arranque rápido: [README na raiz](../README.md) · Contribuição: [CONTRIBUTING.md](../CONTRIBUTING.md).
-
-**Última revisão:** junho de 2026.
 
 ---
 
@@ -13,13 +11,12 @@ Arranque rápido: [README na raiz](../README.md) · Contribuição: [CONTRIBUTIN
 ```
 Docs/
 ├── README.md                    ← este índice
-├── DEMO-PREPARACAO.md           ← testar do zero + roteiro de apresentação
-├── guia-iniciantes.md           ← linguagem simples
+├── VISAO-GERAL.md               ← o que é o sistema e como as partes ligam
 ├── ARQUITETURA.md               ← stack, domínio, pipeline
 ├── API.md                       ← endpoints, JWT, exemplos
 ├── ROLES-E-PERMISSOES.md        ← cargos e políticas
 ├── SEGURANCA.md                 ← tokens, CSP, backups
-├── PRODUCAO.md                  ← checklist HTTPS, CORS, segredos (Fase 1)
+├── PRODUCAO.md                  ← checklist HTTPS, CORS, segredos
 ├── TESTES.md                    ← unitários, integração, E2E, CI
 ├── OPERACOES.md                 ← backups, RPO/RTO, correlation id
 ├── frontend/
@@ -37,10 +34,10 @@ Docs/
 
 | Perfil | Documento |
 |--------|-----------|
-| **Preparar a defesa / demo** | [DEMO-PREPARACAO.md](DEMO-PREPARACAO.md) |
-| **Novo no projeto** | [guia-iniciantes.md](guia-iniciantes.md) |
+| **Novo no projeto** | [VISAO-GERAL.md](VISAO-GERAL.md) |
 | **Integrar com a API** | [API.md](API.md) |
 | **Permissões e roles** | [ROLES-E-PERMISSOES.md](ROLES-E-PERMISSOES.md) |
+| **Arquitetura e domínio** | [ARQUITETURA.md](ARQUITETURA.md) |
 | **Publicar em produção** | [PRODUCAO.md](PRODUCAO.md) |
 
 ---
@@ -49,7 +46,7 @@ Docs/
 
 | Documento | Para quê |
 |-----------|----------|
-| [guia-iniciantes.md](guia-iniciantes.md) | O que é o sistema e como as partes ligam |
+| [VISAO-GERAL.md](VISAO-GERAL.md) | O que é o sistema e como backend/frontend se ligam |
 | [ARQUITETURA.md](ARQUITETURA.md) | Stack, domínio, módulos da API, convenções |
 | [API.md](API.md) | Referência HTTP, JWT, endpoints, exemplos |
 | [ROLES-E-PERMISSOES.md](ROLES-E-PERMISSOES.md) | Roles, políticas e `permissions` em `/api/auth/me` |
@@ -57,7 +54,7 @@ Docs/
 | [PRODUCAO.md](PRODUCAO.md) | Checklist de produção (HTTPS, CORS, segredos, fail-fast) |
 | [TESTES.md](TESTES.md) | Unitários, integração, Vitest, Playwright, CI |
 | [OPERACOES.md](OPERACOES.md) | Backups (BD + docs), RPO/RTO, testes de restauro |
-| [frontend/ORGANIZACAO-FRONTEND.md](frontend/ORGANIZACAO-FRONTEND.md) | Onde vive cada coisa (`lib`, `_components`, tokens) e convenção de estilos |
+| [frontend/ORGANIZACAO-FRONTEND.md](frontend/ORGANIZACAO-FRONTEND.md) | Onde vive cada coisa (`lib`, `_components`, tokens) |
 | [frontend/PAINEL-ADMIN.md](frontend/PAINEL-ADMIN.md) | Rotas e funcionalidades `/admin` |
 | [frontend/PAINEL-GESTOR.md](frontend/PAINEL-GESTOR.md) | Analytics do gestor na home (`/`) |
 | [documentacao-regulatoria/README.md](documentacao-regulatoria/README.md) | Declaração PSP |
@@ -86,21 +83,7 @@ dotnet test Finalproj.sln -c Release
 cd apps/web && npm test && npm run test:e2e
 ```
 
----
-
-## Estado actual (resumo)
-
-| Área | Situação |
-|------|----------|
-| Migração `src/` + CI | Feito |
-| Auth, matriz 401/403, IDOR | Feito (integração) |
-| Painel gestor (KPIs vs 7 dias, YoY multi-ano) | Feito |
-| Migração `ServicoPaiolDataRegisto` | Feito |
-| Testes backend | 57 unitários (+1 skip) + 102 integração |
-| Frontend | 69 Vitest + 17 Playwright |
-| CSP com nonce | Feito (`apps/web/proxy.ts`) |
-| Documentação unificada em `Docs/` | Feito (junho 2026) |
-| Pendente opcional | Threshold cobertura CI ≥60%; lockout login; E2E contra API real |
+Detalhe: [TESTES.md](TESTES.md).
 
 ---
 

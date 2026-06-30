@@ -79,6 +79,9 @@ _build_verify/
 build_tmp/
 client-eslint.json
 
+# Resíduos locais de inspeção do template PSP (Word/XML) — nunca versionar
+temp-psp-*/
+
 # Frontend legado (substituído por apps/web/) — não versionar
 client/
 

@@ -41,7 +41,7 @@ Para o backup/restauro funcionar **à primeira** em qualquer máquina, sem ter d
 
 ## RPO e RTO (objetivos de recuperação)
 
-Definições usadas na apresentação do projeto e na operação do Pirofafe.
+Definições usadas na operação do PIROFAFE.
 
 | Sigla | Significado | Pergunta que responde |
 |-------|-------------|------------------------|
@@ -66,16 +66,16 @@ Isto **não** é alta disponibilidade (o sistema não falha “sem se notar”).
 | `RESTORE DATABASE` (SQL Server) | ~5–30 min (tamanho da BD, disco, LocalDB vs servidor) |
 | Extração do ZIP para `Uploads` | ~1–10 min (tamanho dos documentos) |
 | Utilizadores voltam a fazer login (tokens/sessões invalidados pelo estado da BD) | ~5 min |
-| **Total alvo (RTO)** | **~30–60 minutos** em ambiente de projeto; produção com BD grande pode ser **horas** |
+| **Total alvo (RTO)** | **~30–60 minutos** em desenvolvimento / instalação típica; produção com BD grande pode ser **horas** |
 
-### Objetivos acordados para o Pirofafe (MVP / projeto)
+### Objetivos acordados (MVP)
 
 Valores **alvo** com o desenho atual — não SLA contratual.
 
 | Cenário | RPO alvo | RTO alvo | Como cumprir |
 |---------|----------|----------|--------------|
 | **Operação normal** (só backup automático) | ≤ **24 h** | ≤ **60 min** | Manter API ligada para o job diário; em falha, restaurar o `.bak` mais recente em Definições |
-| **Antes de limpar dados, migração ou demo crítica** | ≤ **5 min** | ≤ **60 min** | Backup **manual** imediato; confirmar entrada no histórico (BD + docs) |
+| **Antes de limpar dados, migração ou release crítica** | ≤ **5 min** | ≤ **60 min** | Backup **manual** imediato; confirmar entrada no histórico (BD + docs) |
 | **Após «Limpar tudo» (Development)** | Depende do último `.bak` em disco (pode ser de **antes** do reset) | ≤ **60 min** | Criar novo admin → Definições → **Restaurar** o backup desejado (não apagar `.bak` se precisar desse ponto) |
 
 **Janela de perda de dados (exemplo):** backup automático às 19:00. Falha às 18:00 do dia seguinte → no máximo perdem-se ~23 h de alterações desde o backup anterior. Falha às 19:01 → perda ≈ 24 h.
@@ -92,11 +92,11 @@ Valores **alvo** com o desenho atual — não SLA contratual.
 
 ### Testes de restauro (processo recomendado)
 
-Backup sem teste de restauro é **não fiável**. Processo mínimo para o projeto:
+Backup sem teste de restauro é **não fiável**. Processo mínimo:
 
 | Frequência | Quem | Passos |
 |------------|------|--------|
-| **Antes de apresentação / release** | Admin (dev) | 1) Criar dado de teste + PDF em `Uploads` → 2) Backup manual → 3) Alterar/apagar dado → 4) Restaurar o `.bak` → 5) Confirmar dado e PDF |
+| **Antes de release / go-live** | Admin (dev) | 1) Criar dado de teste + PDF em `Uploads` → 2) Backup manual → 3) Alterar/apagar dado → 4) Restaurar o `.bak` → 5) Confirmar dado e PDF |
 | **Mensal** (se o sistema estiver em uso contínuo) | Admin | Repetir o mesmo em ambiente de teste ou após horário de baixo uso |
 | **Após mudança de versão** (migrações EF) | Dev | Restauro de um `.bak` pré-migração numa cópia da BD de teste |
 
@@ -105,7 +105,7 @@ Registar data e resultado (ex.: linha na tabela abaixo ou issue «Restore test O
 | Data | Versão / commit | Backup usado | BD + docs OK? | Observações |
 |------|-----------------|--------------|---------------|-------------|
 | 2026-05-25 | `9baf5b3` | `db-backup_FinalprojContext_20260525_015203.bak` (+ `_uploads.zip`) | **Sim** | Script `scripts/test-restore-backup-rpo.ps1`: cliente + PDF → backup manual → DELETE → restore → cliente e PDF `%PDF` OK (~12 s). |
-| 2026-06-09 | (Ponto 5) | `db-backup_*` via staging na pasta padrão do SQL | **A validar** | Backup escreve na pasta padrão do SQL → API move para `Backups`; restauro copia de volta antes do `RESTORE`. **Antes da apresentação:** correr `scripts/test-restore-backup-rpo.ps1` e actualizar esta linha com o resultado. |
+| 2026-06-09 | staging SQL | `db-backup_*` via pasta padrão do SQL | **Não testado** | Staging simétrico (backup/restauro via pasta padrão do SQL). Validar com `scripts/test-restore-backup-rpo.ps1` (API em Development) antes de marcar como OK. |
 
 ### Como melhorar RPO/RTO (evolução)
 
@@ -117,9 +117,7 @@ Registar data e resultado (ex.: linha na tabela abaixo ou issue «Restore test O
 | Encriptação dos `.bak`/ZIP | Segurança, não RPO/RTO |
 | BD de teste só para `RESTORE` ensaios | RTO ↓ (equipa treinada) |
 
-### Frase para defesa do projeto
-
-> «Definimos RPO de até 24 horas com backup automático diário e RPO quase nulo com backup manual antes de operações críticas; o RTO alvo é cerca de uma hora para restauro completo por um administrador. O mecanismo cobre recuperação após erro operacional, não disaster recovery multi-sítio — com plano explícito de testes de restauro e evolução off-site.»
+**Resumo:** RPO até 24 h com backup automático diário; RPO próximo de zero com backup manual antes de operações críticas; RTO alvo ~1 h para restauro por um administrador. Cobre recuperação após erro operacional, não disaster recovery multi-sítio.
 
 ---
 

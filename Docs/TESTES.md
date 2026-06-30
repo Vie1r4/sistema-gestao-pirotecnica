@@ -1,20 +1,6 @@
 # Testes
 
-**Junho 2026** — totais verificados (`Release`, jun. 2026): **57** domínio (+1 skip) · **102** integração · **69** Vitest · **17** Playwright.
-
----
-
-## O que são e para que servem
-
-**Testes automatizados** são programas que executam o código e verificam se o resultado é o esperado — **sem** ter de clicar manualmente em cada ecrã antes de cada entrega ou apresentação.
-
-Servem para três coisas principais:
-
-1. **Confiança** — saber que login, permissões, stock FIFO, validações legais do paiol, etc. continuam a funcionar depois de alterações.
-2. **Regressão** — quando se corrige um bug, o teste fica no repositório e impede que o mesmo erro volte.
-3. **Documentação viva** — cada teste descreve um comportamento esperado (ex.: «Comercial não pode apagar encomenda» → 403).
-
-O projeto usa **quatro camadas**, do mais isolado ao mais completo:
+O projeto usa **quatro camadas** de testes automatizados:
 
 | Camada | Projeto / pasta | O que testa | Para quê |
 |--------|-----------------|-------------|----------|

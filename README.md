@@ -1,22 +1,32 @@
 # PIROFAFE — Sistema de Gestão Pirotécnica
 
-Aplicação full-stack: **backend** ASP.NET Core 8 (API REST + Identity) e **frontend** Next.js 16 (pasta `apps/web/`).
+Aplicação **full-stack** para gestão de armazéns (paióis), stock (MLE/NEM), encomendas, serviços no terreno, clientes, funcionários e documentação regulamentar (PSP).
+
+**Stack:** ASP.NET Core 8 · EF Core · SQL Server · Next.js 16 · React 19 · TypeScript
+
+## Funcionalidades
+
+- **Paióis e stock** — entradas/saídas, validação ADR/RFACEPE, lotação MLE, FIFO na preparação de encomendas
+- **Encomendas** — estados, reservas de stock, fluxo comercial → armazém
+- **Serviços** — equipa, licenças, zonas de lançamento, distâncias de segurança, declaração PSP (PDF)
+- **Catálogo** — produtos, compilados, classificação de risco
+- **Utilizadores** — JWT + refresh HttpOnly, roles (Admin, Gestor, Comercial, Armazém)
+- **Operações** — backups automáticos da BD e documentos, painel admin, analytics do gestor
 
 ## Documentação
 
-**Índice central:** [**Docs/README.md**](Docs/README.md)
+**Índice:** [**Docs/README.md**](Docs/README.md)
 
-| Área | Ligação rápida |
-|------|----------------|
-| **Preparar demo / defesa** | [Docs/DEMO-PREPARACAO.md](Docs/DEMO-PREPARACAO.md) |
-| **Iniciantes** | [Docs/guia-iniciantes.md](Docs/guia-iniciantes.md) |
-| **Arquitetura** | [Docs/ARQUITETURA.md](Docs/ARQUITETURA.md) |
-| **API** | [Docs/API.md](Docs/API.md) |
-| **Testes** | [Docs/TESTES.md](Docs/TESTES.md) |
-| **Segurança** | [Docs/SEGURANCA.md](Docs/SEGURANCA.md) |
-| **Produção** | [Docs/PRODUCAO.md](Docs/PRODUCAO.md) |
-| **Roles** | [Docs/ROLES-E-PERMISSOES.md](Docs/ROLES-E-PERMISSOES.md) |
-| **Operações** | [Docs/OPERACOES.md](Docs/OPERACOES.md) |
+| Área | Ligação |
+|------|---------|
+| Visão geral | [Docs/VISAO-GERAL.md](Docs/VISAO-GERAL.md) |
+| Arquitetura | [Docs/ARQUITETURA.md](Docs/ARQUITETURA.md) |
+| API | [Docs/API.md](Docs/API.md) |
+| Testes | [Docs/TESTES.md](Docs/TESTES.md) |
+| Segurança | [Docs/SEGURANCA.md](Docs/SEGURANCA.md) |
+| Produção | [Docs/PRODUCAO.md](Docs/PRODUCAO.md) |
+| Roles | [Docs/ROLES-E-PERMISSOES.md](Docs/ROLES-E-PERMISSOES.md) |
+| Operações | [Docs/OPERACOES.md](Docs/OPERACOES.md) |
 
 ## Arquitetura (resumo)
 
@@ -28,19 +38,13 @@ flowchart LR
   Browser -->|cookie HttpOnly refresh| Api
 ```
 
-## Documentação interativa (Swagger)
-
-Com o backend a correr em **Development**, a UI Swagger está em `/swagger` (ex.: [https://localhost:7225/swagger](https://localhost:7225/swagger)) — autenticação JWT com **Authorize** após `POST /api/auth/login`.
-
-Em **Production** o Swagger fica **desligado** (não expor a superfície da API).
-
 ## Estrutura
 
 ```
 Finalproj/
 ├── src/Finalproj.Api/              # API REST (controllers, Program.cs)
 ├── src/Finalproj.Application/      # Casos de uso, DTOs, validadores
-├── src/Finalproj.Domain/           # Entidades e contratos
+├── src/Finalproj.Domain/           # Entidades, Legislacao/, contratos
 ├── src/Finalproj.Infrastructure/   # EF Core, repositórios, serviços I/O
 ├── apps/web/                       # Frontend Next.js 16
 ├── Finalproj.Tests/                # Testes unitários (domínio)
@@ -51,41 +55,33 @@ Finalproj/
 - **`apps/web/`:** React 19, TanStack Query, Tailwind, Leaflet; chamadas API em `app/lib/*Api.ts`.
 - Ver [CONTRIBUTING.md](CONTRIBUTING.md) para convenções e checklist de PR.
 
-## Painel Admin (frontend)
+## Swagger
 
-Rotas em `apps/web/app/admin/`. Documentação: [Docs/frontend/PAINEL-ADMIN.md](Docs/frontend/PAINEL-ADMIN.md).
+Com o backend em **Development**, a UI Swagger está em `/swagger` (ex.: `https://localhost:7225/swagger`) — autenticação JWT com **Authorize** após `POST /api/auth/login`.
 
-- **Limpar todos os dados** (UI): só visível fora de `production`, salvo `NEXT_PUBLIC_ALLOW_CLEAR_DATA=true` em `.env.local` (a API continua a exigir ambiente Development).
-- **Teste de restauro RPO:** [Docs/OPERACOES.md](Docs/OPERACOES.md) e `scripts/test-restore-backup-rpo.ps1`.
+Em **Production** o Swagger fica desligado.
 
 ## Testes
 
 ```bash
-dotnet test Finalproj.Tests/Finalproj.Tests.csproj
-dotnet test Finalproj.IntegrationTests/Finalproj.IntegrationTests.csproj
+dotnet test Finalproj.sln -c Release
 ```
-
-Frontend:
 
 ```bash
 cd apps/web
 npm test              # Vitest (unitário)
-npm run test:e2e      # Playwright E2E (arranca Next.js dev automaticamente)
+npm run test:e2e      # Playwright E2E
 ```
 
-- Integração backend: auth, matriz 401/403, IDOR — ver `Finalproj.IntegrationTests/`.
-- E2E: login, rotas protegidas, CRUD funcionários (mocks), encomenda submeter — ver `apps/web/tests/e2e/`.
-- **Cobertura:** o workflow [.NET tests](.github/workflows/dotnet-tests.yml) publica artefacto `coverage-report` (HTML); threshold ≥60% Domain/Application é meta futura, ainda informativo no CI.
-
-Ver [Docs/TESTES.md](Docs/TESTES.md).
+CI: [.NET tests](.github/workflows/dotnet-tests.yml) e [Client](.github/workflows/client-ci.yml). Ver [Docs/TESTES.md](Docs/TESTES.md).
 
 ## Pré-requisitos
 
 - .NET 8 SDK
-- Node.js 20+ (para o frontend)
-- SQL Server (LocalDB ou instância) para o backend
+- Node.js 20+
+- SQL Server (LocalDB ou instância)
 
-## Configuração do Backend
+## Configuração do backend
 
 ### Segredos (obrigatório)
 
@@ -96,47 +92,33 @@ cd <raiz-do-projeto>
 dotnet user-secrets set "Jwt:Secret" "sua-chave-secreta-longa-com-pelo-menos-32-caracteres" --project src/Finalproj.Api/Finalproj.Api.csproj
 dotnet user-secrets set "Jwt:Issuer" "Finalproj" --project src/Finalproj.Api/Finalproj.Api.csproj
 dotnet user-secrets set "Jwt:Audience" "FinalprojUsers" --project src/Finalproj.Api/Finalproj.Api.csproj
-# Opcional (email):
-dotnet user-secrets set "Email:SmtpHost" "smtp.gmail.com" --project src/Finalproj.Api/Finalproj.Api.csproj
-dotnet user-secrets set "Email:SmtpUser" "seu-email@gmail.com" --project src/Finalproj.Api/Finalproj.Api.csproj
-dotnet user-secrets set "Email:SmtpPassword" "sua-password-app" --project src/Finalproj.Api/Finalproj.Api.csproj
-dotnet user-secrets set "Email:From" "seu-email@gmail.com" --project src/Finalproj.Api/Finalproj.Api.csproj
 dotnet user-secrets set "Frontend:BaseUrl" "http://localhost:3000" --project src/Finalproj.Api/Finalproj.Api.csproj
 ```
 
-Em **produção**, use variáveis de ambiente ou Azure Key Vault (por exemplo `Jwt__Secret`, `Cors__AllowedOrigins`). Checklist completo: [Docs/PRODUCAO.md](Docs/PRODUCAO.md) — a API **não arranca** em `Production` se CORS, bootstrap ou segredos estiverem mal configurados.
+Em **produção**, use variáveis de ambiente ou Azure Key Vault (`Jwt__Secret`, `Cors__AllowedOrigins`). Checklist: [Docs/PRODUCAO.md](Docs/PRODUCAO.md).
+
+Opcional (email de reset de palavra-passe, confirmação de conta): `Email:SmtpHost`, `Email:SmtpUser`, `Email:SmtpPassword`, `Email:From` — ver [Docs/SEGURANCA.md](Docs/SEGURANCA.md).
 
 ### CORS
 
-Por defeito o backend aceita origens `http://localhost:3000` e `https://localhost:3000`. Em produção, defina:
+Por defeito: `http://localhost:3000` e `https://localhost:3000`. Em produção, defina `Cors:AllowedOrigins`.
 
-- `Cors:AllowedOrigins` em appsettings ou variável de ambiente (ex.: `https://app.seudominio.pt`).
+### Logs e backups
 
-### Logs e correlation id
-
-- Cada pedido HTTP recebe um **`X-Correlation-Id`** (header de resposta; opcional no pedido). Os logs de consola incluem **scopes** com `CorrelationId` e o tempo do pedido em milissegundos.
-- Detalhes: [Docs/OPERACOES.md](Docs/OPERACOES.md).
-
-### Backups automáticos da base de dados
-
-O backend inclui um serviço automático de backups SQL Server (`BackgroundService`) com execução diária às **19:00**.
-
-- Destino: ficheiros `.bak` em `PirofafeData/Backups/` junto ao projecto API (pastas criadas no arranque; ver `DadosLocais` e `Backups` em `appsettings`). Uploads de documentos ficam em `PirofafeData/Uploads/` — não versionados no Git.
-- Configuração: secção `Backups` no `appsettings.json`.
-- Documentação detalhada: [Docs/OPERACOES.md](Docs/OPERACOES.md).
+- Pedidos HTTP incluem **`X-Correlation-Id`** — ver [Docs/OPERACOES.md](Docs/OPERACOES.md#observabilidade-http).
+- Backups automáticos diários da BD + documentos — secção `Backups` em `appsettings`; detalhe em [Docs/OPERACOES.md](Docs/OPERACOES.md).
 
 ## Executar
 
-### 1. Backend
+### Backend
 
 ```bash
-cd <raiz-do-projeto>
 dotnet run --project src/Finalproj.Api/Finalproj.Api.csproj
 ```
 
-A API fica em `https://localhost:7225` (ou a porta em `src/Finalproj.Api/Properties/launchSettings.json`). Em Development, use o Swagger em `/swagger` para testar endpoints.
+API em `https://localhost:7225` (porta em `src/Finalproj.Api/Properties/launchSettings.json`).
 
-### 2. Frontend
+### Frontend
 
 ```bash
 cd apps/web
@@ -144,16 +126,21 @@ npm install
 npm run dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000). O frontend usa por defeito `https://localhost:7225` como base da API. Para alterar, crie `.env.local`:
+Abre [http://localhost:3000](http://localhost:3000). Para alterar a API, crie `apps/web/.env.local`:
 
 ```
 NEXT_PUBLIC_API_URL=https://localhost:7225
 ```
 
-Em produção, defina `NEXT_PUBLIC_API_URL` com a URL da API.
-
 ## Primeiro utilizador
 
-Com `Bootstrap:AllowFirstUserRegistration=true` (por defeito em **Development**; `false` em `appsettings.json` de produção), a página de login mostra **Criar primeiro utilizador** enquanto ainda não existir nenhuma conta. Esse utilizador recebe a role Admin.
+Com `Bootstrap:AllowFirstUserRegistration=true` (por defeito em **Development**), a página de login mostra **Criar primeiro utilizador** enquanto não existir nenhuma conta — recebe role **Admin**.
 
-Após criar o primeiro admin em produção, defina `Bootstrap__AllowFirstUserRegistration=false` (ou na configuração equivalente) para desativar o bootstrap e evitar enumeração do estado da instalação.
+Em produção, defina `Bootstrap__AllowFirstUserRegistration=false` após criar o administrador inicial.
+
+## Painel Admin
+
+Rotas em `apps/web/app/admin/`. Documentação: [Docs/frontend/PAINEL-ADMIN.md](Docs/frontend/PAINEL-ADMIN.md).
+
+- **Limpar todos os dados:** só visível fora de `production` (a API exige ambiente Development).
+- **Backups e restauro:** [Docs/OPERACOES.md](Docs/OPERACOES.md).
