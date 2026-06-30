@@ -16,7 +16,7 @@ Convenções:
 - Sempre que corrigir bug, adicionar teste de regressão
 - Reutilizar fixtures em `tests/mocks/` para evitar duplicação e manter consistência
 
-Execução:
+Execução (a partir de `apps/web/`):
 
 - Unit + Component: `npm run test`
-- E2E (Playwright): `npm run test:e2e`
+- E2E (Playwright): `npm run test:e2e` (`npx playwright install chromium` na primeira vez)

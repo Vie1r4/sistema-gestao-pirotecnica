@@ -44,7 +44,7 @@ npm start
 
 ## CI
 
-Alterações em `apps/web/**` disparam [`.github/workflows/client-ci.yml`](../../.github/workflows/client-ci.yml): typecheck, lint, Vitest, build, Playwright E2E.
+Alterações em `apps/web/**` disparam [`.github/workflows/client-ci.yml`](../../.github/workflows/client-ci.yml): `npm audit --audit-level=high`, typecheck, lint, Vitest, build, Playwright E2E.
 
 ## Estrutura relevante
 

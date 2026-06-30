@@ -30,6 +30,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Falha só em vulnerabilidades HIGH+ (moderate, ex. postcss via Next, não bloqueia).
       - name: Auditoria de segurança npm
         run: npm audit --audit-level=high
 

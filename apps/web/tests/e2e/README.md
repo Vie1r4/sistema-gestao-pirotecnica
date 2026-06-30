@@ -21,7 +21,7 @@ npm run test:e2e
 
 ## CI (GitHub Actions)
 
-No workflow [`.github/workflows/client-ci.yml`](../../../../.github/workflows/client-ci.yml), após `npm run build`, corre `npx playwright install chromium --with-deps` e `npm run test:e2e`. Os cenários atuais **não exigem backend** (mock com `page.route`); o smoke de login intercepta `GET api/auth/existem-utilizadores` para resposta rápida e estável.
+No workflow [`.github/workflows/client-ci.yml`](../../../../.github/workflows/client-ci.yml), após `npm ci` corre `npm audit --audit-level=high`; depois de `npm run build`, `npx playwright install chromium --with-deps` e `npm run test:e2e`. Os cenários atuais **não exigem backend** (mock com `page.route`); o smoke de login intercepta `GET api/auth/existem-utilizadores` para resposta rápida e estável.
 
 Modo visual:
 

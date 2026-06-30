@@ -6,7 +6,7 @@ O projeto usa **quatro camadas** de testes automatizados:
 |--------|-----------------|-------------|----------|
 | **Unitários (domínio)** | `Finalproj.Tests` | Regras de negócio, validadores, cálculos legais, stock | Lógica pura, rápida, sem rede nem browser |
 | **Integração (HTTP)** | `Finalproj.IntegrationTests` | API completa: auth, 401/403, IDOR, endpoints reais | Garantir que o servidor responde bem e que a segurança está aplicada |
-| **Unitários (frontend)** | `apps/web/tests/unit` (Vitest) | Permissões de rotas, mapeadores de API, CSP, helpers | Lógica do client sem abrir browser |
+| **Unitários (frontend)** | `apps/web/tests/unit` (Vitest) | Permissões de rotas, mapeadores de API, CSP, helpers | Lógica do frontend sem abrir browser |
 | **E2E (browser)** | `apps/web/tests/e2e` (Playwright) | Fluxos como login, rotas protegidas, CRUD, encomendas | Simular o utilizador real na aplicação web |
 
 Em CI (GitHub Actions), estes testes correm automaticamente em cada push/PR — ver secção [CI](#ci) abaixo.
@@ -19,7 +19,9 @@ Em CI (GitHub Actions), estes testes correm automaticamente em cada push/PR — 
 # Tudo backend
 dotnet test Finalproj.sln -c Release
 
-# Frontend (em apps/web/)
+# Frontend — obrigatório estar em apps/web/ (não há package.json na raiz)
+cd apps/web
+npm ci                            # ou npm install
 npm test
 npm run test:e2e
 npx playwright install chromium   # primeira vez
@@ -66,6 +68,6 @@ Login, rota protegida, CRUD funcionários (mocks), encomenda submeter, documenta
 | Workflow | Conteúdo |
 |----------|----------|
 | `.github/workflows/dotnet-tests.yml` | `dotnet test`, cobertura HTML (informativa), bloqueio pacotes HIGH |
-| `.github/workflows/client-ci.yml` | typecheck, lint, Vitest, build, Playwright |
+| `.github/workflows/client-ci.yml` | `npm audit --audit-level=high`, typecheck, lint, Vitest, build, Playwright |
 
 Cobertura ≥60% Domain/Application: meta futura; CI ainda não falha por %.

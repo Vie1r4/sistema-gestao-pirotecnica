@@ -1,72 +1,188 @@
-# Sistema de Gestão Pirotécnica
+# Pyrotechnics Operations Platform
 
-[![.NET tests](https://github.com/Vie1r4/Finalproj/actions/workflows/dotnet-tests.yml/badge.svg)](https://github.com/Vie1r4/Finalproj/actions/workflows/dotnet-tests.yml)
-[![Client](https://github.com/Vie1r4/Finalproj/actions/workflows/client-ci.yml/badge.svg)](https://github.com/Vie1r4/Finalproj/actions/workflows/client-ci.yml)
+**Full-stack management system for a regulated pyrotechnics company — warehouses, stock, orders, field services, and PSP compliance.**
 
-Aplicação **full-stack** desenvolvida para a **Pirofafe**, empresa pirotécnica. Cobre armazéns (paióis), stock (MLE/NEM), encomendas, serviços no terreno, clientes, funcionários e documentação regulamentar (PSP).
+[![.NET tests](https://github.com/Vie1r4/sistema-gestao-pirotecnica/actions/workflows/dotnet-tests.yml/badge.svg)](https://github.com/Vie1r4/sistema-gestao-pirotecnica/actions/workflows/dotnet-tests.yml)
+[![Client CI](https://github.com/Vie1r4/sistema-gestao-pirotecnica/actions/workflows/client-ci.yml/badge.svg)](https://github.com/Vie1r4/sistema-gestao-pirotecnica/actions/workflows/client-ci.yml)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-coming_soon-lightgrey?style=flat-square)](#demo-credentials)
 
-> **Nota:** Pirofafe é o **cliente**; este repositório é o **software de gestão** feito para essa empresa, não um produto comercial com o mesmo nome.
+Built for **Pirofafe** — a real pyrotechnics business. This repository is the **management software**, not a commercial product branded after the client.
 
-**Stack:** ASP.NET Core 8 · EF Core · SQL Server · Next.js 16 · React 19 · TypeScript
+**Author:** [Sérgio Henrique Oliveira Vieira](https://github.com/Vie1r4) · [LinkedIn](https://www.linkedin.com/in/s%C3%A9rgio-vieira-7b4290345/)
 
-## Funcionalidades
+---
 
-- **Paióis e stock** — entradas/saídas, validação ADR/RFACEPE, lotação MLE, FIFO na preparação de encomendas
-- **Encomendas** — estados, reservas de stock, fluxo comercial → armazém
-- **Serviços** — equipa, licenças, zonas de lançamento, distâncias de segurança, declaração PSP (PDF)
-- **Catálogo** — produtos, compilados, classificação de risco
-- **Utilizadores** — JWT + refresh HttpOnly, roles (Admin, Gestor, Comercial, Armazém)
-- **Operações** — backups automáticos da BD e documentos, painel admin, analytics do gestor
+## Problem → Solution
 
-## Documentação
+| Problem | Solution |
+|---------|----------|
+| **Regulated warehouses (paióis)** must respect ADR/RFACEPE rules — license compatibility, MLE limits, risk groups — or stock entries are rejected. | Domain module `Legislacao/` with a single source of legal parameters and `MotorValidacaoPaiol` validates every warehouse entry before it is saved. |
+| **Commercial and warehouse teams** work on the same orders with different roles; stock must be reserved and picked in FIFO order without overselling. | Order workflow (Pending → Accepted → In preparation → Completed) with stock reservations and FIFO allocation in `EncomendaService`. |
+| **Field services** require safety distances, launch zones, crew licenses, and **PSP declaration PDFs** for each event. | Service module with zone mapping (Leaflet), automatic safety-radius calculation, and PDF generation from an official Word template. |
 
-**Índice:** [**Docs/README.md**](Docs/README.md)
+---
 
-| Área | Ligação |
-|------|---------|
-| Visão geral | [Docs/VISAO-GERAL.md](Docs/VISAO-GERAL.md) |
-| Arquitetura | [Docs/ARQUITETURA.md](Docs/ARQUITETURA.md) |
-| API | [Docs/API.md](Docs/API.md) |
-| Testes | [Docs/TESTES.md](Docs/TESTES.md) |
-| Segurança | [Docs/SEGURANCA.md](Docs/SEGURANCA.md) |
-| Produção | [Docs/PRODUCAO.md](Docs/PRODUCAO.md) |
-| Roles | [Docs/ROLES-E-PERMISSOES.md](Docs/ROLES-E-PERMISSOES.md) |
-| Operações | [Docs/OPERACOES.md](Docs/OPERACOES.md) |
+## Stack
 
-## Arquitetura (resumo)
+![.NET](https://img.shields.io/badge/.NET-8-512BD4?logo=dotnet&logoColor=white)
+![ASP.NET Core](https://img.shields.io/badge/ASP.NET_Core-8-512BD4?logo=dotnet&logoColor=white)
+![EF Core](https://img.shields.io/badge/EF_Core-8-512BD4?logo=dotnet&logoColor=white)
+![SQL Server](https://img.shields.io/badge/SQL_Server-2022-CC2927?logo=microsoftsqlserver&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=next.js&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss&logoColor=white)
+![TanStack Query](https://img.shields.io/badge/TanStack_Query-5-FF4154?logo=reactquery&logoColor=white)
+![xUnit](https://img.shields.io/badge/xUnit-tests-107C10?logo=xdotorg&logoColor=white)
+![Playwright](https://img.shields.io/badge/Playwright-E2E-2EAD33?logo=playwright&logoColor=white)
+
+---
+
+## Architecture
 
 ```mermaid
-flowchart LR
-  Browser[Next.js apps/web] -->|HTTPS JWT| Api[ASP.NET Core API]
-  Api -->|EF Core| Db[(SQL Server)]
-  Api --> Files[PirofafeData Uploads e Backups]
-  Browser -->|cookie HttpOnly refresh| Api
+flowchart TB
+  subgraph Client["Browser — apps/web"]
+    UI[Next.js 16 · React 19]
+    Query[TanStack Query]
+    UI --> Query
+  end
+
+  subgraph Api["Finalproj.Api"]
+    REST[REST Controllers]
+    Auth[JWT + Refresh HttpOnly]
+    MW[Rate limit · Correlation ID]
+  end
+
+  subgraph Application["Finalproj.Application"]
+    Svc[Feature services]
+    Val[FluentValidation]
+  end
+
+  subgraph Domain["Finalproj.Domain"]
+    Ent[Entities · Read models]
+    Leg[Legislacao/ — ADR · RFACEPE · PSP]
+  end
+
+  subgraph Infrastructure["Finalproj.Infrastructure"]
+    EF[EF Core 8]
+    Files[Uploads · Backups · Email]
+  end
+
+  Query -->|"HTTPS · Bearer JWT"| REST
+  REST --> Auth
+  REST --> MW
+  REST --> Svc
+  Svc --> Val
+  Svc --> Ent
+  Svc --> Leg
+  Svc --> EF
+  EF --> DB[(SQL Server)]
+  Svc --> Files
+  Data[PirofafeData/]
+  Files --> Data
 ```
 
-## Estrutura
+**Layers:** Clean Architecture — Domain has zero external dependencies; Application has no `Microsoft.AspNetCore.*`; Infrastructure implements repository contracts.
+
+<details>
+<summary>Repository layout</summary>
 
 ```
 Finalproj/
-├── src/Finalproj.Api/              # API REST (controllers, Program.cs)
-├── src/Finalproj.Application/      # Casos de uso, DTOs, validadores
-├── src/Finalproj.Domain/           # Entidades, Legislacao/, contratos
-├── src/Finalproj.Infrastructure/   # EF Core, repositórios, serviços I/O
-├── apps/web/                       # Frontend Next.js 16
-├── Finalproj.Tests/                # Testes unitários (domínio)
-├── Finalproj.IntegrationTests/     # Testes de integração HTTP (auth, 401/403)
-└── Docs/                           # Documentação
+├── src/Finalproj.Api/              # HTTP, controllers, Program.cs
+├── src/Finalproj.Application/      # Use cases, DTOs, validators
+├── src/Finalproj.Domain/           # Entities, Legislacao/, interfaces
+├── src/Finalproj.Infrastructure/   # EF Core, repos, I/O services
+├── apps/web/                       # Next.js 16 frontend
+├── Finalproj.Tests/                # Domain unit tests
+├── Finalproj.IntegrationTests/     # HTTP tests (auth, IDOR, 401/403)
+└── Docs/                           # Full documentation
 ```
 
-- **`apps/web/`:** React 19, TanStack Query, Tailwind, Leaflet; chamadas API em `app/lib/*Api.ts`.
-- Ver [CONTRIBUTING.md](CONTRIBUTING.md) para convenções e checklist de PR.
+</details>
 
-## Swagger
+---
 
-Com o backend em **Development**, a UI Swagger está em `/swagger` (ex.: `https://localhost:7225/swagger`) — autenticação JWT com **Authorize** após `POST /api/auth/login`.
+## Technical highlights
 
-Em **Production** o Swagger fica desligado.
+- **Clean Architecture** — four backend projects with strict dependency rules; business logic isolated from ASP.NET and EF.
+- **JWT + HttpOnly refresh** — access token in memory only; refresh rotation; rate-limited auth endpoints; 403 → 404 on sensitive resources.
+- **FIFO stock preparation** — SQL-backed available balance per lot; oldest-first allocation when warehouse prepares accepted orders.
+- **IDOR & authorization tests** — integration suite with role matrix (`EndpointAuthorizationTests`) and cross-tenant access checks (`IdorTests`).
+- **Automated backups** — daily database + document snapshots, optional AES-256-GCM encryption at rest, correlation IDs on every API request.
 
-## Testes
+---
+
+## Quick start
+
+### Planned — Docker (Phase 2)
+
+One-command local demo is on the roadmap:
+
+```bash
+# Coming soon
+docker compose up
+```
+
+This will start SQL Server, the API, the web app, and seed demo data. Track progress in [Docs/CASE-STUDY.md](Docs/CASE-STUDY.md#roadmap).
+
+### Local development (today)
+
+**Requirements:** .NET 8 SDK · Node.js 20+ · SQL Server (LocalDB or instance)
+
+**1. Backend secrets** (required — app fails without JWT secret):
+
+```bash
+dotnet user-secrets set "Jwt:Secret" "your-secret-key-at-least-32-characters-long" --project src/Finalproj.Api/Finalproj.Api.csproj
+dotnet user-secrets set "Jwt:Issuer" "Finalproj" --project src/Finalproj.Api/Finalproj.Api.csproj
+dotnet user-secrets set "Jwt:Audience" "FinalprojUsers" --project src/Finalproj.Api/Finalproj.Api.csproj
+dotnet user-secrets set "Frontend:BaseUrl" "http://localhost:3000" --project src/Finalproj.Api/Finalproj.Api.csproj
+```
+
+**2. Run API:**
+
+```bash
+dotnet run --project src/Finalproj.Api/Finalproj.Api.csproj
+```
+
+API: `https://localhost:7225` · Swagger (Development only): `/swagger`
+
+**3. Run frontend:**
+
+```bash
+cd apps/web
+cp .env.example .env.local   # adjust NEXT_PUBLIC_API_URL if needed
+npm install
+npm run dev
+```
+
+App: [http://localhost:3000](http://localhost:3000)
+
+**First user:** with `Bootstrap:AllowFirstUserRegistration=true` (default in Development), use **Create first user** on the login page — receives **Admin** role.
+
+Full setup: [CONTRIBUTING.md](CONTRIBUTING.md) · Production env vars: [`.env.example`](.env.example)
+
+---
+
+## Demo credentials
+
+> **Live demo:** not deployed yet — link will be added here when Phase 2 (Docker + cloud) is complete.
+
+When the demo environment is live, these read-only accounts will be available:
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | `demo-admin@example.com` | *(published with deploy)* |
+| Gestor | `demo-gestor@example.com` | *(published with deploy)* |
+| Comercial | `demo-comercial@example.com` | *(published with deploy)* |
+| Armazém | `demo-armazem@example.com` | *(published with deploy)* |
+
+All demo data will be **fictional** — no real client information.
+
+---
+
+## Tests
 
 ```bash
 dotnet test Finalproj.sln -c Release
@@ -74,94 +190,39 @@ dotnet test Finalproj.sln -c Release
 
 ```bash
 cd apps/web
-npm test              # Vitest (unitário)
-npm run test:e2e      # Playwright E2E
+npm test              # Vitest
+npm run test:e2e      # Playwright
 ```
 
-CI: [.NET tests](.github/workflows/dotnet-tests.yml) e [Client](.github/workflows/client-ci.yml). Ver [Docs/TESTES.md](Docs/TESTES.md).
+Details: [Docs/TESTES.md](Docs/TESTES.md)
 
-## Pré-requisitos
+---
 
-- .NET 8 SDK
-- Node.js 20+
-- SQL Server (LocalDB ou instância)
+## Links
 
-## Configuração
+| Resource | Link |
+|----------|------|
+| **Case study** | [Docs/CASE-STUDY.md](Docs/CASE-STUDY.md) |
+| **Documentation index** | [Docs/README.md](Docs/README.md) |
+| **Architecture** | [Docs/ARQUITETURA.md](Docs/ARQUITETURA.md) |
+| **API reference** | [Docs/API.md](Docs/API.md) |
+| **Security** | [Docs/SEGURANCA.md](Docs/SEGURANCA.md) |
+| **Contributing** | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| **GitHub** | [github.com/Vie1r4/sistema-gestao-pirotecnica](https://github.com/Vie1r4/sistema-gestao-pirotecnica) |
+| **LinkedIn** | [Sérgio Vieira](https://www.linkedin.com/in/s%C3%A9rgio-vieira-7b4290345/) |
 
-### Backend — segredos (obrigatório)
+---
 
-O JWT **não** deve estar em `appsettings.json`. Use **User Secrets** em desenvolvimento:
+## Português — resumo
 
-```bash
-cd <raiz-do-projeto>
-dotnet user-secrets set "Jwt:Secret" "sua-chave-secreta-longa-com-pelo-menos-32-caracteres" --project src/Finalproj.Api/Finalproj.Api.csproj
-dotnet user-secrets set "Jwt:Issuer" "Finalproj" --project src/Finalproj.Api/Finalproj.Api.csproj
-dotnet user-secrets set "Jwt:Audience" "FinalprojUsers" --project src/Finalproj.Api/Finalproj.Api.csproj
-dotnet user-secrets set "Frontend:BaseUrl" "http://localhost:3000" --project src/Finalproj.Api/Finalproj.Api.csproj
-```
+Aplicação **full-stack** para gestão pirotécnica (cliente **Pirofafe**): paióis e stock com validação ADR/RFACEPE, encomendas com FIFO, serviços no terreno, declaração PSP em PDF, JWT + roles, backups automáticos e painel admin.
 
-Produção: variáveis de ambiente — ver [`.env.example`](.env.example) e [Docs/PRODUCAO.md](Docs/PRODUCAO.md).
+- Documentação completa em [`Docs/`](Docs/README.md)
+- Painel admin: [`Docs/frontend/PAINEL-ADMIN.md`](Docs/frontend/PAINEL-ADMIN.md)
+- Screenshots e demo online — **fase seguinte** do plano de portfolio
 
-Opcional (email): `Email:SmtpHost`, `Email:SmtpUser`, `Email:SmtpPassword`, `Email:From` — ver [Docs/SEGURANCA.md](Docs/SEGURANCA.md).
+---
 
-### Frontend
+## License
 
-Copiar [`apps/web/.env.example`](apps/web/.env.example) para `apps/web/.env.local` e ajustar `NEXT_PUBLIC_API_URL` se necessário.
-
-### CORS
-
-Por defeito: `http://localhost:3000` e `https://localhost:3000`. Em produção, defina `Cors:AllowedOrigins`.
-
-### Logs e backups
-
-- Pedidos HTTP incluem **`X-Correlation-Id`** — ver [Docs/OPERACOES.md](Docs/OPERACOES.md#observabilidade-http).
-- Backups automáticos diários da BD + documentos — [Docs/OPERACOES.md](Docs/OPERACOES.md).
-
-## Executar (local)
-
-### Backend
-
-```bash
-dotnet run --project src/Finalproj.Api/Finalproj.Api.csproj
-```
-
-API em `https://localhost:7225` (porta em `src/Finalproj.Api/Properties/launchSettings.json`).
-
-### Frontend
-
-```bash
-cd apps/web
-npm install
-npm run dev
-```
-
-Abre [http://localhost:3000](http://localhost:3000).
-
-## Primeiro utilizador
-
-Com `Bootstrap:AllowFirstUserRegistration=true` (por defeito em **Development**), a página de login mostra **Criar primeiro utilizador** enquanto não existir nenhuma conta — recebe role **Admin**.
-
-Em produção, defina `Bootstrap__AllowFirstUserRegistration=false` após criar o administrador inicial.
-
-## Painel Admin
-
-Rotas em `apps/web/app/admin/`. Documentação: [Docs/frontend/PAINEL-ADMIN.md](Docs/frontend/PAINEL-ADMIN.md).
-
-- **Limpar todos os dados:** só visível fora de `production` (a API exige ambiente Development).
-- **Backups e restauro:** [Docs/OPERACOES.md](Docs/OPERACOES.md).
-
-## Autor
-
-**Sérgio Henrique Oliveira Vieira** — [GitHub @Vie1r4](https://github.com/Vie1r4)
-
-Software de gestão pirotécnica desenvolvido para a **Pirofafe** — full-stack (.NET, Next.js, domínio regulado).
-
-### Sugestão para o repositório GitHub
-
-| Campo | Valor sugerido |
-|-------|----------------|
-| **Description** | Full-stack management system for a pyrotechnics company — ASP.NET Core 8 + Next.js 16 |
-| **Topics** | `aspnet-core`, `nextjs`, `ef-core`, `typescript`, `full-stack`, `sql-server` |
-| **Website** | *(deixar vazio até haver deploy)* |
-
-Não é necessário renomear o repositório para «pirofafe» — o nome `Finalproj` ou algo como `gestao-pirotecnica` funciona bem para portfólio.
+Portfolio / academic project. See repository settings for license terms.

@@ -34,6 +34,7 @@ Docs/
 
 | Perfil | Documento |
 |--------|-----------|
+| **Recrutador / reviewer** | [CASE-STUDY.md](CASE-STUDY.md) · [README na raiz](../README.md) |
 | **Novo no projeto** | [VISAO-GERAL.md](VISAO-GERAL.md) |
 | **Integrar com a API** | [API.md](API.md) |
 | **Permissões e roles** | [ROLES-E-PERMISSOES.md](ROLES-E-PERMISSOES.md) |
@@ -46,6 +47,7 @@ Docs/
 
 | Documento | Para quê |
 |-----------|----------|
+| [CASE-STUDY.md](CASE-STUDY.md) | Resumo portfolio — contexto, decisões, roadmap |
 | [VISAO-GERAL.md](VISAO-GERAL.md) | O que é o sistema e como backend/frontend se ligam |
 | [ARQUITETURA.md](ARQUITETURA.md) | Stack, domínio, módulos da API, convenções |
 | [API.md](API.md) | Referência HTTP, JWT, endpoints, exemplos |

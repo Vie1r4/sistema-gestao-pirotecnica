@@ -316,7 +316,7 @@ Autorização: **Admin**, **Gestor** (JWT).
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/volume` | Volume de encomendas. Query: `granularidade` = `dia` \| `semana` \| `mes` \| `ano`, `dias` (7–1095, default 90). A consulta inclui +1 ano para comparação homóloga. Variação % no client (homóloga). No painel: **Ctrl+scroll** no gráfico altera agrupamento (ano→mês→semana→dia). |
+| GET | `/volume` | Volume de encomendas. Query: `granularidade` = `dia` \| `semana` \| `mes` \| `ano`, `dias` (7–1095, default 90). A consulta inclui +1 ano para comparação homóloga. Variação % no frontend (homóloga). No painel: **Ctrl+scroll** no gráfico altera agrupamento (ano→mês→semana→dia). |
 | GET | `/comparacao-anual` | Comparação **multi-ano** por mês civil (Jan–Dez). Query opcional: `produtoId`, `clienteId`. Resposta: `anoAtual`, `anosDisponiveis[]` (só anos com encomendas), `series[]` (`ano`, `pontos[]` com `mes`, `rotulo`, `total`, `futuro`, `encomendas[]`). O ano corrente termina no mês actual; anos completos vão até Dezembro. Com `produtoId`, totais em unidades. |
 | GET | `/consumo-cliente` | O que o cliente encomendou no intervalo. Query obrigatória: `clienteId`, `desde`, `ate` (yyyy-MM-dd, inclusivos; ex. `2025-04-15` e `2025-04-20`); opcional: `produtoId`. Resposta: `desde`, `ate`, `linhas[]`, totais, `materiais`/`clientes`. |
 | GET | `/top-clientes` | Top por encomendas e por serviços. Query: `limite`. Campo `risco` (volume em queda vs 90 dias anteriores). |
