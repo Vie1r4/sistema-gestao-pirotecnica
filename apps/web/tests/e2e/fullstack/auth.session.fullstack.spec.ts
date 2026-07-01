@@ -38,9 +38,10 @@ test.describe("Sessão full-stack", () => {
 
     await expect(page.getByRole("heading", { name: "Clientes" })).toBeVisible();
     await expect(page.getByText("Falha de rede")).toHaveCount(0);
+    await expect(page.getByRole("table")).toBeVisible({ timeout: 15_000 });
     await expect(
-      page.getByText("Ainda não há clientes registados.").or(page.getByRole("table"))
-    ).toBeVisible({ timeout: 15_000 });
+      page.getByRole("cell", { name: "Ainda não há clientes registados." })
+    ).toBeVisible();
     await expectAuthenticatedNavbar(page);
   });
 });
