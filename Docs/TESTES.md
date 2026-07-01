@@ -55,6 +55,7 @@ npx playwright install chromium   # primeira vez
 - Matriz **401/403** (GET + mutação).
 - **IDOR** — documentos, paiol, admin, serviços.
 - **FIFO concorrência** — `FifoPreparacaoConcorrenciaTests` (Docker + SQL Server; trait `Category=Docker`).
+- **Bootstrap 1.º admin** — `BootstrapSqlServerTests` (Docker; valida `Perfil` + `/me` em SQL real).
 
 Regra: alterar autorização → actualizar `InlineData` ou teste IDOR; documentar em [ROLES-E-PERMISSOES.md](ROLES-E-PERMISSOES.md).
 

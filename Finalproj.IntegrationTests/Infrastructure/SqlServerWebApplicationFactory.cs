@@ -42,13 +42,25 @@ public sealed class SqlServerWebApplicationFactory : WebApplicationFactory<Progr
 
     public async Task InitializeAsync()
     {
+        await InitializeDatabaseAsync(seedBusinessData: true);
+    }
+
+    /// <summary>Migrações + roles, sem dados de negócio — para testar bootstrap do 1.º admin.</summary>
+    public async Task InitializeBootstrapOnlyAsync()
+    {
+        await InitializeDatabaseAsync(seedBusinessData: false);
+    }
+
+    private async Task InitializeDatabaseAsync(bool seedBusinessData)
+    {
         using var scope = Services.CreateScope();
         var sp = scope.ServiceProvider;
 
         var context = sp.GetRequiredService<FinalprojContext>();
         await context.Database.MigrateAsync();
         await SeedRoles.InitializeAsync(sp);
-        await TestDataSeeder.SeedAsync(sp);
+        if (seedBusinessData)
+            await TestDataSeeder.SeedAsync(sp);
     }
 
     private sealed class NoOpEmailSender : IEmailSender
