@@ -24,7 +24,14 @@ if echo "$STATUS_JSON" | grep -q '"primeiroRegistoDisponivel":true'; then
     cat /tmp/e2e-seed-body.json >&2
     exit 1
   fi
+  if ! grep -q '"token"' /tmp/e2e-seed-body.json; then
+    echo "Registo sem token JWT:" >&2
+    cat /tmp/e2e-seed-body.json >&2
+    exit 1
+  fi
   echo "Admin E2E criado: $EMAIL"
 else
   echo "Já existem utilizadores — a usar conta existente ($EMAIL)."
 fi
+
+bash "$ROOT/scripts/e2e-fullstack/validate-login.sh"

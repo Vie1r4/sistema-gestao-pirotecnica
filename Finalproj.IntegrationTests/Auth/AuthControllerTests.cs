@@ -351,6 +351,33 @@ public class AuthControllerTests : IntegrationTestBase
     }
 
     [Fact]
+    public async Task RegistarPrimeiroUtilizador_PersisteNomeNoPerfil_E_Me()
+    {
+        const string email = "bootstrap-perfil@pirofafe.pt";
+        const string nome = "Admin Bootstrap Perfil";
+
+        var client = Factory.CreateClient(new() { HandleCookies = true });
+        var register = await client.PostAsJsonAsync("/api/auth/registar-primeiro-utilizador", new
+        {
+            email,
+            password = TestDataSeeder.DefaultPassword,
+            nome
+        });
+
+        Assert.Equal(HttpStatusCode.OK, register.StatusCode);
+        var registerJson = await register.Content.ReadFromJsonAsync<JsonElement>();
+        var token = registerJson.GetProperty("token").GetString();
+        Assert.False(string.IsNullOrEmpty(token));
+
+        client.DefaultRequestHeaders.Authorization = new("Bearer", token);
+        var me = await client.GetAsync("/api/auth/me");
+        Assert.Equal(HttpStatusCode.OK, me.StatusCode);
+        var meJson = await me.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(nome, meJson.GetProperty("nome").GetString());
+        Assert.Equal(email, meJson.GetProperty("email").GetString());
+    }
+
+    [Fact]
     public async Task Logout_RevogaRefresh()
     {
         var client = Factory.CreateClient(new() { HandleCookies = true });

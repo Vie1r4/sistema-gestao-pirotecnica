@@ -1,6 +1,9 @@
 using Finalproj.Application.Features.Auth.DTOs;
 using Finalproj.Application.Features.Auth.Interfaces;
 using Finalproj.Application.Services.Interfaces;
+using Finalproj.Domain.Entities;
+using Finalproj.Domain.Interfaces;
+using Finalproj.Domain.Interfaces.Repositories;
 using Finalproj.Infrastructure.Configuration;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
@@ -12,6 +15,8 @@ public sealed class AuthBootstrapService(
     IIdentityUserLookupService identityUsers,
     IPasswordValidationService passwordValidation,
     IAuthTokenService tokenService,
+    IPerfilRepository perfis,
+    IUnitOfWork unitOfWork,
     IOptions<BootstrapOptions> bootstrapOptions) : IAuthBootstrapService
 {
     public bool IsBootstrapEnabled => bootstrapOptions.Value.AllowFirstUserRegistration;
@@ -43,6 +48,13 @@ public sealed class AuthBootstrapService(
         await userManager.AddToRoleAsync(user, "Admin");
         var roles = await userManager.GetRolesAsync(user);
         var displayName = nome?.Trim() ?? email;
+        await perfis.AddAsync(new Perfil
+        {
+            UserId = user.Id!,
+            Nome = displayName,
+            DataRegisto = DateTime.UtcNow,
+        }, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         var session = await tokenService.IssueSessionAsync(user.Id!, email, displayName, roles, cancellationToken);
         return (true, null, null, session);
     }

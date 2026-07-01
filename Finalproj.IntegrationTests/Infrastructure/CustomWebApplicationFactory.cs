@@ -38,10 +38,10 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     {
         using var scope = Services.CreateScope();
         var sp = scope.ServiceProvider;
-        await SeedRoles.InitializeAsync(sp);
 
         var context = sp.GetRequiredService<FinalprojContext>();
         await context.Database.EnsureCreatedAsync();
+        await SeedRoles.InitializeAsync(sp);
         await TestDataSeeder.SeedAsync(sp);
     }
 

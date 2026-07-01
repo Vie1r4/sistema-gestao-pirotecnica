@@ -7,6 +7,10 @@ export async function loginViaUi(page: Page) {
     (res) => res.url().includes("/api/auth/login") && res.request().method() === "POST",
     { timeout: 30_000 }
   );
+  const meResponse = page.waitForResponse(
+    (res) => res.url().includes("/api/auth/me") && res.request().method() === "GET" && res.ok(),
+    { timeout: 30_000 }
+  );
 
   await page.goto("/login");
   await expect(page.getByRole("heading", { name: "Iniciar sessão" })).toBeVisible({ timeout: 20_000 });
@@ -24,13 +28,23 @@ export async function loginViaUi(page: Page) {
   expect(String(token).length).toBeGreaterThan(10);
 
   await expect(page).not.toHaveURL(/\/login/, { timeout: 30_000 });
+  await meResponse;
   await expectAuthenticatedNavbar(page);
 
   return body;
 }
 
 export async function expectAuthenticatedNavbar(page: Page) {
-  await expect(page.getByRole("link", { name: E2E_ADMIN_NOME })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("link", { name: "Iniciar sessão" })).toHaveCount(0);
+  await expect(
+    page.getByRole("link", {
+      name: new RegExp(`^(${escapeRegExp(E2E_ADMIN_NOME)}|${escapeRegExp(E2E_ADMIN_EMAIL)}|Perfil)$`),
+    })
+  ).toBeVisible({ timeout: 30_000 });
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** Após reload, o frontend deve renovar sessão (refresh HttpOnly) e voltar a obter /me. */

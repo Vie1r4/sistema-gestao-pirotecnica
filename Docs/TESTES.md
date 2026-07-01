@@ -74,7 +74,7 @@ Login, rota protegida, CRUD funcionários (mocks), encomenda submeter, documenta
 
 ### E2E full-stack (`apps/web/tests/e2e/fullstack`)
 
-Um spec de login + sessão (`auth.login`, `auth.session`): login sem `page.route`, reload com refresh HttpOnly, `GET /api/auth/me`, listagem de clientes. Só corre com `E2E_FULLSTACK=1`. CI usa **API HTTPS** (`E2E_USE_HTTPS=1`) para cookies cross-origin. Workflow: [`.github/workflows/fullstack-e2e.yml`](../../.github/workflows/fullstack-e2e.yml).
+Um spec de login + sessão (`auth.login`, `auth.session`): login sem `page.route`, reload com refresh HttpOnly, `GET /api/auth/me`, listagem de clientes. Só corre com `E2E_FULLSTACK=1`. CI usa **API HTTPS** (`E2E_USE_HTTPS=1`) para cookies cross-origin. O seed (`seed-admin.sh`) regista o admin, valida login + `GET /api/auth/me` (nome em `Perfil`) e só depois corre o Playwright. Workflow: [`.github/workflows/fullstack-e2e.yml`](../../.github/workflows/fullstack-e2e.yml).
 
 ---
 

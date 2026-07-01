@@ -44,10 +44,10 @@ public sealed class SqlServerWebApplicationFactory : WebApplicationFactory<Progr
     {
         using var scope = Services.CreateScope();
         var sp = scope.ServiceProvider;
-        await SeedRoles.InitializeAsync(sp);
 
         var context = sp.GetRequiredService<FinalprojContext>();
         await context.Database.MigrateAsync();
+        await SeedRoles.InitializeAsync(sp);
         await TestDataSeeder.SeedAsync(sp);
     }
 

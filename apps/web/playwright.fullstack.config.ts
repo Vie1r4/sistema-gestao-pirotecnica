@@ -34,6 +34,7 @@ export default defineConfig({
         timeout: 120_000,
         env: {
           ...process.env,
+          E2E_FULLSTACK: process.env.E2E_FULLSTACK ?? "1",
           NEXT_PUBLIC_API_URL:
             process.env.NEXT_PUBLIC_API_URL ??
             (process.env.E2E_USE_HTTPS === "1"
