@@ -39,4 +39,45 @@ public class TimeSpanJsonBindingTests
         Assert.NotNull(dto);
         Assert.NotNull(dto!.Zonas[0].Linhas[0].HoraInicio);
     }
+
+    [Fact]
+    public void FlexibleTimeSpan_ReadNull_ReturnsNull()
+    {
+        var options = Options();
+        Assert.Null(JsonSerializer.Deserialize<TimeSpan?>("null", options));
+    }
+
+    [Fact]
+    public void FlexibleTimeSpan_ReadWhitespace_ReturnsNull()
+    {
+        var options = Options();
+        Assert.Null(JsonSerializer.Deserialize<TimeSpan?>("\"   \"", options));
+    }
+
+    [Fact]
+    public void FlexibleTimeSpan_ReadInvalid_Throws()
+    {
+        var options = Options();
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<TimeSpan?>("\"not-a-time\"", options));
+    }
+
+    [Fact]
+    public void FlexibleTimeSpan_WriteNull_WritesNullJson()
+    {
+        var options = Options();
+        Assert.Equal("null", JsonSerializer.Serialize<TimeSpan?>(null, options));
+    }
+
+    [Fact]
+    public void FlexibleTimeSpan_WriteValue_UsesHhMmSs()
+    {
+        var options = Options();
+        var json = JsonSerializer.Serialize<TimeSpan?>(new TimeSpan(22, 30, 0), options);
+        Assert.Equal("\"22:30:00\"", json);
+    }
+
+    private static JsonSerializerOptions Options() => new()
+    {
+        Converters = { new FlexibleTimeSpanJsonConverter() }
+    };
 }

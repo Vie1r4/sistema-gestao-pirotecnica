@@ -69,8 +69,10 @@ jobs:
 
       - name: Certificado HTTPS de desenvolvimento
         run: |
+          # Gerar cert para Kestrel; --trust falha no runner Ubuntu (exit 4).
+          # Clientes E2E (curl -k, Playwright ignoreHTTPSErrors) não precisam de trust OS.
           dotnet dev-certs https --clean
-          dotnet dev-certs https --trust
+          dotnet dev-certs https
 
       - name: Restore e build API
         run: dotnet restore Finalproj.sln && dotnet build src/Finalproj.Api/Finalproj.Api.csproj -c Release --no-restore

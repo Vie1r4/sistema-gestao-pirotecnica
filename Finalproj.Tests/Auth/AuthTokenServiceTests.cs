@@ -91,6 +91,57 @@ public class AuthTokenServiceTests
         Assert.Contains(jwt.Claims, c => c.Value == userId);
     }
 
+    [Fact]
+    public async Task RefreshAsync_UtilizadorEliminado_RevogaTokenERetornaNotFound()
+    {
+        var gateway = new FakeIdentityGateway();
+        var account = new FakeAccountInfo();
+        var plain = "orphan-refresh-token";
+        account.ActiveTokens[AuthTokenServiceHashForTest(plain)] = new RefreshToken
+        {
+            UserId = "deleted-user",
+            TokenHash = AuthTokenServiceHashForTest(plain),
+            ExpiresAtUtc = DateTime.UtcNow.AddDays(1)
+        };
+
+        var sut = CreateSut(account, gateway);
+        var result = await sut.RefreshAsync(plain);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("Utilizador não encontrado.", result.Error);
+        Assert.Single(account.Revoked);
+    }
+
+    [Fact]
+    public async Task RevokeRefreshTokenIfPresentAsync_SemToken_NaoRevoga()
+    {
+        var account = new FakeAccountInfo();
+        var sut = CreateSut(account, new FakeIdentityGateway());
+
+        await sut.RevokeRefreshTokenIfPresentAsync(null);
+
+        Assert.Empty(account.Revoked);
+    }
+
+    [Fact]
+    public async Task RevokeRefreshTokenIfPresentAsync_TokenValido_Revoga()
+    {
+        var account = new FakeAccountInfo();
+        var plain = "logout-refresh-token";
+        account.ActiveTokens[AuthTokenServiceHashForTest(plain)] = new RefreshToken
+        {
+            UserId = "user-1",
+            TokenHash = AuthTokenServiceHashForTest(plain),
+            ExpiresAtUtc = DateTime.UtcNow.AddDays(1)
+        };
+        var sut = CreateSut(account, new FakeIdentityGateway());
+
+        await sut.RevokeRefreshTokenIfPresentAsync(plain);
+
+        Assert.Single(account.Revoked);
+        Assert.Empty(account.ActiveTokens);
+    }
+
     private static AuthTokenService CreateSut(FakeAccountInfo account, FakeIdentityGateway gateway) =>
         new(CreateJwtConfiguration(), account, gateway);
 
