@@ -13,6 +13,7 @@ on:
       - "Finalproj.IntegrationTests/**"
       - "Finalproj.sln"
       - ".github/workflows/dotnet-tests.yml"
+      - "scripts/check-coverage-threshold.py"
   push:
     branches: [main, next]
     paths:
@@ -24,6 +25,7 @@ on:
       - "Finalproj.IntegrationTests/**"
       - "Finalproj.sln"
       - ".github/workflows/dotnet-tests.yml"
+      - "scripts/check-coverage-threshold.py"
 
 jobs:
   test:
@@ -38,6 +40,9 @@ jobs:
       - name: Test (unit + integration, sem Docker)
         run: |
           dotnet test Finalproj.sln -c Release --filter "Category!=Docker" --collect:"XPlat Code Coverage" --results-directory ./TestResults
+
+      - name: Verificar cobertura Domain/Application (≥ 60%)
+        run: python3 scripts/check-coverage-threshold.py "TestResults/**/coverage.cobertura.xml"
 
       - name: Test FIFO concorrência (Docker / SQL Server)
         run: |
@@ -60,23 +65,6 @@ jobs:
         with:
           name: coverage-report
           path: coverage-report
-
-      - name: Resumo cobertura (informativo — sem threshold bloqueante)
-        if: always()
-        run: |
-          python3 << 'PY'
-          import glob
-          import xml.etree.ElementTree as ET
-          paths = glob.glob("TestResults/**/coverage.cobertura.xml", recursive=True)
-          if not paths:
-              print("Sem ficheiros coverage.cobertura.xml")
-              raise SystemExit(0)
-          root = ET.parse(paths[0]).getroot()
-          lines = root.attrib.get("line-rate", "?")
-          branches = root.attrib.get("branch-rate", "?")
-          print(f"Cobertura agregada (1.º relatório): lines={lines} branches={branches}")
-          print("Meta futura: ≥60% Domain/Application antes de threshold no CI.")
-          PY
 
       - name: Verificar pacotes vulneráveis (bloqueia HIGH)
         run: |

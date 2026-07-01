@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:e2e:headed": "playwright test --headed"
+    "test:e2e:fullstack": "playwright test --config=playwright.fullstack.config.ts",
+    "test:e2e:headed": "playwright test --headed",
+    "start:e2e": "next start -H 127.0.0.1 -p 3000"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.21",

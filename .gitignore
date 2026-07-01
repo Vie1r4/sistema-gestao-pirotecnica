@@ -5,6 +5,8 @@
 
 # dotenv files
 .env
+.e2e-api.pid
+.e2e-api.log
 
 # Cursor IDE (regras e pastas locais; não versionar)
 .cursor/
@@ -313,6 +315,7 @@ node_modules/
 apps/web/.next/
 apps/web/out/
 apps/web/coverage/
+apps/web/playwright-report-fullstack/
 
 # Visual Studio 6 build log
 *.plg

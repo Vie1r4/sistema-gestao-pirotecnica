@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  testIgnore: ["**/fullstack/**"],
   fullyParallel: true,
   /** Menos workers em CI evita timeouts no dev server partilhado (redirects após POST). */
   workers: process.env.CI ? 2 : undefined,

@@ -69,7 +69,7 @@ Index: [Docs/README.md](README.md) · Landing page: [README na raiz](../README.m
 Documented in [ARQUITETURA.md](ARQUITETURA.md#stock-fifo--implementação-e-dívida-técnica):
 
 - ~~FIFO preparation lacks pessimistic locking under concurrent operators~~ **Fixed (2026-07)** — transaction + SQL Server row locks; see `FifoPreparacaoConcorrenciaTests`
-- E2E frontend tests mock the API (no full browser → API → DB pipeline in CI yet)
+- E2E with mocks in `client-ci`; **full-stack pipeline** in `fullstack-e2e.yml`: login, refresh after reload, `/me`, list clients (browser → HTTPS API → SQL Server)
 - No Docker / cloud deploy yet (portfolio Phase 2)
 
 These are deliberate next steps, not hidden debt.
@@ -86,7 +86,7 @@ Portfolio improvements in progress:
 | **1b** | Planned | Screenshots & GIF in README |
 | **2** | Planned | `docker compose up` + demo seed data |
 | **2b** | Planned | Live demo URL + demo credentials |
-| **3** | In progress | FIFO concurrency fix + full-stack E2E test |
+| **3** | In progress | FIFO concurrency (done); coverage threshold (done); full-stack E2E login in CI |
 | **4** | Planned | LinkedIn post + technical article |
 
 ---

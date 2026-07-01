@@ -8,6 +8,7 @@ O projeto usa **quatro camadas** de testes automatizados:
 | **Integração (HTTP)** | `Finalproj.IntegrationTests` | API completa: auth, 401/403, IDOR, endpoints reais | Garantir que o servidor responde bem e que a segurança está aplicada |
 | **Unitários (frontend)** | `apps/web/tests/unit` (Vitest) | Permissões de rotas, mapeadores de API, CSP, helpers | Lógica do frontend sem abrir browser |
 | **E2E (browser)** | `apps/web/tests/e2e` (Playwright) | Fluxos como login, rotas protegidas, CRUD, encomendas | Simular o utilizador real na aplicação web |
+| **E2E full-stack** | `apps/web/tests/e2e/fullstack` | Login real: browser → Next.js → API → SQL Server | Provar pipeline completo (workflow `fullstack-e2e.yml`) |
 
 Em CI (GitHub Actions), estes testes correm automaticamente em cada push/PR — ver secção [CI](#ci) abaixo.
 
@@ -28,6 +29,11 @@ npm ci                            # ou npm install
 npm test
 npm run test:e2e
 npx playwright install chromium   # primeira vez
+
+# E2E full-stack (API + SQL Server reais) — ver scripts/e2e-fullstack/
+# E2E_FULLSTACK=1 bash ../../scripts/e2e-fullstack/start-api.sh  # com ConnectionStrings__FinalprojContext
+# bash ../../scripts/e2e-fullstack/seed-admin.sh
+# npm run build && E2E_FULLSTACK=1 npm run test:e2e:fullstack
 ```
 
 ---
@@ -64,7 +70,11 @@ Auth, `authApi`, `routePermissions`, APIs, CSP. Mocks de `fetch` com `Content-Ty
 
 Login, rota protegida, CRUD funcionários (mocks), encomenda submeter, documentação. Helpers: `tests/e2e/helpers/auth.ts`, `setup.ts`.
 
-`playwright.config.ts`: em CI, 2 workers e 2 retries; timeout 60s.
+`playwright.config.ts`: em CI, 2 workers e 2 retries; timeout 60s. A pasta `fullstack/` **não corre** aqui — usa `playwright.fullstack.config.ts`.
+
+### E2E full-stack (`apps/web/tests/e2e/fullstack`)
+
+Um spec de login + sessão (`auth.login`, `auth.session`): login sem `page.route`, reload com refresh HttpOnly, `GET /api/auth/me`, listagem de clientes. Só corre com `E2E_FULLSTACK=1`. CI usa **API HTTPS** (`E2E_USE_HTTPS=1`) para cookies cross-origin. Workflow: [`.github/workflows/fullstack-e2e.yml`](../../.github/workflows/fullstack-e2e.yml).
 
 ---
 
@@ -72,7 +82,8 @@ Login, rota protegida, CRUD funcionários (mocks), encomenda submeter, documenta
 
 | Workflow | Conteúdo |
 |----------|----------|
-| `.github/workflows/dotnet-tests.yml` | `dotnet test` (sem Docker), teste FIFO concorrência (Docker), cobertura HTML (informativa), bloqueio pacotes HIGH |
-| `.github/workflows/client-ci.yml` | `npm audit --audit-level=high`, typecheck, lint, Vitest, build, Playwright |
+| `.github/workflows/dotnet-tests.yml` | `dotnet test` (sem Docker), **threshold ≥60%** Domain/Application, teste FIFO (Docker), relatório HTML, bloqueio pacotes HIGH |
+| `.github/workflows/client-ci.yml` | `npm audit --audit-level=high`, typecheck, lint, Vitest, build, Playwright (mocks) |
+| `.github/workflows/fullstack-e2e.yml` | SQL Server + API + Playwright login real (browser → API → BD) |
 
-Cobertura ≥60% Domain/Application: meta futura; CI ainda não falha por %.
+Cobertura backend: merge dos relatórios `coverage.cobertura.xml` (unitários + integração). O script `scripts/check-coverage-threshold.py` falha o CI se **Finalproj.Domain** ou **Finalproj.Application** ficarem abaixo de **60%** linhas cobertas.

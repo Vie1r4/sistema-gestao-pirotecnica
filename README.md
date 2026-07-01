@@ -4,6 +4,7 @@
 
 [![.NET tests](https://github.com/Vie1r4/sistema-gestao-pirotecnica/actions/workflows/dotnet-tests.yml/badge.svg)](https://github.com/Vie1r4/sistema-gestao-pirotecnica/actions/workflows/dotnet-tests.yml)
 [![Client CI](https://github.com/Vie1r4/sistema-gestao-pirotecnica/actions/workflows/client-ci.yml/badge.svg)](https://github.com/Vie1r4/sistema-gestao-pirotecnica/actions/workflows/client-ci.yml)
+[![Full-stack E2E](https://github.com/Vie1r4/sistema-gestao-pirotecnica/actions/workflows/fullstack-e2e.yml/badge.svg)](https://github.com/Vie1r4/sistema-gestao-pirotecnica/actions/workflows/fullstack-e2e.yml)
 [![Live Demo](https://img.shields.io/badge/Live_Demo-coming_soon-lightgrey?style=flat-square)](#demo-credentials)
 
 Built for **Pirofafe** — a real pyrotechnics business. This repository is the **management software**, not a commercial product branded after the client.
@@ -186,6 +187,8 @@ All demo data will be **fictional** — no real client information.
 
 ```bash
 dotnet test Finalproj.sln -c Release
+# Com cobertura: acrescentar --collect:"XPlat Code Coverage" --results-directory ./TestResults
+# python3 scripts/check-coverage-threshold.py "TestResults/**/coverage.cobertura.xml"
 ```
 
 ```bash
@@ -193,6 +196,8 @@ cd apps/web
 npm test              # Vitest
 npm run test:e2e      # Playwright
 ```
+
+CI bloqueia se **Domain** ou **Application** ficarem abaixo de **60%** linhas cobertas.
 
 Details: [Docs/TESTES.md](Docs/TESTES.md)
 
