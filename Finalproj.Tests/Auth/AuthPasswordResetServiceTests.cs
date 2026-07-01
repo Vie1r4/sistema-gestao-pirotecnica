@@ -124,6 +124,19 @@ public class AuthPasswordResetServiceTests
         Assert.Contains("Password too weak", details!);
     }
 
+    [Fact]
+    public async Task ResetPasswordAsync_SemConfirmacao_AceitaPasswordUnica()
+    {
+        var gateway = new ConfigurableIdentityGateway();
+        gateway.UsersByEmail["a@b.pt"] = new AuthUserSnapshot("u1", "a@b.pt", "a@b.pt", true);
+        var sut = CreateSut(new RecordingEmailSender(), gateway);
+
+        var encoded = Base64UrlTokenCodec.Encode("token");
+        var (ok, error, _) = await sut.ResetPasswordAsync("a@b.pt", encoded, "Nova123!Aa", null);
+        Assert.True(ok);
+        Assert.Null(error);
+    }
+
     private static AuthPasswordResetService CreateSut(
         RecordingEmailSender emailSender,
         ConfigurableIdentityGateway gateway,

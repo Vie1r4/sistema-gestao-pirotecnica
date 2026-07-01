@@ -34,4 +34,16 @@ public class AuthFrontendLinksTests
         var config = new ConfigurationBuilder().Build();
         Assert.Equal("http://localhost:3000", AuthFrontendLinks.BaseUrl(config));
     }
+
+    [Fact]
+    public void BaseUrl_RemoveBarraFinal()
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Frontend:BaseUrl"] = "http://localhost:3000/",
+            })
+            .Build();
+        Assert.Equal("http://localhost:3000", AuthFrontendLinks.BaseUrl(config));
+    }
 }
