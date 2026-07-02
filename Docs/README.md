@@ -12,7 +12,8 @@ Arranque rápido: [README na raiz](../README.md) · Contribuição: [CONTRIBUTIN
 Docs/
 ├── README.md                    ← este índice
 ├── VISAO-GERAL.md               ← o que é o sistema e como as partes ligam
-├── ARQUITETURA.md               ← stack, domínio, pipeline
+├── ARCHITECTURE.md              ← stack, domain, pipeline (English)
+├── ARQUITETURA.md               ← stack, domínio, pipeline (PT)
 ├── API.md                       ← endpoints, JWT, exemplos
 ├── ROLES-E-PERMISSOES.md        ← cargos e políticas
 ├── SEGURANCA.md                 ← tokens, CSP, backups
@@ -34,11 +35,11 @@ Docs/
 
 | Perfil | Documento |
 |--------|-----------|
-| **Recrutador / reviewer** | [CASE-STUDY.md](CASE-STUDY.md) · [README na raiz](../README.md) |
+| **Recrutador / reviewer** | [CASE-STUDY.md](CASE-STUDY.md) · [ARCHITECTURE.md](ARCHITECTURE.md) · [README na raiz](../README.md) |
 | **Novo no projeto** | [VISAO-GERAL.md](VISAO-GERAL.md) |
 | **Integrar com a API** | [API.md](API.md) |
 | **Permissões e roles** | [ROLES-E-PERMISSOES.md](ROLES-E-PERMISSOES.md) |
-| **Arquitetura e domínio** | [ARQUITETURA.md](ARQUITETURA.md) |
+| **Arquitetura e domínio** | [ARCHITECTURE.md](ARCHITECTURE.md) (EN) · [ARQUITETURA.md](ARQUITETURA.md) (PT) |
 | **Produção** | [PRODUCAO.md](PRODUCAO.md) — checklist inicial de segurança |
 
 ---
@@ -49,7 +50,8 @@ Docs/
 |-----------|----------|
 | [CASE-STUDY.md](CASE-STUDY.md) | Resumo portfolio — contexto, decisões, roadmap |
 | [VISAO-GERAL.md](VISAO-GERAL.md) | O que é o sistema e como backend/frontend se ligam |
-| [ARQUITETURA.md](ARQUITETURA.md) | Stack, domínio, módulos da API, convenções |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Stack, domain, API modules, conventions (English) |
+| [ARQUITETURA.md](ARQUITETURA.md) | Stack, domínio, módulos da API, convenções (PT) |
 | [API.md](API.md) | Referência HTTP, JWT, endpoints, exemplos |
 | [ROLES-E-PERMISSOES.md](ROLES-E-PERMISSOES.md) | Roles, políticas e `permissions` em `/api/auth/me` |
 | [SEGURANCA.md](SEGURANCA.md) | Sessão, CSP, armazenamento no browser |

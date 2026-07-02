@@ -5,11 +5,13 @@
 [![.NET tests](https://github.com/Vie1r4/sistema-gestao-pirotecnica/actions/workflows/dotnet-tests.yml/badge.svg)](https://github.com/Vie1r4/sistema-gestao-pirotecnica/actions/workflows/dotnet-tests.yml)
 [![Client CI](https://github.com/Vie1r4/sistema-gestao-pirotecnica/actions/workflows/client-ci.yml/badge.svg)](https://github.com/Vie1r4/sistema-gestao-pirotecnica/actions/workflows/client-ci.yml)
 [![Full-stack E2E](https://github.com/Vie1r4/sistema-gestao-pirotecnica/actions/workflows/fullstack-e2e.yml/badge.svg)](https://github.com/Vie1r4/sistema-gestao-pirotecnica/actions/workflows/fullstack-e2e.yml)
-[![Live Demo](https://img.shields.io/badge/Live_Demo-coming_soon-lightgrey?style=flat-square)](#demo-credentials)
+[![Deployment](https://img.shields.io/badge/Deployment-on--premise-blue?style=flat-square)](Docs/PRODUCAO.md)
 
 Built for **Pirofafe** — a real pyrotechnics business. This repository is the **management software**, not a commercial product branded after the client.
 
-**Author:** [Sérgio Henrique Oliveira Vieira](https://github.com/Vie1r4) · [LinkedIn](https://www.linkedin.com/in/s%C3%A9rgio-vieira-7b4290345/)
+**Authors:** [Sérgio Henrique Oliveira Vieira](https://github.com/Vie1r4) · [LinkedIn](https://www.linkedin.com/in/s%C3%A9rgio-vieira-7b4290345/) · Tomás Campelos
+
+*Final course group project — on-premise deployment on the client's infrastructure; no public instance.*
 
 ---
 
@@ -117,19 +119,6 @@ Finalproj/
 
 ## Quick start
 
-### Planned — Docker (Phase 2)
-
-One-command local demo is on the roadmap:
-
-```bash
-# Coming soon
-docker compose up
-```
-
-This will start SQL Server, the API, the web app, and seed demo data. Track progress in [Docs/CASE-STUDY.md](Docs/CASE-STUDY.md#roadmap).
-
-### Local development (today)
-
 **Requirements:** .NET 8 SDK · Node.js 20+ · SQL Server (LocalDB or instance)
 
 **1. Backend secrets** (required — app fails without JWT secret):
@@ -164,22 +153,7 @@ App: [http://localhost:3000](http://localhost:3000)
 
 Full setup: [CONTRIBUTING.md](CONTRIBUTING.md) · Production env vars: [`.env.example`](.env.example)
 
----
-
-## Demo credentials
-
-> **Live demo:** not deployed yet — link will be added here when Phase 2 (Docker + cloud) is complete.
-
-When the demo environment is live, these read-only accounts will be available:
-
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | `demo-admin@example.com` | *(published with deploy)* |
-| Gestor | `demo-gestor@example.com` | *(published with deploy)* |
-| Comercial | `demo-comercial@example.com` | *(published with deploy)* |
-| Armazém | `demo-armazem@example.com` | *(published with deploy)* |
-
-All demo data will be **fictional** — no real client information.
+**Production (on-premise):** checklist and server configuration in [Docs/PRODUCAO.md](Docs/PRODUCAO.md) · backups and operations in [Docs/OPERACOES.md](Docs/OPERACOES.md).
 
 ---
 
@@ -209,7 +183,7 @@ Details: [Docs/TESTES.md](Docs/TESTES.md)
 |----------|------|
 | **Case study** | [Docs/CASE-STUDY.md](Docs/CASE-STUDY.md) |
 | **Documentation index** | [Docs/README.md](Docs/README.md) |
-| **Architecture** | [Docs/ARQUITETURA.md](Docs/ARQUITETURA.md) |
+| **Architecture** | [Docs/ARCHITECTURE.md](Docs/ARCHITECTURE.md) · [PT](Docs/ARQUITETURA.md) |
 | **API reference** | [Docs/API.md](Docs/API.md) |
 | **Security** | [Docs/SEGURANCA.md](Docs/SEGURANCA.md) |
 | **Contributing** | [CONTRIBUTING.md](CONTRIBUTING.md) |
@@ -224,7 +198,8 @@ Aplicação **full-stack** para gestão pirotécnica (cliente **Pirofafe**): pai
 
 - Documentação completa em [`Docs/`](Docs/README.md)
 - Painel admin: [`Docs/frontend/PAINEL-ADMIN.md`](Docs/frontend/PAINEL-ADMIN.md)
-- Screenshots e demo online — **fase seguinte** do plano de portfolio
+- Instalação on-premise: [`Docs/PRODUCAO.md`](Docs/PRODUCAO.md)
+- Screenshots no README — **próximo passo** do portfólio
 
 ---
 

@@ -2,6 +2,8 @@
 
 Visão técnica do sistema de gestão (backend + frontend).
 
+English version: [ARCHITECTURE.md](ARCHITECTURE.md)
+
 ---
 
 ## O que é
