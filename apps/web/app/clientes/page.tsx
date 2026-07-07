@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar from "../components/Navbar";
 import { DataTable } from "../components/ui/DataTable";
-import { btnPrimary } from "../components/ui/tokens";
+import { btnPrimary, btnSecondary } from "../components/ui/tokens";
 import { clientesColumns } from "./_components/clientesColumns";
 import { fetchClientes, type Cliente } from "../lib/clientes";
 import { getToken } from "../lib/auth";
@@ -16,6 +16,7 @@ import { fadeInUp, transitionSmooth } from "../lib/animations";
 function ClientesContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const importado = searchParams.get("importado") === "1";
   const criado = searchParams.get("criado") === "1";
   const editado = searchParams.get("editado") === "1";
   const eliminado = searchParams.get("eliminado") === "1";
@@ -52,7 +53,8 @@ function ClientesContent() {
         : null;
 
   const alerta =
-    criado ? "Cliente criado com sucesso."
+    importado ? "Importação CSV concluída."
+    : criado ? "Cliente criado com sucesso."
     : editado ? "Alterações guardadas."
     : eliminado ? "Cliente eliminado com sucesso."
     : null;
@@ -86,9 +88,14 @@ function ClientesContent() {
                 )}
               </p>
             </div>
-            <Link href="/clientes/novo" className={btnPrimary}>
-              Adicionar cliente
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/clientes/importar" className={btnSecondary}>
+                Importar CSV
+              </Link>
+              <Link href="/clientes/novo" className={btnPrimary}>
+                Adicionar cliente
+              </Link>
+            </div>
           </motion.div>
 
           {error && (

@@ -15,5 +15,6 @@ public interface IClienteRepository
 
     Task<int> CountAsync(CancellationToken cancellationToken = default);
     Task<int> CountDisponiveisEmAsync(DateTime ateUtcExclusive, CancellationToken cancellationToken = default);
+    Task<Dictionary<string, int>> ListActiveNifToIdMapAsync(CancellationToken cancellationToken = default);
 }
 

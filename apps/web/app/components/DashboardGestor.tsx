@@ -65,7 +65,19 @@ type CardStat = {
   href: string;
   icon: React.ReactNode;
   trendDelta?: number | null;
+  /** Destaque visual quando há alertas de conformidade. */
+  variant?: "default" | "warning" | "danger";
 };
+
+const LICENCA_ICON = (
+  <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"
+    />
+  </svg>
+);
 
 export default function DashboardGestor({
   token,
@@ -100,7 +112,8 @@ export default function DashboardGestor({
   const cards: CardStat[] = useMemo(() => {
     if (!data) return [];
     const k = data.kpiContexto;
-    return [
+    const c = data.conformidadeFuncionarios;
+    const base: CardStat[] = [
       {
         title: "Serviços registados",
         value: data.totalServicos,
@@ -157,6 +170,36 @@ export default function DashboardGestor({
         ),
       },
     ];
+
+    base.push({
+      title: "Cred. a expirar",
+      value: c?.aExpirar ?? 0,
+      href: "/funcionarios?filtroLicenca=a_expirar",
+      icon: LICENCA_ICON,
+      variant: (c?.aExpirar ?? 0) > 0 ? "warning" : "default",
+    });
+
+    if ((c?.expiradas ?? 0) > 0) {
+      base.push({
+        title: "Cred. expiradas",
+        value: c!.expiradas,
+        href: "/funcionarios?filtroLicenca=expirada",
+        icon: LICENCA_ICON,
+        variant: "danger",
+      });
+    }
+
+    if ((c?.incompletas ?? 0) > 0) {
+      base.push({
+        title: "Cred. incompletas",
+        value: c!.incompletas,
+        href: "/funcionarios?filtroLicenca=incompleta",
+        icon: LICENCA_ICON,
+        variant: "warning",
+      });
+    }
+
+    return base;
   }, [data]);
 
   const ultimosMovimentos: MovimentoRecenteDto[] = useMemo(() => {
@@ -221,15 +264,15 @@ export default function DashboardGestor({
           </p>
         </motion.div>
 
-        {/* Métricas (5 colunas) — sempre visíveis acima das tabs */}
+        {/* Métricas — sempre visíveis acima das tabs */}
         <motion.div
           variants={staggerContainer}
           initial="initial"
           animate="animate"
-          className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4"
+          className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 lg:gap-4"
         >
           {isLoading
-            ? Array.from({ length: 5 }).map((_, i) => (
+            ? Array.from({ length: 6 }).map((_, i) => (
                 <div
                   key={i}
                   className={`${dashboardPanelClass} p-4`}
@@ -282,7 +325,6 @@ export default function DashboardGestor({
         >
           {tab === "atividade" && (
             <div className="space-y-5">
-              {/* Gráfico herói — comparação anual multi-ano (Jan–Dez) */}
               <YoYChart token={token} />
               <VolumeChart token={token} />
             </div>
@@ -630,14 +672,29 @@ function StatCard({ card, index }: { card: CardStat; index: number }) {
         ? "up"
         : "down"
       : null;
+
+  const iconClass =
+    card.variant === "danger"
+      ? "text-red-600 dark:text-red-400"
+      : card.variant === "warning"
+        ? "text-amber-600 dark:text-amber-400"
+        : "text-[#ea580c] dark:text-[#f97316]";
+
+  const ringClass =
+    card.variant === "danger" && card.value > 0
+      ? "ring-1 ring-red-200 dark:ring-red-900/50"
+      : card.variant === "warning" && card.value > 0
+        ? "ring-1 ring-amber-200 dark:ring-amber-900/50"
+        : "";
+
   return (
     <motion.div variants={staggerItem} transition={{ ...transitionSmooth, delay: index * 0.05 }}>
       <Link
         href={card.href}
-        className={`card-hover group flex flex-col p-4 ${dashboardPanelClass} transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-8px_rgba(249,115,22,0.15)] dark:hover:shadow-[0_8px_28px_-8px_rgba(0,0,0,0.4)]`}
+        className={`card-hover group flex flex-col p-4 ${dashboardPanelClass} ${ringClass} transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-8px_rgba(249,115,22,0.15)] dark:hover:shadow-[0_8px_28px_-8px_rgba(0,0,0,0.4)]`}
       >
         <div className="flex items-start justify-between gap-2">
-          <span className="text-[#ea580c] dark:text-[#f97316]">{card.icon}</span>
+          <span className={iconClass}>{card.icon}</span>
           {trend === "up" && (
             <span
               className="text-sm font-bold text-emerald-600 dark:text-emerald-400"

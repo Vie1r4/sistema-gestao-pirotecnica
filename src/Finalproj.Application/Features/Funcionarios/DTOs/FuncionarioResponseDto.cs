@@ -1,3 +1,5 @@
+using Finalproj.Domain.Conformidade;
+
 namespace Finalproj.Application.Features.Funcionarios.DTOs;
 
 /// <summary>
@@ -16,6 +18,14 @@ public class FuncionarioResponseDto
     public string? Notas { get; set; }
     /// <summary>N.º de credencial pirotécnica (CRED) para declarações PSP.</summary>
     public string? NumeroCredencial { get; set; }
+    /// <summary>Validade da licença de operador pirotécnica.</summary>
+    public DateTime? DataValidadeLicencaOperador { get; set; }
+    /// <summary>Estado calculado da licença (ausente, incompleta, válida, a expirar, expirada).</summary>
+    public string? EstadoLicencaOperador { get; set; }
+    /// <summary>Validade do cartão de cidadão.</summary>
+    public DateTime? DataValidadeCartaoCidadao { get; set; }
+    /// <summary>Estado calculado do cartão de cidadão (ausente, incompleta, válida, a expirar, expirada).</summary>
+    public string? EstadoCartaoCidadao { get; set; }
     public string? UserId { get; set; }
     public DateTime? DataRegisto { get; set; }
 
@@ -64,6 +74,17 @@ public static class FuncionarioResponseDtoMapping
             Cargo = f.Cargo,
             Notas = f.Notas,
             NumeroCredencial = f.NumeroCredencial,
+            DataValidadeLicencaOperador = f.DataValidadeLicencaOperador,
+            EstadoLicencaOperador = LicencaOperadorConformidade.CalcularEstado(
+                !string.IsNullOrEmpty(f.LicencaOperadorCaminho),
+                f.NumeroCredencial,
+                f.DataValidadeLicencaOperador).ToString(),
+            DataValidadeCartaoCidadao = f.DataValidadeCartaoCidadao,
+            EstadoCartaoCidadao = CartaoCidadaoConformidade.CalcularEstado(
+                !string.IsNullOrEmpty(f.CartaoCidadaoCaminho),
+                f.NIF,
+                f.Morada,
+                f.DataValidadeCartaoCidadao).ToString(),
             ContaAssociada = !string.IsNullOrEmpty(f.UserId),
             ContaEmailConfirmada = contaEmailConfirmada,
             UserId = includeSensitive ? f.UserId : null,

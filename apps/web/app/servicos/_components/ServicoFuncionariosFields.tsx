@@ -72,7 +72,7 @@ export default function ServicoFuncionariosFields({
         )}
         {funcionarios.length > 0 && comLicenca.length === 0 && (
           <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-            Nenhum membro tem licença de operador — o coordenador pirotécnico (PSP) ficará indisponível até carregar documentos.
+            Nenhum membro tem credencial — o coordenador pirotécnico (PSP) ficará indisponível até carregar documentos.
           </p>
         )}
       </div>
@@ -82,7 +82,7 @@ export default function ServicoFuncionariosFields({
           Coordenador pirotécnico
         </label>
         <p className={hintClass}>
-          Opcional — usado na declaração PSP. Tem de fazer parte da equipa. Requer licença de operador e n.º CRED na
+          Opcional — usado na declaração PSP. Tem de fazer parte da equipa. Requer credencial e n.º CRED na
           ficha do funcionário.{" "}
           <Link href="/funcionarios" className="text-[#f97316] hover:underline">
             Gerir funcionários

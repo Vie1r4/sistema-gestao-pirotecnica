@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using System.Security.Claims;
 
 namespace Finalproj.Controllers
 {
@@ -266,7 +267,7 @@ namespace Finalproj.Controllers
                 _logger.LogWarning(
                     "clear-all-data: utilizador {UserId} ({Email}) em Development.",
                     _userManager.GetUserId(User),
-                    User.Identity?.Name);
+                    User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name ?? "(sem email)");
 
                 await _databaseCleanup.ClearAllForResetAsync(cancellationToken);
 

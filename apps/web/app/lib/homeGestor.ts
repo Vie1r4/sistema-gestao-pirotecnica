@@ -30,6 +30,18 @@ export type EncomendaPorMes = { mes: string; total: number };
 
 export type PaiolEmManutencao = { id: number; nome: string };
 
+export type LicencaOperadorAlerta = {
+  id: number;
+  nomeCompleto: string;
+  dataValidade?: string;
+};
+
+export type ConformidadeFuncionarios = {
+  aExpirar: number;
+  expiradas: number;
+  incompletas: number;
+};
+
 export type UltimaEncomendaDto = {
   id: number;
   clienteId: number;
@@ -68,6 +80,10 @@ export type GestorDashboardResponse = {
   encomendasPorEstado: Record<string, number>;
   encomendasPorMes: EncomendaPorMes[];
   paioisEmManutencao: PaiolEmManutencao[];
+  licencasOperadorAExpirar: LicencaOperadorAlerta[];
+  licencasOperadorExpiradas: LicencaOperadorAlerta[];
+  licencasOperadorIncompletas: Array<{ id: number; nomeCompleto: string }>;
+  conformidadeFuncionarios: ConformidadeFuncionarios;
   ultimasEncomendas: UltimaEncomendaDto[];
   encomendasPendentesLista: UltimaEncomendaDto[];
   entradasRecentes: MovimentoRecenteDto[];
@@ -137,6 +153,25 @@ function mapUltimaEncomenda(item: Record<string, unknown>): UltimaEncomendaDto {
   };
 }
 
+function mapLicencaAlerta(raw: unknown): LicencaOperadorAlerta {
+  const o = raw as Record<string, unknown>;
+  const dv = o.dataValidade ?? o.DataValidade;
+  return {
+    id: Number(o.id ?? o.Id ?? 0),
+    nomeCompleto: String(o.nomeCompleto ?? o.NomeCompleto ?? ""),
+    dataValidade: dv != null ? String(dv) : undefined,
+  };
+}
+
+function mapConformidadeFuncionarios(raw: unknown): ConformidadeFuncionarios {
+  const o = (raw ?? {}) as Record<string, unknown>;
+  return {
+    aExpirar: Number(o.aExpirar ?? o.AExpirar ?? 0),
+    expiradas: Number(o.expiradas ?? o.Expiradas ?? 0),
+    incompletas: Number(o.incompletas ?? o.Incompletas ?? 0),
+  };
+}
+
 /** GET api/home/gestor-dashboard — dados completos do dashboard Gestor/Admin */
 export async function getGestorDashboard(token: string): Promise<GestorDashboardResponse> {
   const res = await fetch(`${apiPath("api/home")}/gestor-dashboard`, { headers: authHeaders(token) });
@@ -158,6 +193,22 @@ export async function getGestorDashboard(token: string): Promise<GestorDashboard
     encomendasPorEstado: (raw.encomendasPorEstado as Record<string, number>) ?? {},
     encomendasPorMes: Array.isArray(raw.encomendasPorMes) ? (raw.encomendasPorMes as EncomendaPorMes[]) : [],
     paioisEmManutencao: Array.isArray(raw.paioisEmManutencao) ? (raw.paioisEmManutencao as PaiolEmManutencao[]) : [],
+    licencasOperadorAExpirar: Array.isArray(raw.licencasOperadorAExpirar)
+      ? raw.licencasOperadorAExpirar.map(mapLicencaAlerta)
+      : Array.isArray(raw.LicencasOperadorAExpirar)
+        ? raw.LicencasOperadorAExpirar.map(mapLicencaAlerta)
+        : [],
+    licencasOperadorExpiradas: Array.isArray(raw.licencasOperadorExpiradas)
+      ? raw.licencasOperadorExpiradas.map(mapLicencaAlerta)
+      : Array.isArray(raw.LicencasOperadorExpiradas)
+        ? raw.LicencasOperadorExpiradas.map(mapLicencaAlerta)
+        : [],
+    licencasOperadorIncompletas: Array.isArray(raw.licencasOperadorIncompletas)
+      ? (raw.licencasOperadorIncompletas as Array<{ id: number; nomeCompleto: string }>)
+      : [],
+    conformidadeFuncionarios: mapConformidadeFuncionarios(
+      raw.conformidadeFuncionarios ?? raw.ConformidadeFuncionarios
+    ),
     ultimasEncomendas: ultimasEncomendasRaw.map((e) => mapUltimaEncomenda(e as Record<string, unknown>)),
     encomendasPendentesLista: (Array.isArray(raw.encomendasPendentesLista) ? raw.encomendasPendentesLista : []).map((e) =>
       mapUltimaEncomenda(e as Record<string, unknown>)

@@ -6,6 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Navbar from "../../components/Navbar";
 import DocLink from "../_components/FuncionarioDocLink";
+import LicencaOperadorDetalheBlock from "../_components/LicencaOperadorDetalheBlock";
+import CartaoCidadaoDetalheBlock from "../_components/CartaoCidadaoDetalheBlock";
 import type { Funcionario } from "../../lib/funcionarios";
 import { getToken } from "../../lib/auth";
 import { useUser } from "@/app/context/UserContext";
@@ -133,24 +135,12 @@ export default function FuncionarioDetalhePage() {
                 <dd className="mt-1 text-gray-900 dark:text-white">{funcionario.nomeCompleto}</dd>
               </div>
               <div>
-                <dt className={labelClass}>N.º credencial (CRED)</dt>
-                <dd className="mt-1 text-gray-600 dark:text-gray-400">{funcionario.numeroCredencial?.trim() || "—"}</dd>
-              </div>
-              <div>
-                <dt className={labelClass}>NIF</dt>
-                <dd className="mt-1 text-gray-600 dark:text-gray-400">{funcionario.nif ?? "—"}</dd>
-              </div>
-              <div>
                 <dt className={labelClass}>Email</dt>
                 <dd className="mt-1 text-gray-600 dark:text-gray-400">{funcionario.email ?? "—"}</dd>
               </div>
               <div>
                 <dt className={labelClass}>Telefone</dt>
                 <dd className="mt-1 text-gray-600 dark:text-gray-400">{funcionario.telefone ?? "—"}</dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className={labelClass}>Morada</dt>
-                <dd className="mt-1 text-gray-600 dark:text-gray-400">{funcionario.morada ?? "—"}</dd>
               </div>
               <div>
                 <dt className={labelClass}>N.º Segurança Social</dt>
@@ -169,14 +159,18 @@ export default function FuncionarioDetalhePage() {
                 <dd className="mt-1 text-gray-600 dark:text-gray-400">{funcionario.notas?.trim() || "—"}</dd>
               </div>
             </dl>
-            {!funcionario.numeroCredencial?.trim() && docs.licencaOperador && (
-              <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
-                Falta o n.º CRED — necessário para coordenador pirotécnico na declaração PSP.{" "}
-                <Link href={`/funcionarios/${id}/editar`} className="font-medium text-[#f97316] hover:underline">
-                  Editar ficha
-                </Link>
-              </p>
-            )}
+
+            <CartaoCidadaoDetalheBlock
+              funcionarioId={id}
+              funcionario={funcionario}
+              canGerir={canGerirFuncionarios}
+            />
+
+            <LicencaOperadorDetalheBlock
+              funcionarioId={id}
+              funcionario={funcionario}
+              canGerir={canGerirFuncionarios}
+            />
 
             {canGerirFuncionarios && (
               <div className="mt-8 border-t border-gray-200 pt-6 dark:border-[#222]">
@@ -185,14 +179,8 @@ export default function FuncionarioDetalhePage() {
                   Ficheiros guardados na ficha — abrir ou transferir.
                 </p>
                 <div className="mt-4 space-y-2">
-                  {docs.cartaoCidadao && (
-                    <DocLink funcionarioId={id} label="Cartão de cidadão" tipo="cc" fileName={docs.cartaoCidadao} />
-                  )}
                   {docs.adr && (
                     <DocLink funcionarioId={id} label="Documento ADR" tipo="addr" fileName={docs.adr} />
-                  )}
-                  {docs.licencaOperador && (
-                    <DocLink funcionarioId={id} label="Licença de operador" tipo="licenca" fileName={docs.licencaOperador} />
                   )}
                   {docs.outros && (
                     <DocLink funcionarioId={id} label="Outros" tipo="outros" fileName={docs.outros} />
@@ -200,7 +188,7 @@ export default function FuncionarioDetalhePage() {
                   {docs.extras.map((ex) => (
                     <DocLink key={ex.id} funcionarioId={id} label={ex.nome} tipo="extra" extraId={ex.id} fileName={ex.nome} />
                   ))}
-                  {!docs.cartaoCidadao && !docs.adr && !docs.licencaOperador && !docs.outros && docs.extras.length === 0 && (
+                  {!docs.adr && !docs.outros && docs.extras.length === 0 && (
                     <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum documento guardado.</p>
                   )}
                 </div>

@@ -359,6 +359,18 @@ public sealed class ClienteRepository(FinalprojContext context) : IClienteReposi
         _context.Clientes.CountAsync(c =>
             (c.DataRegisto == null || c.DataRegisto < ateUtcExclusive)
             && (c.EliminadoEm == null || c.EliminadoEm >= ateUtcExclusive), cancellationToken);
+
+    public async Task<Dictionary<string, int>> ListActiveNifToIdMapAsync(CancellationToken cancellationToken = default)
+    {
+        var pairs = await Ativos(_context.Clientes.AsNoTracking())
+            .Where(c => c.NIF != null && c.NIF != "")
+            .Select(c => new { c.NIF, c.Id })
+            .ToListAsync(cancellationToken);
+        return pairs
+            .Where(p => !string.IsNullOrWhiteSpace(p.NIF))
+            .GroupBy(p => p.NIF!, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.Ordinal);
+    }
 }
 
 public sealed class FuncionarioRepository(FinalprojContext context) : IFuncionarioRepository

@@ -53,8 +53,8 @@ namespace Finalproj.Migrations
                         .HasColumnType("nvarchar(300)");
 
                     b.Property<string>("NIF")
-                        .HasMaxLength(9)
-                        .HasColumnType("nvarchar(9)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("Nome")
                         .IsRequired()
@@ -309,7 +309,13 @@ namespace Finalproj.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<DateTime?>("DataValidadeCartaoCidadao")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime?>("DataRegisto")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DataValidadeLicencaOperador")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("DocumentoADDRCaminho")

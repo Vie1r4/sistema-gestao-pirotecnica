@@ -61,6 +61,7 @@ public sealed class FuncionarioApplicationService(
         existente.NumeroCredencial = string.IsNullOrWhiteSpace(funcionario.NumeroCredencial)
             ? null
             : funcionario.NumeroCredencial.Trim()[..Math.Min(50, funcionario.NumeroCredencial.Trim().Length)];
+        existente.DataValidadeLicencaOperador = funcionario.DataValidadeLicencaOperador?.Date;
         existente.IBAN = funcionario.IBAN;
         existente.Cargo = funcionario.Cargo;
         existente.Notas = funcionario.Notas;

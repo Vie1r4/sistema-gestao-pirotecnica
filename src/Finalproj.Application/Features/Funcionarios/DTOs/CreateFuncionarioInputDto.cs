@@ -12,6 +12,10 @@ public class CreateFuncionarioInputDto
     public UploadedFileContent? CartaoCidadaoFicheiro { get; set; }
     public UploadedFileContent? DocumentoADDRFicheiro { get; set; }
     public UploadedFileContent? LicencaOperadorFicheiro { get; set; }
+    /// <summary>True quando o formulário regista cartão de cidadão (NIF + morada + validade + documento obrigatórios).</summary>
+    public bool RegistarCartaoCidadao { get; set; }
+    /// <summary>True quando o formulário regista licença de operador (CRED + validade + documento obrigatórios).</summary>
+    public bool RegistarLicencaOperador { get; set; }
     public List<DocumentoExtraInput>? DocumentosExtras { get; set; }
     public bool CriarConta { get; set; }
     public string? ContaEmail { get; set; }

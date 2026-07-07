@@ -1,6 +1,8 @@
 using Finalproj.Application.Features.Encomendas.DTOs;
+using Finalproj.Application.Features.Funcionarios;
 using Finalproj.Application.Features.Home.DTOs;
 using Finalproj.Application.Features.Home.Interfaces;
+using Finalproj.Domain.Conformidade;
 using Finalproj.Domain.Constants;
 using Finalproj.Domain.Interfaces;
 
@@ -47,6 +49,19 @@ public sealed class HomeAnalyticsService(
         var encSemana = await gestorAnalytics.CountEncomendasCreatedBetweenAsync(ha7Dias, hoje.AddDays(1), cancellationToken);
         var encHa14 = await gestorAnalytics.CountEncomendasCreatedBetweenAsync(hoje.AddDays(-14), ha7Dias, cancellationToken);
         var paioisManut = (await paiois.GetAllAsync(cancellationToken)).Where(p => p.Estado == ConstantesPaiol.EstadoEmManutencao).ToList();
+        var todosFuncionarios = await funcionarios.GetAllAsync(cancellationToken);
+        var licAExpirar = todosFuncionarios
+            .Where(f => FiltroLicencaOperador.Calcular(f) == EstadoLicencaOperador.AExpirar)
+            .Select(f => new { f.Id, f.NomeCompleto, dataValidade = f.DataValidadeLicencaOperador })
+            .ToList();
+        var licExpiradas = todosFuncionarios
+            .Where(f => FiltroLicencaOperador.Calcular(f) == EstadoLicencaOperador.Expirada)
+            .Select(f => new { f.Id, f.NomeCompleto, dataValidade = f.DataValidadeLicencaOperador })
+            .ToList();
+        var licIncompletas = todosFuncionarios
+            .Where(f => FiltroLicencaOperador.Calcular(f) == EstadoLicencaOperador.Incompleta)
+            .Select(f => new { f.Id, f.NomeCompleto })
+            .ToList();
 
         return new
         {
@@ -59,6 +74,15 @@ public sealed class HomeAnalyticsService(
             encomendasPorEstado = await encomendas.CountGroupedByEstadoAsync(cancellationToken),
             encomendasPorMes = (await encomendas.EncomendasPorMesUltimos6MesesAsync(cancellationToken)).Select(x => new { mes = x.MesKey, total = x.Total }).ToList(),
             paioisEmManutencao = paioisManut.Select(p => new { p.Id, p.Nome }).ToList(),
+            licencasOperadorAExpirar = licAExpirar,
+            licencasOperadorExpiradas = licExpiradas,
+            licencasOperadorIncompletas = licIncompletas,
+            conformidadeFuncionarios = new
+            {
+                aExpirar = licAExpirar.Count,
+                expiradas = licExpiradas.Count,
+                incompletas = licIncompletas.Count
+            },
             ultimasEncomendas = (await encomendas.ListRecentWithClienteAsync(5, cancellationToken)).Select(EncomendaResponseDtoMapping.MapToList).ToList(),
             encomendasPendentesLista = (await encomendas.ListPendentesWithClienteAsync(8, cancellationToken)).Select(EncomendaResponseDtoMapping.MapToList).ToList(),
             entradasRecentes = (await entradas.ListRecentWithPaiolProdutoAsync(5, cancellationToken)).Select(e => new { tipo = "Entrada", id = e.Id, data = e.DataEntrada, paiolNome = e.Paiol?.Nome, produtoNome = e.Produto?.Nome, quantidade = e.Quantidade, encomendaId = (int?)null }).ToList(),

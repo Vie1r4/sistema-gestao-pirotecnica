@@ -89,10 +89,14 @@ builder.Services.Configure<Finalproj.Infrastructure.Configuration.CifragemEmRepo
 builder.Services.Configure<Finalproj.Infrastructure.Configuration.EmpresaPirotecnicaOptions>(
     builder.Configuration.GetSection(Finalproj.Infrastructure.Configuration.EmpresaPirotecnicaOptions.SectionName));
 builder.Services.AddSingleton<Finalproj.Application.Services.ICifragemEmRepousoService, Finalproj.Infrastructure.Services.CifragemEmRepousoService>();
+var maxUploadBytes = Math.Max(
+    builder.Configuration.GetValue<long>("Documentos:MaxFileSizeBytes", 10 * 1024 * 1024),
+    builder.Configuration.GetValue<long>("Clientes:ImportMaxFileSizeBytes", 50 * 1024 * 1024));
+maxUploadBytes = Math.Max(maxUploadBytes, 1);
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = maxUploadBytes);
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
 {
-    var maxBytes = builder.Configuration.GetValue<long>("Documentos:MaxFileSizeBytes", 10 * 1024 * 1024);
-    options.MultipartBodyLengthLimit = Math.Max(maxBytes, 1);
+    options.MultipartBodyLengthLimit = maxUploadBytes;
 });
 
 // Serviços da aplicação e infraestrutura
@@ -107,6 +111,7 @@ builder.Services.AddScoped<Finalproj.Application.Features.Common.Interfaces.IUse
 builder.Services.AddScoped<Finalproj.Application.Features.Produtos.Interfaces.IProdutoApplicationService, Finalproj.Application.Features.Produtos.Services.ProdutoApplicationService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Compilados.Interfaces.ICompiladoApplicationService, Finalproj.Application.Features.Compilados.Services.CompiladoApplicationService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Clientes.Interfaces.IClienteApplicationService, Finalproj.Application.Features.Clientes.Services.ClienteApplicationService>();
+builder.Services.AddScoped<Finalproj.Application.Features.Clientes.Services.ClienteImportService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Paiols.Interfaces.IPaiolApplicationService, Finalproj.Application.Features.Paiols.Services.PaiolApplicationService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Paiols.Interfaces.IEntradaPaiolApplicationService, Finalproj.Application.Features.Paiols.Services.EntradaPaiolApplicationService>();
 builder.Services.AddScoped<Finalproj.Application.Features.Paiols.Interfaces.ISaidaPaiolApplicationService, Finalproj.Application.Features.Paiols.Services.SaidaPaiolApplicationService>();
@@ -465,6 +470,50 @@ app.UseSession();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapGet("/", (IWebHostEnvironment env) =>
+{
+    if (env.IsDevelopment())
+        return Results.Redirect("/swagger");
+
+    return Results.Content(
+        """
+        <!DOCTYPE html>
+        <html lang="pt">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>PIROFAFE API</title>
+          <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body {
+              min-height: 100vh; display: flex; align-items: center; justify-content: center;
+              font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+              background: #0f172a; color: #e2e8f0;
+            }
+            main {
+              text-align: center; padding: 2.5rem 2rem; max-width: 28rem;
+              border: 1px solid #334155; border-radius: 1rem; background: #1e293b;
+            }
+            h1 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+            p { color: #94a3b8; font-size: 0.95rem; line-height: 1.5; }
+            .dot {
+              display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 50%;
+              background: #22c55e; vertical-align: middle; margin-right: 0.35rem;
+              box-shadow: 0 0 0.5rem #22c55e;
+            }
+          </style>
+        </head>
+        <body>
+          <main>
+            <h1><span class="dot" aria-hidden="true"></span>API em execução</h1>
+            <p>Servidor PIROFAFE activo. Utilize a aplicação web ou os endpoints <code>/api/…</code>.</p>
+          </main>
+        </body>
+        </html>
+        """,
+        "text/html; charset=utf-8");
+}).AllowAnonymous();
 
 app.MapControllers(); // Rotas da API ([Route("api/...")])
 

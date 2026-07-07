@@ -54,7 +54,7 @@ public class ServicoService : IServicoService
         {
             var coord = await _funcionarioRepository.GetByIdAsync(coordenadorPirotecnicoId.Value, cancellationToken);
             if (coord == null || string.IsNullOrWhiteSpace(coord.LicencaOperadorCaminho))
-                return (false, "O coordenador pirotécnico tem de ser um funcionário com licença de operador.");
+                return (false, "O coordenador pirotécnico tem de ser um funcionário com credencial.");
             if (!equipaSet.Contains(coordenadorPirotecnicoId.Value))
                 return (false, "O coordenador pirotécnico tem de ser um membro da equipa.");
         }

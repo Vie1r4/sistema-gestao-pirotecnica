@@ -15,9 +15,8 @@ public class Cliente
     [Display(Name = "Tipo")]
     public string TipoCliente { get; set; } = "Particular";
 
-    [StringLength(9, MinimumLength = 9, ErrorMessage = "O NIF deve ter 9 dígitos.")]
+    [StringLength(20)]
     [Display(Name = "NIF")]
-    [RegularExpression(@"^\d{9}$", ErrorMessage = "NIF inválido (apenas 9 dígitos).")]
     public string? NIF { get; set; }
 
     [EmailAddress(ErrorMessage = "Email inválido.")]

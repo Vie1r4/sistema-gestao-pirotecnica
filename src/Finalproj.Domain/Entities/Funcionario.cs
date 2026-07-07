@@ -57,17 +57,25 @@ public class Funcionario
     [Display(Name = "Cartão de cidadão")]
     public string? CartaoCidadaoCaminho { get; set; }
 
+    [Display(Name = "Validade do cartão de cidadão")]
+    [DataType(DataType.Date)]
+    public DateTime? DataValidadeCartaoCidadao { get; set; }
+
     [StringLength(500)]
     [Display(Name = "ADR")]
     public string? DocumentoADDRCaminho { get; set; }
 
     [StringLength(500)]
-    [Display(Name = "Licença de Operador")]
+    [Display(Name = "Credencial")]
     public string? LicencaOperadorCaminho { get; set; }
 
     [StringLength(50)]
     [Display(Name = "N.º de credencial (CRED)")]
     public string? NumeroCredencial { get; set; }
+
+    [Display(Name = "Validade da credencial")]
+    [DataType(DataType.Date)]
+    public DateTime? DataValidadeLicencaOperador { get; set; }
 
     [StringLength(500)]
     [Display(Name = "Outros")]

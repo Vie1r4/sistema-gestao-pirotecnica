@@ -52,6 +52,29 @@ public class CreateFuncionarioInputDtoValidator : AbstractValidator<CreateFuncio
                 .WithMessage("As notas não podem exceder 500 caracteres.");
         });
 
+        RuleFor(x => x)
+            .Custom((input, context) =>
+            {
+                foreach (var erro in CartaoCidadaoRegistoValidator.Validar(
+                             input.RegistarCartaoCidadao,
+                             input.Funcionario?.NIF,
+                             input.Funcionario?.Morada,
+                             input.Funcionario?.DataValidadeCartaoCidadao,
+                             input.CartaoCidadaoFicheiro != null))
+                {
+                    context.AddFailure(erro.Campo, erro.Mensagem);
+                }
+
+                foreach (var erro in LicencaOperadorRegistoValidator.Validar(
+                             input.RegistarLicencaOperador,
+                             input.Funcionario?.NumeroCredencial,
+                             input.Funcionario?.DataValidadeLicencaOperador,
+                             input.LicencaOperadorFicheiro != null))
+                {
+                    context.AddFailure(erro.Campo, erro.Mensagem);
+                }
+            });
+
         When(x => x.CriarConta, () =>
         {
             RuleFor(x => x.ContaEmail)

@@ -190,6 +190,29 @@ export async function updateClienteApi(
   throw new Error(parsed.message);
 }
 
+/** Importa clientes a partir de CSV (POST multipart). */
+export async function importClientesCsvApi(
+  token: string,
+  file: File,
+  modoDuplicadoNif: "ignorar" | "atualizar" | "criar"
+): Promise<import("./clienteCsvImport").ClienteImportResult> {
+  const { mapApiImportResult } = await import("./clienteCsvImport");
+  const fd = new FormData();
+  fd.append("Ficheiro", file);
+  fd.append("ModoDuplicadoNif", modoDuplicadoNif);
+  const res = await fetch(`${apiPath("api/clientes")}/import`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: fd,
+  });
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) {
+    const parsed = parseApiErrorBody(body);
+    throw new Error(parsed.message);
+  }
+  return mapApiImportResult(body);
+}
+
 /** Elimina cliente (DELETE). */
 export async function deleteClienteApi(token: string, id: string): Promise<void> {
   const numId = parseInt(id, 10);
@@ -255,8 +278,8 @@ export async function downloadClienteDocumento(
   URL.revokeObjectURL(url);
 }
 
-/** Valida NIF: exatamente 9 dígitos */
+/** Valida NIF opcional (até 20 caracteres). */
 export function validarNif(nif: string): boolean {
-  const digits = nif.replace(/\D/g, "");
-  return digits.length === 0 || digits.length === 9;
+  const trimmed = nif.trim();
+  return trimmed.length === 0 || trimmed.length <= 20;
 }

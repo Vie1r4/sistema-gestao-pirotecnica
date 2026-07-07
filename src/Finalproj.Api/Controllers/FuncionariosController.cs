@@ -2,8 +2,10 @@ using System.Text;
 using Finalproj.Authorization;
 using Finalproj.Api.Models;
 using Finalproj.Api.Validators;
+using Finalproj.Application.Features.Funcionarios;
 using Finalproj.Application.Features.Funcionarios.DTOs;
 using Finalproj.Application.Features.Funcionarios.Interfaces;
+using Finalproj.Application.Features.Funcionarios.Validators;
 using Finalproj.Application.Features.Home.Interfaces;
 using Finalproj.Application.Services;
 using Finalproj.Application.Services.Interfaces;
@@ -69,9 +71,16 @@ namespace Finalproj.Controllers
 
         [HttpGet]
         [Authorize(Policy = PoliticasAutorizacao.PodeGerirFuncionarios)]
-        public async Task<IActionResult> Index(string? pesquisa, string? cargo, string? ordenar, CancellationToken cancellationToken = default)
+        public async Task<IActionResult> Index(string? pesquisa, string? cargo, string? ordenar, string? filtroLicenca, CancellationToken cancellationToken = default)
         {
             var lista = await _funcionarios.SearchAsync(pesquisa, cargo, ordenar, cancellationToken);
+
+            if (!string.IsNullOrWhiteSpace(filtroLicenca))
+            {
+                lista = lista
+                    .Where(f => FiltroLicencaOperador.Corresponde(FiltroLicencaOperador.Calcular(f), filtroLicenca))
+                    .ToList();
+            }
 
             var userIdsComConta = lista.Where(f => !string.IsNullOrEmpty(f.UserId)).Select(f => f.UserId!).Distinct().ToList();
             var userIdsConfirmados = new HashSet<string>();
@@ -95,6 +104,7 @@ namespace Finalproj.Controllers
                 pesquisa = pesquisa ?? string.Empty,
                 cargo = cargo ?? string.Empty,
                 ordenar = ordenar ?? "nome",
+                filtroLicenca = filtroLicenca ?? string.Empty,
                 cargos = DropdownSelectLists.CargosParaDropdown()
             });
         }
@@ -156,6 +166,27 @@ namespace Finalproj.Controllers
             var documentosExtras = input.DocumentosExtras;
 
             funcionario.Cargo = NormalizarCargo(funcionario.Cargo);
+
+            if (!input.RegistarCartaoCidadao)
+            {
+                funcionario.NIF = null;
+                funcionario.Morada = null;
+                funcionario.DataValidadeCartaoCidadao = null;
+            }
+            else if (funcionario.DataValidadeCartaoCidadao.HasValue)
+            {
+                funcionario.DataValidadeCartaoCidadao = funcionario.DataValidadeCartaoCidadao.Value.Date;
+            }
+
+            if (!input.RegistarLicencaOperador)
+            {
+                funcionario.NumeroCredencial = null;
+                funcionario.DataValidadeLicencaOperador = null;
+            }
+            else if (funcionario.DataValidadeLicencaOperador.HasValue)
+            {
+                funcionario.DataValidadeLicencaOperador = funcionario.DataValidadeLicencaOperador.Value.Date;
+            }
 
             var validationResult = await _createFuncionarioValidator.ValidateAsync(input, cancellationToken);
             ModelState.AddValidationResult(validationResult);
@@ -291,6 +322,8 @@ namespace Finalproj.Controllers
             var removerCartaoCidadao = input.RemoverCartaoCidadao;
             var removerDocumentoADDR = input.RemoverDocumentoADDR;
             var removerLicencaOperador = input.RemoverLicencaOperador;
+            var registarLicencaOperador = input.RegistarLicencaOperador;
+            var registarCartaoCidadao = input.RegistarCartaoCidadao;
 
             if (id != funcionario.Id)
                 return NotFound();
@@ -303,16 +336,66 @@ namespace Finalproj.Controllers
             var cargoNovo = NormalizarCargo(funcionario.Cargo);
 
             existing.NomeCompleto = funcionario.NomeCompleto;
-            existing.NIF = funcionario.NIF;
             existing.Email = funcionario.Email;
             existing.Telefone = funcionario.Telefone;
-            existing.Morada = funcionario.Morada;
             existing.NumeroSegurancaSocial = funcionario.NumeroSegurancaSocial;
-            existing.NumeroCredencial = funcionario.NumeroCredencial;
             existing.IBAN = funcionario.IBAN;
             existing.Cargo = cargoNovo;
             existing.Notas = funcionario.Notas;
             existing.UserId = funcionario.UserId;
+
+            if (!registarCartaoCidadao)
+            {
+                existing.NIF = null;
+                existing.Morada = null;
+                existing.DataValidadeCartaoCidadao = null;
+                removerCartaoCidadao = true;
+            }
+            else
+            {
+                existing.NIF = string.IsNullOrWhiteSpace(funcionario.NIF) ? null : funcionario.NIF.Trim();
+                existing.Morada = string.IsNullOrWhiteSpace(funcionario.Morada) ? null : funcionario.Morada.Trim();
+                existing.DataValidadeCartaoCidadao = funcionario.DataValidadeCartaoCidadao?.Date;
+
+                var temFicheiroCc =
+                    (input.CartaoCidadaoFicheiro != null && _documentoStorage.ExtensaoPermitida(input.CartaoCidadaoFicheiro.FileName))
+                    || (!removerCartaoCidadao && !string.IsNullOrEmpty(existing.CartaoCidadaoCaminho));
+                foreach (var erro in CartaoCidadaoRegistoValidator.Validar(
+                             true,
+                             existing.NIF,
+                             existing.Morada,
+                             existing.DataValidadeCartaoCidadao,
+                             temFicheiroCc))
+                {
+                    ModelState.AddModelError(erro.Campo, erro.Mensagem);
+                }
+            }
+
+            if (!registarLicencaOperador)
+            {
+                existing.NumeroCredencial = null;
+                existing.DataValidadeLicencaOperador = null;
+                removerLicencaOperador = true;
+            }
+            else
+            {
+                existing.NumeroCredencial = string.IsNullOrWhiteSpace(funcionario.NumeroCredencial)
+                    ? null
+                    : funcionario.NumeroCredencial.Trim()[..Math.Min(50, funcionario.NumeroCredencial.Trim().Length)];
+                existing.DataValidadeLicencaOperador = funcionario.DataValidadeLicencaOperador?.Date;
+
+                var temFicheiroLicenca =
+                    (input.LicencaOperadorFicheiro != null && _documentoStorage.ExtensaoPermitida(input.LicencaOperadorFicheiro.FileName))
+                    || (!removerLicencaOperador && !string.IsNullOrEmpty(existing.LicencaOperadorCaminho));
+                foreach (var erro in LicencaOperadorRegistoValidator.Validar(
+                             true,
+                             existing.NumeroCredencial,
+                             existing.DataValidadeLicencaOperador,
+                             temFicheiroLicenca))
+                {
+                    ModelState.AddModelError(erro.Campo, erro.Mensagem);
+                }
+            }
 
             if (criarConta && string.IsNullOrEmpty(funcionario.UserId))
             {

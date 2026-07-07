@@ -26,6 +26,25 @@ import {
   btnPrimaryLg as btnPrimary,
   btnSecondaryLg as btnSecondary,
 } from "@/app/components/ui/tokens";
+import LicencaOperadorPanel from "../../_components/LicencaOperadorPanel";
+import CartaoCidadaoPanel from "../../_components/CartaoCidadaoPanel";
+import { toDateInputValue } from "@/app/lib/licencaOperadorConformidade";
+import {
+  appendLicencaOperadorFormData,
+  estadoLicencaAtualForm,
+  LICENCA_OPERADOR_VAZIA,
+  temFicheiroLicencaOperador,
+  validarLicencaOperadorForm,
+  type LicencaOperadorFormState,
+} from "@/app/lib/licencaOperadorForm";
+import {
+  appendCartaoCidadaoFormData,
+  CARTAO_CIDADAO_VAZIO,
+  estadoCartaoCidadaoAtualForm,
+  temFicheiroCartaoCidadao,
+  validarCartaoCidadaoForm,
+  type CartaoCidadaoFormState,
+} from "@/app/lib/cartaoCidadaoForm";
 
 function mapApiItemToFuncionario(item: Record<string, unknown>): Funcionario {
   const nome = (item.nomeCompleto ?? item.NomeCompleto ?? item.nome ?? "") as string;
@@ -41,6 +60,14 @@ function mapApiItemToFuncionario(item: Record<string, unknown>): Funcionario {
     id: String(item.id ?? item.Id ?? ""),
     nomeCompleto: nome,
     numeroCredencial: (item.numeroCredencial ?? item.NumeroCredencial) as string | undefined,
+    dataValidadeLicencaOperador: (item.dataValidadeLicencaOperador ?? item.DataValidadeLicencaOperador) as
+      | string
+      | undefined,
+    estadoLicencaOperador: (item.estadoLicencaOperador ?? item.EstadoLicencaOperador) as string | undefined,
+    dataValidadeCartaoCidadao: (item.dataValidadeCartaoCidadao ?? item.DataValidadeCartaoCidadao) as
+      | string
+      | undefined,
+    estadoCartaoCidadao: (item.estadoCartaoCidadao ?? item.EstadoCartaoCidadao) as string | undefined,
     nif: (item.nif ?? item.NIF) as string | undefined,
     email: (item.email ?? item.Email) as string | undefined,
     telefone: (item.telefone ?? item.Telefone) as string | undefined,
@@ -70,11 +97,8 @@ export default function EditarFuncionarioPage() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [form, setForm] = useState({
     nomeCompleto: "",
-    numeroCredencial: "",
-    nif: "",
     email: "",
     telefone: "",
-    morada: "",
     nss: "",
     iban: "",
     cargo: "Gestor" as CargoFuncionario,
@@ -85,6 +109,8 @@ export default function EditarFuncionarioPage() {
     contaPerfil: "Gestor" as CargoFuncionario, // UI-only; backend força = cargo do funcionário
   });
   const [docs, setDocs] = useState<DocumentosFuncionario>({ extras: [] });
+  const [cartao, setCartao] = useState<CartaoCidadaoFormState>(CARTAO_CIDADAO_VAZIO);
+  const [licenca, setLicenca] = useState<LicencaOperadorFormState>(LICENCA_OPERADOR_VAZIA);
   const [ccFile, setCcFile] = useState<File | null>(null);
   const [addrFile, setAddrFile] = useState<File | null>(null);
   const [licFile, setLicFile] = useState<File | null>(null);
@@ -149,11 +175,8 @@ export default function EditarFuncionarioPage() {
     const f = mapApiItemToFuncionario(rawItem);
     setForm({
       nomeCompleto: f.nomeCompleto,
-      numeroCredencial: f.numeroCredencial ?? "",
-      nif: f.nif ?? "",
       email: f.email ?? "",
       telefone: f.telefone ?? "",
-      morada: f.morada ?? "",
       nss: f.nss ?? "",
       iban: f.iban ?? "",
       cargo: f.cargo,
@@ -195,6 +218,23 @@ export default function EditarFuncionarioPage() {
       licencaOperador: hasLic,
       outros: hasOutros,
     });
+    const licencaAtiva = hasLic || Boolean(f.numeroCredencial?.trim()) || Boolean(f.dataValidadeLicencaOperador);
+    setLicenca({
+      ativa: licencaAtiva,
+      numeroCredencial: f.numeroCredencial ?? "",
+      dataValidade: toDateInputValue(f.dataValidadeLicencaOperador),
+    });
+    const cartaoAtivo =
+      hasCc ||
+      Boolean(f.dataValidadeCartaoCidadao) ||
+      Boolean(f.nif?.trim()) ||
+      Boolean(f.morada?.trim());
+    setCartao({
+      ativa: cartaoAtivo,
+      nif: f.nif ?? "",
+      morada: f.morada ?? "",
+      dataValidade: toDateInputValue(f.dataValidadeCartaoCidadao),
+    });
   }, [editValue]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -204,10 +244,6 @@ export default function EditarFuncionarioPage() {
     setMessage(null);
     if (!form.nomeCompleto.trim()) {
       setMessage({ type: "error", text: "O nome completo é obrigatório." });
-      return;
-    }
-    if (form.nif && !/^\d{9}$/.test(form.nif.replace(/\s/g, ""))) {
-      setMessage({ type: "error", text: "O NIF deve ter nove dígitos." });
       return;
     }
     if (form.criarConta && !funcionario.contaAssociada) {
@@ -233,14 +269,48 @@ export default function EditarFuncionarioPage() {
       return;
     }
 
+    const temFicheiroCc = temFicheiroCartaoCidadao({
+      mode: "edit",
+      ccFile,
+      existingDoc: existingDocHas.cartaoCidadao,
+      removerDoc: removerCc,
+    });
+    const erroCartao = validarCartaoCidadaoForm({
+      ativa: cartao.ativa,
+      nif: cartao.nif,
+      morada: cartao.morada,
+      dataValidade: cartao.dataValidade,
+      temFicheiro: temFicheiroCc,
+    });
+    if (erroCartao) {
+      setMessage({ type: "error", text: erroCartao });
+      return;
+    }
+
+    const temFicheiroLic = temFicheiroLicencaOperador({
+      mode: "edit",
+      licFile,
+      existingDoc: existingDocHas.licencaOperador,
+      removerDoc: removerLic,
+    });
+    const erroLicenca = validarLicencaOperadorForm({
+      ativa: licenca.ativa,
+      numeroCredencial: licenca.numeroCredencial,
+      dataValidade: licenca.dataValidade,
+      temFicheiro: temFicheiroLic,
+    });
+    if (erroLicenca) {
+      setMessage({ type: "error", text: erroLicenca });
+      return;
+    }
+
     const fd = new FormData();
     fd.append("Funcionario.Id", id);
     fd.append("Funcionario.NomeCompleto", form.nomeCompleto.trim());
-    fd.append("Funcionario.NumeroCredencial", form.numeroCredencial.trim());
-    fd.append("Funcionario.NIF", form.nif.trim());
+    appendCartaoCidadaoFormData(fd, cartao, ccFile);
+    appendLicencaOperadorFormData(fd, licenca, licFile);
     fd.append("Funcionario.Email", form.email.trim());
     fd.append("Funcionario.Telefone", form.telefone.trim());
-    fd.append("Funcionario.Morada", form.morada.trim());
     fd.append("Funcionario.NumeroSegurancaSocial", form.nss.trim());
     fd.append("Funcionario.IBAN", form.iban.trim());
     fd.append("Funcionario.Cargo", form.cargo);
@@ -255,14 +325,12 @@ export default function EditarFuncionarioPage() {
     // Backend força a role da conta = cargo do funcionário (fonte única de verdade)
     fd.append("ContaRole", form.cargo);
 
-    fd.append("RemoverCartaoCidadao", removerCc.toString());
+    fd.append("RemoverCartaoCidadao", (removerCc || !cartao.ativa).toString());
     fd.append("RemoverDocumentoADDR", removerAddr.toString());
-    fd.append("RemoverLicencaOperador", removerLic.toString());
+    fd.append("RemoverLicencaOperador", (removerLic || !licenca.ativa).toString());
     fd.append("RemoverOutrosAntigo", removerOutros.toString());
     removerExtraIds.forEach((extraId, i) => fd.append(`RemoverDocumentoExtraIds[${i}]`, String(extraId)));
-    if (ccFile) fd.append("CartaoCidadaoFicheiro", ccFile);
     if (addrFile) fd.append("DocumentoADDRFicheiro", addrFile);
-    if (licFile) fd.append("LicencaOperadorFicheiro", licFile);
     docs.extras.forEach((ex, i) => {
       const file = extrasFiles[i];
       if (file) {
@@ -316,8 +384,53 @@ export default function EditarFuncionarioPage() {
     }));
   };
 
-  const mostraBlocoFicheiros =
-    !!docs.cartaoCidadao || !!docs.adr || !!docs.licencaOperador || docs.extras.length > 0;
+  const mostraBlocoFicheiros = !!docs.adr || docs.extras.length > 0;
+
+  const handleCartaoToggle = (checked: boolean) => {
+    if (checked) {
+      setCartao((c) => ({ ...c, ativa: true }));
+      setDocs((d) => ({ ...d, cartaoCidadao: "cc" }));
+      setRemoverCc(false);
+      return;
+    }
+    setCartao(CARTAO_CIDADAO_VAZIO);
+    setDocs((d) => ({ ...d, cartaoCidadao: undefined }));
+    setCcFile(null);
+    if (existingDocHas.cartaoCidadao) setRemoverCc(true);
+  };
+
+  const handleLicencaToggle = (checked: boolean) => {
+    if (checked) {
+      setLicenca((l) => ({ ...l, ativa: true }));
+      setDocs((d) => ({ ...d, licencaOperador: "licenca" }));
+      setRemoverLic(false);
+      return;
+    }
+    setLicenca(LICENCA_OPERADOR_VAZIA);
+    setDocs((d) => ({ ...d, licencaOperador: undefined }));
+    setLicFile(null);
+    if (existingDocHas.licencaOperador) setRemoverLic(true);
+  };
+
+  const temFicheiroCcAtual = temFicheiroCartaoCidadao({
+    mode: "edit",
+    ccFile,
+    existingDoc: existingDocHas.cartaoCidadao,
+    removerDoc: removerCc,
+  });
+  const estadoCartao = cartao.ativa
+    ? estadoCartaoCidadaoAtualForm(cartao, temFicheiroCcAtual)
+    : undefined;
+
+  const temFicheiroLicencaAtual = temFicheiroLicencaOperador({
+    mode: "edit",
+    licFile,
+    existingDoc: existingDocHas.licencaOperador,
+    removerDoc: removerLic,
+  });
+  const estadoLicenca = licenca.ativa
+    ? estadoLicencaAtualForm(licenca, temFicheiroLicencaAtual)
+    : undefined;
 
   const FILE_ACCEPT = ".pdf,.jpg,.jpeg,.png";
 
@@ -380,14 +493,8 @@ export default function EditarFuncionarioPage() {
                   <label htmlFor="nome" className={labelClass}>Nome completo *</label>
                   <input id="nome" type="text" required value={form.nomeCompleto} onChange={(e) => setForm((f) => ({ ...f, nomeCompleto: e.target.value }))} className={inputClass} />
                 </div>
-                <div>
-                  <label htmlFor="numeroCredencial" className={labelClass}>N.º credencial (CRED)</label>
-                  <input id="numeroCredencial" type="text" maxLength={50} value={form.numeroCredencial} onChange={(e) => setForm((f) => ({ ...f, numeroCredencial: e.target.value }))} className={inputClass} placeholder="Ex.: 12345" />
-                </div>
-                <div><label htmlFor="nif" className={labelClass}>NIF</label><input id="nif" type="text" maxLength={9} value={form.nif} onChange={(e) => setForm((f) => ({ ...f, nif: e.target.value.replace(/\D/g, "") }))} className={inputClass} /></div>
                 <div><label htmlFor="email" className={labelClass}>Email</label><input id="email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className={inputClass} /></div>
                 <div><label htmlFor="telefone" className={labelClass}>Telefone</label><input id="telefone" type="tel" value={form.telefone} onChange={(e) => setForm((f) => ({ ...f, telefone: e.target.value }))} className={inputClass} /></div>
-                <div className="sm:col-span-2"><label htmlFor="morada" className={labelClass}>Morada</label><input id="morada" type="text" value={form.morada} onChange={(e) => setForm((f) => ({ ...f, morada: e.target.value }))} className={inputClass} /></div>
                 <div><label htmlFor="nss" className={labelClass}>N.º Segurança Social</label><input id="nss" type="text" value={form.nss} onChange={(e) => setForm((f) => ({ ...f, nss: e.target.value }))} className={inputClass} /></div>
                 <div><label htmlFor="iban" className={labelClass}>IBAN</label><input id="iban" type="text" value={form.iban} onChange={(e) => setForm((f) => ({ ...f, iban: e.target.value }))} className={inputClass} /></div>
                 <div className="sm:col-span-2"><label htmlFor="cargo" className={labelClass}>Cargo</label><select id="cargo" value={form.cargo} onChange={(e) => setForm((f) => ({ ...f, cargo: e.target.value as CargoFuncionario }))} className={inputClass}>{CARGOS.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
@@ -400,7 +507,7 @@ export default function EditarFuncionarioPage() {
               <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Marque os tipos de documento que pretende enviar ou substituir. Pode adicionar linhas com nome à escolha.</p>
               <div className="mt-4 flex flex-col gap-3">
                 <label className="flex cursor-pointer items-center gap-3">
-                  <input type="checkbox" checked={!!docs.cartaoCidadao} onChange={(e) => setDocs((d) => ({ ...d, cartaoCidadao: e.target.checked ? "cc" : undefined }))} className="h-4 w-4 rounded border-gray-300 text-[#f97316] focus:ring-[#f97316]" />
+                  <input type="checkbox" checked={cartao.ativa} onChange={(e) => handleCartaoToggle(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-[#f97316] focus:ring-[#f97316]" />
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Cartão de Cidadão</span>
                 </label>
                 <label className="flex cursor-pointer items-center gap-3">
@@ -408,8 +515,8 @@ export default function EditarFuncionarioPage() {
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">ADR</span>
                 </label>
                 <label className="flex cursor-pointer items-center gap-3">
-                  <input type="checkbox" checked={!!docs.licencaOperador} onChange={(e) => setDocs((d) => ({ ...d, licencaOperador: e.target.checked ? "licenca" : undefined }))} className="h-4 w-4 rounded border-gray-300 text-[#f97316] focus:ring-[#f97316]" />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Licença de Operador</span>
+                  <input type="checkbox" checked={licenca.ativa} onChange={(e) => handleLicencaToggle(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-[#f97316] focus:ring-[#f97316]" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Credencial</span>
                 </label>
                 <div className="flex items-center gap-2">
                   <button type="button" onClick={addDocExtraRow} data-button className="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-sm font-medium text-gray-600 transition-[border-color,background-color,color] duration-200 hover:border-[#f97316] hover:bg-[#f97316]/5 hover:text-[#f97316] dark:border-[#444] dark:text-gray-400 dark:hover:border-[#f97316] dark:hover:text-[#f97316]">
@@ -425,44 +532,50 @@ export default function EditarFuncionarioPage() {
                 )}
               </div>
 
+              {cartao.ativa && (
+                <CartaoCidadaoPanel
+                  mode="edit"
+                  nif={cartao.nif}
+                  onNifChange={(value) => setCartao((c) => ({ ...c, nif: value }))}
+                  morada={cartao.morada}
+                  onMoradaChange={(value) => setCartao((c) => ({ ...c, morada: value }))}
+                  dataValidade={cartao.dataValidade}
+                  onDataValidadeChange={(value) => setCartao((c) => ({ ...c, dataValidade: value }))}
+                  ccFile={ccFile}
+                  onCcFileChange={setCcFile}
+                  existingDoc={existingDocHas.cartaoCidadao}
+                  removerDoc={removerCc}
+                  onRemoverDocChange={setRemoverCc}
+                  estado={estadoCartao}
+                  fileInputId="editar-cartao-cidadao-ficheiro"
+                />
+              )}
+
+              {licenca.ativa && (
+                <LicencaOperadorPanel
+                  mode="edit"
+                  numeroCredencial={licenca.numeroCredencial}
+                  onNumeroCredencialChange={(value) =>
+                    setLicenca((l) => ({ ...l, numeroCredencial: value }))
+                  }
+                  dataValidade={licenca.dataValidade}
+                  onDataValidadeChange={(value) =>
+                    setLicenca((l) => ({ ...l, dataValidade: value }))
+                  }
+                  licFile={licFile}
+                  onLicFileChange={setLicFile}
+                  existingDoc={existingDocHas.licencaOperador}
+                  removerDoc={removerLic}
+                  onRemoverDocChange={setRemoverLic}
+                  estado={estadoLicenca}
+                  fileInputId="editar-licenca-operador-ficheiro"
+                />
+              )}
+
               {mostraBlocoFicheiros && (
                 <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:border-[#222] dark:bg-[#0a0a0a]/50">
                   <p className="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">Campos de ficheiro</p>
                   <div className="flex flex-col gap-4">
-                    {!!docs.cartaoCidadao && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-400">Cartão de Cidadão</label>
-                        {existingDocHas.cartaoCidadao ? (
-                          <label htmlFor="editar-cc-ficheiro" className="mt-1 flex cursor-pointer items-center gap-2">
-                            <input
-                              id="editar-cc-ficheiro"
-                              type="file"
-                              name="cartaoCidadaoFicheiro"
-                              accept={FILE_ACCEPT}
-                              className="sr-only"
-                              onChange={(e) => setCcFile(e.target.files?.[0] ?? null)}
-                            />
-                            <span className="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-gray-300 dark:hover:bg-[#222]">
-                              {ccFile ? ccFile.name : "Alterar documento"}
-                            </span>
-                          </label>
-                        ) : (
-                          <input
-                            type="file"
-                            name="cartaoCidadaoFicheiro"
-                            accept={FILE_ACCEPT}
-                            className={`${inputClass} mt-1`}
-                            onChange={(e) => setCcFile(e.target.files?.[0] ?? null)}
-                          />
-                        )}
-                        {existingDocHas.cartaoCidadao && (
-                            <label className="mt-2 flex cursor-pointer items-center gap-2">
-                            <input type="checkbox" checked={removerCc} onChange={(e) => setRemoverCc(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500" />
-                            <span className="text-sm text-red-600 dark:text-red-400">Remover este documento</span>
-                          </label>
-                        )}
-                      </div>
-                    )}
                     {!!docs.adr && (
                       <div>
                         <label className="block text-sm font-medium text-gray-600 dark:text-gray-400">ADR</label>
@@ -492,40 +605,6 @@ export default function EditarFuncionarioPage() {
                         {existingDocHas.documentoADR && (
                             <label className="mt-2 flex cursor-pointer items-center gap-2">
                             <input type="checkbox" checked={removerAddr} onChange={(e) => setRemoverAddr(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500" />
-                            <span className="text-sm text-red-600 dark:text-red-400">Remover este documento</span>
-                          </label>
-                        )}
-                      </div>
-                    )}
-                    {!!docs.licencaOperador && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-400">Licença de Operador</label>
-                        {existingDocHas.licencaOperador ? (
-                          <label htmlFor="editar-lic-ficheiro" className="mt-1 flex cursor-pointer items-center gap-2">
-                            <input
-                              id="editar-lic-ficheiro"
-                              type="file"
-                              name="licencaOperadorFicheiro"
-                              accept={FILE_ACCEPT}
-                              className="sr-only"
-                              onChange={(e) => setLicFile(e.target.files?.[0] ?? null)}
-                            />
-                            <span className="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-[#333] dark:bg-[#1a1a1a] dark:text-gray-300 dark:hover:bg-[#222]">
-                              {licFile ? licFile.name : "Alterar documento"}
-                            </span>
-                          </label>
-                        ) : (
-                          <input
-                            type="file"
-                            name="licencaOperadorFicheiro"
-                            accept={FILE_ACCEPT}
-                            className={`${inputClass} mt-1`}
-                            onChange={(e) => setLicFile(e.target.files?.[0] ?? null)}
-                          />
-                        )}
-                        {existingDocHas.licencaOperador && (
-                            <label className="mt-2 flex cursor-pointer items-center gap-2">
-                            <input type="checkbox" checked={removerLic} onChange={(e) => setRemoverLic(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500" />
                             <span className="text-sm text-red-600 dark:text-red-400">Remover este documento</span>
                           </label>
                         )}

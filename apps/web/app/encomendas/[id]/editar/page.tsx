@@ -300,7 +300,7 @@ export default function EditarEncomendaPage() {
                     Coordenador pirotécnico
                   </label>
                   <p className="mt-1 text-xs text-[#57534e] dark:text-gray-500">
-                    Opcional — necessário para a declaração PSP. Requer licença de operador e n.º CRED na ficha do
+                    Opcional — necessário para a declaração PSP. Requer credencial e n.º CRED na ficha do
                     funcionário.{" "}
                     <Link href="/funcionarios" className="text-[#f97316] hover:underline">
                       Gerir funcionários

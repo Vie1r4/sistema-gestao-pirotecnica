@@ -18,6 +18,10 @@ public class EditFuncionarioInputDto
     public bool RemoverCartaoCidadao { get; set; }
     public bool RemoverDocumentoADDR { get; set; }
     public bool RemoverLicencaOperador { get; set; }
+    /// <summary>True quando o formulário regista cartão de cidadão (NIF + morada + validade + documento obrigatórios).</summary>
+    public bool RegistarCartaoCidadao { get; set; }
+    /// <summary>True quando o formulário regista licença de operador (CRED + validade + documento obrigatórios).</summary>
+    public bool RegistarLicencaOperador { get; set; }
     public bool CriarConta { get; set; }
     public string? ContaEmail { get; set; }
     public string? ContaPassword { get; set; }

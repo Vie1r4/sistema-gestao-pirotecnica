@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 import Navbar from "../components/Navbar";
 import PageHeader from "../components/ui/PageHeader";
 import { DataTable } from "../components/ui/DataTable";
-import { btnPrimary } from "../components/ui/tokens";
+import { btnPrimary, inputClass, labelClass } from "../components/ui/tokens";
 import { funcionariosColumns } from "./_components/funcionariosColumns";
 import { mapApiToFuncionario, type Funcionario } from "../lib/funcionarios";
 import { getToken } from "../lib/auth";
@@ -20,6 +20,7 @@ function FuncionariosContent() {
   const router = useRouter();
   const pathname = usePathname();
   const eliminado = searchParams.get("eliminado") === "1";
+  const filtroLicenca = searchParams.get("filtroLicenca") ?? "";
   const columns = useMemo(() => funcionariosColumns(), []);
 
   const {
@@ -28,7 +29,7 @@ function FuncionariosContent() {
     isRefetching,
     error: queryError,
   } = useQuery({
-    queryKey: ["funcionarios"],
+    queryKey: ["funcionarios", filtroLicenca],
     queryFn: async (): Promise<Funcionario[]> => {
       const token = getToken();
       if (!token) {
@@ -36,7 +37,7 @@ function FuncionariosContent() {
         throw new Error("Sessão expirada. Faça login novamente.");
       }
       try {
-        const { items: arr } = await fetchFuncionariosLista(token);
+        const { items: arr } = await fetchFuncionariosLista(token, { filtroLicenca });
         return arr.map((item) => mapApiToFuncionario(item));
       } catch (e) {
         if (e instanceof Error && e.message === "UNAUTHORIZED") {
@@ -59,6 +60,14 @@ function FuncionariosContent() {
       : queryError
         ? "Erro ao carregar funcionários."
         : null;
+
+  const setFiltroLicenca = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) params.set("filtroLicenca", value);
+    else params.delete("filtroLicenca");
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+  };
 
   return (
     <div className="min-h-screen bg-[#f8f7f5] text-[#1c1917] dark:bg-[#0a0a0a] dark:text-white">
@@ -117,6 +126,25 @@ function FuncionariosContent() {
             transition={{ ...transitionSmooth, delay: 0.05 }}
             className="card-hover mt-10 rounded-2xl border border-[#e7e5e4] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:border-[#1f1f1f] dark:bg-[#111] dark:shadow-none sm:p-6"
           >
+            <div className="mb-5 flex flex-wrap items-end gap-4">
+              <div className="min-w-[220px]">
+                <label htmlFor="filtro-licenca" className={labelClass}>
+                  Filtrar por credencial
+                </label>
+                <select
+                  id="filtro-licenca"
+                  value={filtroLicenca}
+                  onChange={(e) => setFiltroLicenca(e.target.value)}
+                  className={`${inputClass} mt-1`}
+                >
+                  <option value="">Todas</option>
+                  <option value="valida">Válidas</option>
+                  <option value="a_expirar">Prestes a expirar (≤ 60 dias)</option>
+                  <option value="expirada">Expiradas</option>
+                  <option value="incompleta">Incompletas</option>
+                </select>
+              </div>
+            </div>
             {loading ? (
               <div className="flex flex-col items-center justify-center gap-3 py-12 text-[#57534e] dark:text-gray-400">
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent" />

@@ -4,6 +4,7 @@ export type FuncionarioServicoOpt = {
   id: string;
   nomeCompleto: string;
   numeroCredencial?: string;
+  estadoLicencaOperador?: string;
   hasDocumentoADR: boolean;
   hasLicencaOperador: boolean;
 };
@@ -14,6 +15,7 @@ export function mapFuncionarioServicoOpt(raw: Record<string, unknown>): Funciona
     id: String(raw.id ?? raw.Id ?? ""),
     nomeCompleto: String(raw.nomeCompleto ?? raw.NomeCompleto ?? "").trim(),
     numeroCredencial: cred?.trim() || undefined,
+    estadoLicencaOperador: (raw.estadoLicencaOperador ?? raw.EstadoLicencaOperador) as string | undefined,
     hasDocumentoADR: Boolean(raw.hasDocumentoADR ?? raw.HasDocumentoADR),
     hasLicencaOperador: Boolean(raw.hasLicencaOperador ?? raw.HasLicencaOperador),
   };
@@ -26,23 +28,31 @@ export function mapFuncionariosServico(raw: unknown): FuncionarioServicoOpt[] {
     .filter((f) => f.id && f.nomeCompleto);
 }
 
-/** Licença de operador — exigida para coordenador pirotécnico (PSP). */
+/** Credencial pirotécnica — exigida para coordenador pirotécnico (PSP). */
 export function elegivelEquipa(f: FuncionarioServicoOpt): boolean {
   return f.hasLicencaOperador;
 }
 
-/** Coordenador na declaração PSP: licença + n.º CRED na ficha. */
+/** Coordenador na declaração PSP: licença completa + n.º CRED; expirada/incompleta bloqueia. */
 export function elegivelCoordenadorPirotecnico(f: FuncionarioServicoOpt): boolean {
-  return f.hasLicencaOperador && Boolean(f.numeroCredencial);
+  if (!f.hasLicencaOperador || !f.numeroCredencial) return false;
+  const estado = f.estadoLicencaOperador;
+  if (estado === "Expirada" || estado === "Incompleta") return false;
+  return true;
 }
 
 export function motivoInelegivelEquipa(f: FuncionarioServicoOpt): string {
-  return f.hasLicencaOperador ? "" : " (falta licença de operador)";
+  return f.hasLicencaOperador ? "" : " (falta credencial)";
 }
 
 export function rotuloCoordenadorPirotecnico(f: FuncionarioServicoOpt): string {
-  if (!f.hasLicencaOperador) return `${f.nomeCompleto} (falta licença de operador)`;
+  if (!f.hasLicencaOperador) return `${f.nomeCompleto} (falta credencial)`;
   if (!f.numeroCredencial) return `${f.nomeCompleto} (falta n.º CRED na ficha)`;
+  if (f.estadoLicencaOperador === "Expirada") return `${f.nomeCompleto} (credencial expirada)`;
+  if (f.estadoLicencaOperador === "Incompleta") return `${f.nomeCompleto} (credencial incompleta)`;
+  if (f.estadoLicencaOperador === "AExpirar") {
+    return `${f.nomeCompleto} — CRED ${f.numeroCredencial} (credencial a expirar)`;
+  }
   return `${f.nomeCompleto} — CRED ${f.numeroCredencial}`;
 }
 

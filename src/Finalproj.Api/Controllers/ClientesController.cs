@@ -2,6 +2,7 @@ using Finalproj.Api.Models;
 using Finalproj.Api.Validators;
 using Finalproj.Application.Features.Clientes.DTOs;
 using Finalproj.Application.Features.Clientes.Interfaces;
+using Finalproj.Application.Features.Clientes.Services;
 using Finalproj.Application.Services;
 using Finalproj.Helpers;
 using FluentValidation;
@@ -18,16 +19,25 @@ namespace Finalproj.Controllers
     public class ClientesController : ControllerBase
     {
         private readonly IClienteApplicationService _clientes;
+        private readonly ClienteImportService _clienteImport;
         private readonly IDocumentoStorageService _documentoStorage;
         private readonly IValidator<CreateClienteInputDto> _createClienteValidator;
+        private readonly IConfiguration _configuration;
         private const string PastaDocumentosClientes = "Documentos/Clientes";
         private const int HistoricoEncomendasPageSize = 15;
 
-        public ClientesController(IClienteApplicationService clientes, IDocumentoStorageService documentoStorage, IValidator<CreateClienteInputDto> createClienteValidator)
+        public ClientesController(
+            IClienteApplicationService clientes,
+            ClienteImportService clienteImport,
+            IDocumentoStorageService documentoStorage,
+            IValidator<CreateClienteInputDto> createClienteValidator,
+            IConfiguration configuration)
         {
             _clientes = clientes;
+            _clienteImport = clienteImport;
             _documentoStorage = documentoStorage;
             _createClienteValidator = createClienteValidator;
+            _configuration = configuration;
         }
 
         /// <summary>Lista com pesquisa (nome, email, telefone, NIF) e ordenação.</summary>
@@ -196,6 +206,32 @@ namespace Finalproj.Controllers
             if (await _clientes.DeleteAsync(id, cancellationToken))
                 _documentoStorage.ApagarPastaRecursiva(Path.Combine(PastaDocumentosClientes, id.ToString()));
             return NoContent();
+        }
+
+        /// <summary>Importa clientes a partir de ficheiro CSV (migração de dados).</summary>
+        [HttpPost("import")]
+        [Authorize(Policy = Finalproj.Authorization.PoliticasAutorizacao.PodeGerirClientes)]
+        public async Task<IActionResult> ImportCsv([FromForm] ImportClientesCsvInputDto input, CancellationToken cancellationToken = default)
+        {
+            if (input.Ficheiro == null || input.Ficheiro.Length == 0)
+                return BadRequest(new { message = "Selecione um ficheiro CSV ou TXT." });
+
+            var nome = input.Ficheiro.FileName ?? "";
+            var extensaoValida = nome.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)
+                || nome.EndsWith(".txt", StringComparison.OrdinalIgnoreCase);
+            var tipoValido = string.Equals(input.Ficheiro.ContentType, "text/csv", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(input.Ficheiro.ContentType, "text/plain", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(input.Ficheiro.ContentType, "application/vnd.ms-excel", StringComparison.OrdinalIgnoreCase);
+            if (!extensaoValida && !tipoValido)
+                return BadRequest(new { message = "O ficheiro deve ser CSV (.csv) ou texto (.txt)." });
+
+            var maxBytes = _configuration.GetValue<long>("Clientes:ImportMaxFileSizeBytes", 50 * 1024 * 1024);
+            if (input.Ficheiro.Length > maxBytes)
+                return BadRequest(new { message = $"O ficheiro não pode exceder {maxBytes / (1024 * 1024)} MB." });
+
+            await using var stream = new MemoryStream(input.Ficheiro.Content);
+            var resultado = await _clienteImport.ImportarCsvAsync(stream, input.ModoDuplicadoNif, cancellationToken);
+            return Ok(resultado);
         }
 
         /// <summary>Download de documento extra do cliente (inline no browser). Requer política PodeGerirClientes.</summary>

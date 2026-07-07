@@ -164,7 +164,7 @@ export default function EditarClientePage() {
       return;
     }
     if (form.nif && !validarNif(form.nif)) {
-      setMessage({ type: "error", text: "O NIF deve ter exatamente 9 dígitos." });
+      setMessage({ type: "error", text: "O NIF não pode exceder 20 caracteres." });
       releaseSubmitLock();
       return;
     }
@@ -273,7 +273,7 @@ export default function EditarClientePage() {
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="nif" className={labelClass}>NIF (9 dígitos)</label>
+                    <label htmlFor="nif" className={labelClass}>NIF</label>
                     <input
                       id="nif"
                       type="text"

@@ -14,10 +14,16 @@ function authHeaders(token: string): HeadersInit {
 }
 
 /** GET api/funcionarios — lista; cada item inclui contaAssociada e contaEmailConfirmada (sem UserId do Identity). */
-export async function fetchFuncionariosLista(token: string): Promise<{
+export async function fetchFuncionariosLista(
+  token: string,
+  opts?: { filtroLicenca?: string }
+): Promise<{
   items: Array<Record<string, unknown>>;
 }> {
-  const res = await fetch(apiPath("api/funcionarios"), { headers: authHeaders(token) });
+  const q = new URLSearchParams();
+  if (opts?.filtroLicenca?.trim()) q.set("filtroLicenca", opts.filtroLicenca.trim());
+  const suffix = q.toString() ? `?${q.toString()}` : "";
+  const res = await fetch(`${apiPath("api/funcionarios")}${suffix}`, { headers: authHeaders(token) });
   if (!res.ok) {
     if (res.status === 401) throw new Error("UNAUTHORIZED");
     throw new Error(
@@ -111,6 +117,14 @@ export function mapApiItemToFuncionarioDetalhe(
     id: String(item.id ?? item.Id ?? ""),
     nomeCompleto: nome,
     numeroCredencial: (item.numeroCredencial ?? item.NumeroCredencial) as string | undefined,
+    dataValidadeLicencaOperador: (item.dataValidadeLicencaOperador ?? item.DataValidadeLicencaOperador) as
+      | string
+      | undefined,
+    estadoLicencaOperador: (item.estadoLicencaOperador ?? item.EstadoLicencaOperador) as string | undefined,
+    dataValidadeCartaoCidadao: (item.dataValidadeCartaoCidadao ?? item.DataValidadeCartaoCidadao) as
+      | string
+      | undefined,
+    estadoCartaoCidadao: (item.estadoCartaoCidadao ?? item.EstadoCartaoCidadao) as string | undefined,
     nif: (item.nif ?? item.NIF) as string | undefined,
     email: (item.email ?? item.Email) as string | undefined,
     telefone: (item.telefone ?? item.Telefone) as string | undefined,

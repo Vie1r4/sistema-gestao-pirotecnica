@@ -20,6 +20,24 @@ import {
   btnPrimaryLg as btnPrimary,
   btnSecondaryLg as btnSecondary,
 } from "@/app/components/ui/tokens";
+import LicencaOperadorPanel from "../_components/LicencaOperadorPanel";
+import CartaoCidadaoPanel from "../_components/CartaoCidadaoPanel";
+import {
+  appendLicencaOperadorFormData,
+  estadoLicencaAtualForm,
+  LICENCA_OPERADOR_VAZIA,
+  temFicheiroLicencaOperador,
+  validarLicencaOperadorForm,
+  type LicencaOperadorFormState,
+} from "@/app/lib/licencaOperadorForm";
+import {
+  appendCartaoCidadaoFormData,
+  CARTAO_CIDADAO_VAZIO,
+  estadoCartaoCidadaoAtualForm,
+  temFicheiroCartaoCidadao,
+  validarCartaoCidadaoForm,
+  type CartaoCidadaoFormState,
+} from "@/app/lib/cartaoCidadaoForm";
 
 /** Normaliza item de dropdown da API (string ou { value, text }) para string */
 function toOptionValue(c: unknown): string {
@@ -34,11 +52,8 @@ export default function NovoFuncionarioPage() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [form, setForm] = useState({
     nomeCompleto: "",
-    numeroCredencial: "",
-    nif: "",
     email: "",
     telefone: "",
-    morada: "",
     nss: "",
     iban: "",
     cargo: "Gestor" as CargoFuncionario,
@@ -49,6 +64,10 @@ export default function NovoFuncionarioPage() {
     contaPerfil: "Gestor" as CargoFuncionario, // UI-only; backend força = cargo
   });
   const [docs, setDocs] = useState<DocumentosFuncionario>({ extras: [] });
+  const [cartao, setCartao] = useState<CartaoCidadaoFormState>(CARTAO_CIDADAO_VAZIO);
+  const [licenca, setLicenca] = useState<LicencaOperadorFormState>(LICENCA_OPERADOR_VAZIA);
+  const [ccPreviewFile, setCcPreviewFile] = useState<File | null>(null);
+  const [licPreviewFile, setLicPreviewFile] = useState<File | null>(null);
   const queryClient = useQueryClient();
   const token = getToken();
   const refCartaoCidadao = useRef<HTMLInputElement>(null);
@@ -119,11 +138,6 @@ export default function NovoFuncionarioPage() {
       releaseSubmitLock();
       return;
     }
-    if (form.nif && !/^\d{9}$/.test(form.nif.replace(/\s/g, ""))) {
-      setMessage({ type: "error", text: "O NIF deve ter nove dígitos." });
-      releaseSubmitLock();
-      return;
-    }
     if (form.criarConta) {
       if (!form.email.trim()) {
         setMessage({ type: "error", text: "Preencha o email do funcionário para criar a conta de acesso." });
@@ -147,13 +161,48 @@ export default function NovoFuncionarioPage() {
       releaseSubmitLock();
       return;
     }
+
+    const ccFile = ccPreviewFile ?? refCartaoCidadao.current?.files?.[0] ?? null;
+    const temFicheiroCc = temFicheiroCartaoCidadao({
+      mode: "create",
+      ccFile,
+    });
+    const erroCartao = validarCartaoCidadaoForm({
+      ativa: cartao.ativa,
+      nif: cartao.nif,
+      morada: cartao.morada,
+      dataValidade: cartao.dataValidade,
+      temFicheiro: temFicheiroCc,
+    });
+    if (erroCartao) {
+      setMessage({ type: "error", text: erroCartao });
+      releaseSubmitLock();
+      return;
+    }
+
+    const licFile = licPreviewFile ?? refLicencaOperador.current?.files?.[0] ?? null;
+    const temFicheiroLic = temFicheiroLicencaOperador({
+      mode: "create",
+      licFile,
+    });
+    const erroLicenca = validarLicencaOperadorForm({
+      ativa: licenca.ativa,
+      numeroCredencial: licenca.numeroCredencial,
+      dataValidade: licenca.dataValidade,
+      temFicheiro: temFicheiroLic,
+    });
+    if (erroLicenca) {
+      setMessage({ type: "error", text: erroLicenca });
+      releaseSubmitLock();
+      return;
+    }
+
     const formData = new FormData();
     formData.append("Funcionario.NomeCompleto", form.nomeCompleto.trim());
-    formData.append("Funcionario.NumeroCredencial", form.numeroCredencial.trim() || "");
-    formData.append("Funcionario.NIF", form.nif.trim() || "");
+    appendCartaoCidadaoFormData(formData, cartao, ccFile);
+    appendLicencaOperadorFormData(formData, licenca, licFile);
     formData.append("Funcionario.Email", form.email.trim() || "");
     formData.append("Funcionario.Telefone", form.telefone.trim() || "");
-    formData.append("Funcionario.Morada", form.morada.trim() || "");
     formData.append("Funcionario.NumeroSegurancaSocial", form.nss.trim() || "");
     formData.append("Funcionario.IBAN", form.iban.trim() || "");
     formData.append("Funcionario.Cargo", form.cargo);
@@ -166,12 +215,8 @@ export default function NovoFuncionarioPage() {
       // Backend força a role da conta = cargo do funcionário (fonte única de verdade)
       formData.append("ContaRole", form.cargo);
     }
-    const ccFile = refCartaoCidadao.current?.files?.[0];
-    if (ccFile) formData.append("CartaoCidadaoFicheiro", ccFile);
     const addrFile = refDocumentoADDR.current?.files?.[0];
     if (addrFile) formData.append("DocumentoADDRFicheiro", addrFile);
-    const licFile = refLicencaOperador.current?.files?.[0];
-    if (licFile) formData.append("LicencaOperadorFicheiro", licFile);
     docs.extras.forEach((ex, i) => {
       formData.append(`DocumentosExtras[${i}].Nome`, ex.nome.trim() || `Documento ${i + 1}`);
       const f = refExtrasFiles.current[i]?.files?.[0];
@@ -198,8 +243,47 @@ export default function NovoFuncionarioPage() {
     }));
   };
 
-  const mostraBlocoFicheiros =
-    !!docs.cartaoCidadao || !!docs.adr || !!docs.licencaOperador || docs.extras.length > 0;
+  const mostraBlocoFicheiros = !!docs.adr || docs.extras.length > 0;
+
+  const handleCartaoToggle = (checked: boolean) => {
+    if (checked) {
+      setCartao((c) => ({ ...c, ativa: true }));
+      setDocs((d) => ({ ...d, cartaoCidadao: "cc" }));
+      return;
+    }
+    setCartao(CARTAO_CIDADAO_VAZIO);
+    setDocs((d) => ({ ...d, cartaoCidadao: undefined }));
+    setCcPreviewFile(null);
+    if (refCartaoCidadao.current) refCartaoCidadao.current.value = "";
+  };
+
+  const handleLicencaToggle = (checked: boolean) => {
+    if (checked) {
+      setLicenca((l) => ({ ...l, ativa: true }));
+      setDocs((d) => ({ ...d, licencaOperador: "licenca" }));
+      return;
+    }
+    setLicenca(LICENCA_OPERADOR_VAZIA);
+    setDocs((d) => ({ ...d, licencaOperador: undefined }));
+    setLicPreviewFile(null);
+    if (refLicencaOperador.current) refLicencaOperador.current.value = "";
+  };
+
+  const temFicheiroCcAtual = temFicheiroCartaoCidadao({
+    mode: "create",
+    ccFile: ccPreviewFile,
+  });
+  const estadoCartao = cartao.ativa
+    ? estadoCartaoCidadaoAtualForm(cartao, temFicheiroCcAtual)
+    : undefined;
+
+  const temFicheiroLicencaAtual = temFicheiroLicencaOperador({
+    mode: "create",
+    licFile: licPreviewFile,
+  });
+  const estadoLicenca = licenca.ativa
+    ? estadoLicencaAtualForm(licenca, temFicheiroLicencaAtual)
+    : undefined;
 
   const FILE_ACCEPT = ".pdf,.jpg,.jpeg,.png";
 
@@ -260,30 +344,6 @@ export default function NovoFuncionarioPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="numeroCredencial" className={labelClass}>N.º credencial (CRED)</label>
-                  <input
-                    id="numeroCredencial"
-                    type="text"
-                    maxLength={50}
-                    value={form.numeroCredencial}
-                    onChange={(e) => setForm((f) => ({ ...f, numeroCredencial: e.target.value }))}
-                    className={inputClass}
-                    placeholder="Ex.: 12345"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="nif" className={labelClass}>NIF (9 dígitos)</label>
-                  <input
-                    id="nif"
-                    type="text"
-                    maxLength={9}
-                    value={form.nif}
-                    onChange={(e) => setForm((f) => ({ ...f, nif: e.target.value.replace(/\D/g, "") }))}
-                    className={inputClass}
-                    placeholder="123456789"
-                  />
-                </div>
-                <div>
                   <label htmlFor="email" className={labelClass}>Email</label>
                   <input
                     id="email"
@@ -303,17 +363,6 @@ export default function NovoFuncionarioPage() {
                     onChange={(e) => setForm((f) => ({ ...f, telefone: e.target.value }))}
                     className={inputClass}
                     placeholder="+351 912 345 678"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label htmlFor="morada" className={labelClass}>Morada</label>
-                  <input
-                    id="morada"
-                    type="text"
-                    value={form.morada}
-                    onChange={(e) => setForm((f) => ({ ...f, morada: e.target.value }))}
-                    className={inputClass}
-                    placeholder="Morada"
                   />
                 </div>
                 <div>
@@ -377,8 +426,8 @@ export default function NovoFuncionarioPage() {
                 <label className="flex cursor-pointer items-center gap-3">
                   <input
                     type="checkbox"
-                    checked={!!docs.cartaoCidadao}
-                    onChange={(e) => setDocs((d) => ({ ...d, cartaoCidadao: e.target.checked ? "cc" : undefined }))}
+                    checked={cartao.ativa}
+                    onChange={(e) => handleCartaoToggle(e.target.checked)}
                     className="h-4 w-4 rounded border-gray-300 text-[#f97316] focus:ring-[#f97316]"
                   />
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Cartão de Cidadão</span>
@@ -395,11 +444,11 @@ export default function NovoFuncionarioPage() {
                 <label className="flex cursor-pointer items-center gap-3">
                   <input
                     type="checkbox"
-                    checked={!!docs.licencaOperador}
-                    onChange={(e) => setDocs((d) => ({ ...d, licencaOperador: e.target.checked ? "licenca" : undefined }))}
+                    checked={licenca.ativa}
+                    onChange={(e) => handleLicencaToggle(e.target.checked)}
                     className="h-4 w-4 rounded border-gray-300 text-[#f97316] focus:ring-[#f97316]"
                   />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Licença de Operador</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Credencial</span>
                 </label>
                 <div className="flex items-center gap-2">
                   <button
@@ -414,26 +463,48 @@ export default function NovoFuncionarioPage() {
                 </div>
               </div>
 
+              {cartao.ativa && (
+                <CartaoCidadaoPanel
+                  mode="create"
+                  nif={cartao.nif}
+                  onNifChange={(value) => setCartao((c) => ({ ...c, nif: value }))}
+                  morada={cartao.morada}
+                  onMoradaChange={(value) => setCartao((c) => ({ ...c, morada: value }))}
+                  dataValidade={cartao.dataValidade}
+                  onDataValidadeChange={(value) => setCartao((c) => ({ ...c, dataValidade: value }))}
+                  fileInputRef={refCartaoCidadao}
+                  onCcFileChange={setCcPreviewFile}
+                  estado={estadoCartao}
+                  fileInputId="novo-cartao-cidadao-ficheiro"
+                />
+              )}
+
+              {licenca.ativa && (
+                <LicencaOperadorPanel
+                  mode="create"
+                  numeroCredencial={licenca.numeroCredencial}
+                  onNumeroCredencialChange={(value) =>
+                    setLicenca((l) => ({ ...l, numeroCredencial: value }))
+                  }
+                  dataValidade={licenca.dataValidade}
+                  onDataValidadeChange={(value) =>
+                    setLicenca((l) => ({ ...l, dataValidade: value }))
+                  }
+                  fileInputRef={refLicencaOperador}
+                  onLicFileChange={setLicPreviewFile}
+                  estado={estadoLicenca}
+                  fileInputId="novo-licenca-operador-ficheiro"
+                />
+              )}
+
               {mostraBlocoFicheiros && (
                 <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:border-[#222] dark:bg-[#0a0a0a]/50">
                   <p className="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">Campos de ficheiro</p>
                   <div className="flex flex-col gap-4">
-                    {!!docs.cartaoCidadao && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-400">Cartão de Cidadão</label>
-                        <input ref={refCartaoCidadao} type="file" name="CartaoCidadaoFicheiro" accept={FILE_ACCEPT} className={`${inputClass} mt-1`} />
-                      </div>
-                    )}
                     {!!docs.adr && (
                       <div>
                         <label className="block text-sm font-medium text-gray-600 dark:text-gray-400">ADR</label>
                         <input ref={refDocumentoADDR} type="file" name="DocumentoADDRFicheiro" accept={FILE_ACCEPT} className={`${inputClass} mt-1`} />
-                      </div>
-                    )}
-                    {!!docs.licencaOperador && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-400">Licença de Operador</label>
-                        <input ref={refLicencaOperador} type="file" name="LicencaOperadorFicheiro" accept={FILE_ACCEPT} className={`${inputClass} mt-1`} />
                       </div>
                     )}
                     {docs.extras.map((ex, i) => (

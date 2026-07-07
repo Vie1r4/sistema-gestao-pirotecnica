@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Funcionario } from "@/app/lib/funcionarios";
+import LicencaEstadoBadge from "./LicencaEstadoBadge";
 
 /** Colunas da tabela de funcionários (lista). */
 export function funcionariosColumns(): ColumnDef<Funcionario, unknown>[] {
@@ -9,6 +10,12 @@ export function funcionariosColumns(): ColumnDef<Funcionario, unknown>[] {
       accessorKey: "nomeCompleto",
       header: "Nome",
       enableSorting: true,
+    },
+    {
+      id: "licenca",
+      header: "Credencial",
+      cell: ({ row }) => <LicencaEstadoBadge estado={row.original.estadoLicencaOperador} />,
+      enableSorting: false,
     },
     {
       accessorKey: "email",

@@ -15,6 +15,14 @@ export type Funcionario = {
   nomeCompleto: string;
   /** N.º credencial pirotécnica (CRED) — usado na declaração PSP. */
   numeroCredencial?: string;
+  /** Validade da credencial pirotécnica (ISO ou yyyy-mm-dd). */
+  dataValidadeLicencaOperador?: string;
+  /** Estado calculado: Ausente, Incompleta, Valida, AExpirar, Expirada. */
+  estadoLicencaOperador?: string;
+  /** Validade do cartão de cidadão (ISO ou yyyy-mm-dd). */
+  dataValidadeCartaoCidadao?: string;
+  /** Estado calculado do cartão de cidadão. */
+  estadoCartaoCidadao?: string;
   nif?: string;
   email?: string;
   telefone?: string;
@@ -50,6 +58,15 @@ export function mapApiToFuncionario(item: Record<string, unknown>): Funcionario 
   return {
     id: String(item.id ?? item.Id ?? ""),
     nomeCompleto: nome,
+    numeroCredencial: (item.numeroCredencial ?? item.NumeroCredencial) as string | undefined,
+    dataValidadeLicencaOperador: (item.dataValidadeLicencaOperador ?? item.DataValidadeLicencaOperador) as
+      | string
+      | undefined,
+    estadoLicencaOperador: (item.estadoLicencaOperador ?? item.EstadoLicencaOperador) as string | undefined,
+    dataValidadeCartaoCidadao: (item.dataValidadeCartaoCidadao ?? item.DataValidadeCartaoCidadao) as
+      | string
+      | undefined,
+    estadoCartaoCidadao: (item.estadoCartaoCidadao ?? item.EstadoCartaoCidadao) as string | undefined,
     nif: (item.nif ?? item.NIF) as string | undefined,
     email: (item.email ?? item.Email) as string | undefined,
     telefone: (item.telefone ?? item.Telefone) as string | undefined,

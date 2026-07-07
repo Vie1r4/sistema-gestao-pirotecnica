@@ -29,10 +29,8 @@ public class CreateClienteInputDtoValidator : AbstractValidator<CreateClienteInp
             When(x => !string.IsNullOrWhiteSpace(x.Cliente!.NIF), () =>
             {
                 RuleFor(x => x.Cliente!.NIF)
-                    .Length(9)
-                    .WithMessage("O NIF deve ter exatamente 9 dígitos.")
-                    .Matches(@"^\d{9}$")
-                    .WithMessage("O NIF deve conter apenas 9 dígitos.");
+                    .MaximumLength(20)
+                    .WithMessage("O NIF não pode exceder 20 caracteres.");
             });
 
             When(x => !string.IsNullOrWhiteSpace(x.Cliente!.Email), () =>
