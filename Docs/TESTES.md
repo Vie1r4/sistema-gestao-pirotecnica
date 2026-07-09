@@ -46,6 +46,8 @@ npx playwright install chromium   # primeira vez
 - `EncomendaService` — preparação, FIFO, validações, logs após commit.
 - `AuthTokenService` — refresh, emissão JWT (mocks).
 - `StockDisponivelService` — entradas, saídas, reservas.
+- `ClienteCsvParser` / `ClienteImportService` — importação CSV de clientes (ERP).
+- `CartaoCidadaoRegistoValidator` / `LicencaOperadorRegistoValidator` — credenciais de funcionários.
 - Helpers: `TestDbContextFactory`, `NoOpLogSistemaService`.
 
 ### `Finalproj.IntegrationTests` (HTTP)
@@ -69,7 +71,7 @@ Auth, `authApi`, `routePermissions`, APIs, CSP. Mocks de `fetch` com `Content-Ty
 
 ### Playwright (`apps/web/tests/e2e`)
 
-Login, rota protegida, CRUD funcionários (mocks), encomenda submeter, documentação. Helpers: `tests/e2e/helpers/auth.ts`, `setup.ts`.
+Login, rota protegida, CRUD funcionários (mocks API — sem NIF no mock de edição, para não activar validação de cartão de cidadão), encomenda submeter, documentação. Helpers: `tests/e2e/helpers/auth.ts`, `setup.ts`.
 
 `playwright.config.ts`: em CI, 2 workers e 2 retries; timeout 60s. A pasta `fullstack/` **não corre** aqui — usa `playwright.fullstack.config.ts`.
 

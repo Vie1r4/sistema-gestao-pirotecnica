@@ -30,7 +30,7 @@ public sealed class SqlServerWebApplicationFactory : WebApplicationFactory<Progr
             services.RemoveAll(typeof(FinalprojContext));
 
             services.AddDbContext<FinalprojContext>(options =>
-                options.UseSqlServer(_connectionString));
+                options.UseFinalprojSqlServer(_connectionString));
 
             services.RemoveAll(typeof(IEmailSender));
             services.AddSingleton<IEmailSender, NoOpEmailSender>();

@@ -17,9 +17,10 @@ describe("buildContentSecurityPolicy", () => {
     expect(policy).not.toMatch(/style-src[^;]*nonce/);
   });
 
-  it("inclui tiles OpenStreetMap e connect-src API", () => {
+  it("inclui tiles OpenStreetMap, Esri e connect-src API", () => {
     const policy = buildContentSecurityPolicy("n", false);
     expect(policy).toContain("https://*.tile.openstreetmap.org");
+    expect(policy).toContain("https://*.arcgisonline.com");
     expect(policy).toContain("connect-src");
   });
 });

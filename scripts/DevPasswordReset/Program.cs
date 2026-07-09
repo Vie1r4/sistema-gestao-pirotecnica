@@ -33,7 +33,7 @@ var password = args.Length > 1 ? args[1]
 var services = new ServiceCollection();
 services.AddLogging();
 services.AddDbContext<FinalprojContext>(o =>
-    o.UseSqlServer(config.GetConnectionString("FinalprojContext")));
+    o.UseFinalprojSqlServer(config.GetConnectionString("FinalprojContext")!));
 services.AddIdentity<IdentityUser, IdentityRole>(options =>
     {
         options.SignIn.RequireConfirmedAccount = true;

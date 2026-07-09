@@ -39,7 +39,7 @@ builder.Services.AddControllers(options =>
 // Projeto API-only (frontend em Next.js). Não usamos MVC/Razor Views nem Identity UI pages.
 
 builder.Services.AddDbContext<FinalprojContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("FinalprojContext")));
+    options.UseFinalprojSqlServer(builder.Configuration.GetConnectionString("FinalprojContext")!));
 
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
     {

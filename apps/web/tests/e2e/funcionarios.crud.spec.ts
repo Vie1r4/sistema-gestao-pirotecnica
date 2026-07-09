@@ -7,7 +7,6 @@ const funcionarioMock = {
   email: "joao.e2e@pirofafe.pt",
   telefone: "912345678",
   cargo: "Gestor",
-  nif: "123456789",
   dataRegisto: "2026-01-01T00:00:00Z",
   contaAssociada: false,
 };

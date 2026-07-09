@@ -23,7 +23,7 @@ public class FinalprojContextFactory : IDesignTimeDbContextFactory<FinalprojCont
             ?? "Server=(localdb)\\mssqllocaldb;Database=FinalprojContext;Trusted_Connection=True;MultipleActiveResultSets=true";
 
         var optionsBuilder = new DbContextOptionsBuilder<FinalprojContext>();
-        optionsBuilder.UseSqlServer(conn);
+        optionsBuilder.UseFinalprojSqlServer(conn);
 
         return new FinalprojContext(optionsBuilder.Options);
     }

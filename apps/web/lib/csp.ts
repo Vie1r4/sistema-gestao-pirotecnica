@@ -39,7 +39,7 @@ export function buildContentSecurityPolicy(nonce: string, isDev: boolean): strin
     scriptSrc,
     styleSrc,
     `connect-src ${connectSrc}`,
-    "img-src 'self' data: blob: https://*.tile.openstreetmap.org",
+    "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.arcgisonline.com",
     "font-src 'self' data:",
     "worker-src 'self' blob:",
     "child-src 'self' blob:",
