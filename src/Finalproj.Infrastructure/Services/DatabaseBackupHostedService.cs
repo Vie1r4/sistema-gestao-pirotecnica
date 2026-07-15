@@ -127,6 +127,22 @@ public sealed class DatabaseBackupHostedService : BackgroundService, IDatabaseBa
                 await using var connection = new SqlConnection(builder.ConnectionString);
                 await connection.OpenAsync(cancellationToken);
 
+                // Determinar os ficheiros lógicos e físicos actuais da base de dados para fazer MOVE.
+                // Isto garante que o restauro funciona mesmo que o backup venha de outra máquina/utilizador (ex: C:\Users\shovi vs C:\Users\Utilizador).
+                var moveClauses = new List<string>();
+                var filesSql = "SELECT name, physical_name FROM sys.master_files WHERE database_id = DB_ID(@dbName);";
+                await using (var filesCmd = new SqlCommand(filesSql, connection))
+                {
+                    filesCmd.Parameters.AddWithValue("@dbName", dbName);
+                    await using var reader = await filesCmd.ExecuteReaderAsync(cancellationToken);
+                    while (await reader.ReadAsync(cancellationToken))
+                    {
+                        var logicalName = reader.GetString(0);
+                        var physicalPath = reader.GetString(1);
+                        moveClauses.Add($"MOVE '{logicalName.Replace("'", "''")}' TO '{physicalPath.Replace("'", "''")}'");
+                    }
+                }
+
                 // Simetria com o backup: posicionar o .bak na pasta padrão do SQL Server (onde a
                 // instância tem permissões nativas de leitura) antes do RESTORE. Em LocalDB/Express
                 // antigos a propriedade pode ser NULL — nesse caso restaura directamente do .bak.
@@ -143,10 +159,11 @@ public sealed class DatabaseBackupHostedService : BackgroundService, IDatabaseBa
                 try
                 {
                     var escapedPath = restoreSourcePath.Replace("'", "''");
+                    var moveSql = moveClauses.Count > 0 ? ", " + string.Join(", ", moveClauses) : "";
 
                     var sql = $"""
                                ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-                               RESTORE DATABASE [{dbName}] FROM DISK = N'{escapedPath}' WITH REPLACE, RECOVERY;
+                               RESTORE DATABASE [{dbName}] FROM DISK = N'{escapedPath}' WITH REPLACE, RECOVERY{moveSql};
                                ALTER DATABASE [{dbName}] SET MULTI_USER;
                                """;
 
