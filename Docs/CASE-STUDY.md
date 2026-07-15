@@ -88,7 +88,7 @@ Portfolio and delivery status:
 |-------|--------|-------------|
 | **1** | Done | Portfolio README, case study |
 | **1b** | Planned | Screenshots & GIF in README |
-| **2** | Done | On-premise production checklist — [PRODUCAO.md](PRODUCAO.md), [OPERACOES.md](OPERACOES.md) |
+| **2** | Done | Operations & backup checklist — [OPERACOES.md](OPERACOES.md) |
 | **3** | Done | FIFO concurrency + row locks; Auth refactor; coverage ≥60% in CI; full-stack E2E (login, refresh, `/me`, clients); [ARCHITECTURE.md](ARCHITECTURE.md) (EN) |
 | **4** | Optional | LinkedIn post + technical article |
 
@@ -99,7 +99,6 @@ Portfolio and delivery status:
 ## Try it
 
 - **Local development:** [README — Quick start](../README.md#quick-start)
-- **On-premise install:** [PRODUCAO.md](PRODUCAO.md)
 
 ---
 

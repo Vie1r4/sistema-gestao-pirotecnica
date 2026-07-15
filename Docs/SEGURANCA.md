@@ -2,7 +2,6 @@
 
 Resumo do que está implementado.
 
-**Antes de expor na internet:** [PRODUCAO.md](PRODUCAO.md) (checklist inicial de produção + validação automática no arranque em `Production`).
 
 ---
 

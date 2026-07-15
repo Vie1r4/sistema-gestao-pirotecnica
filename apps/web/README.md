@@ -24,7 +24,7 @@ Copie [`.env.example`](.env.example) para `.env.local` (opcional):
 NEXT_PUBLIC_API_URL=https://localhost:7225
 ```
 
-Produção: ver [Docs/PRODUCAO.md](../../Docs/PRODUCAO.md) e [`.env.example`](../../.env.example) na raiz.
+Produção: ver [`.env.example`](../../.env.example) na raiz.
 
 ## Executar
 
