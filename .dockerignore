@@ -1,0 +1,15 @@
+**/.git
+**/.github
+**/.vs
+**/bin
+**/obj
+**/node_modules
+**/.next
+**/out
+**/publish
+**/PirofafeData
+**/*.bak
+**/*.zip
+**/TestResults
+apps/web/.next
+apps/web/node_modules

@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: pirofafe-db
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=PirofafeDocker123!
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "PirofafeDocker123!", "-Q", "SELECT 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+
+  api:
+    image: pirofafe-api
+    container_name: pirofafe-api
+    build:
+      context: .
+      dockerfile: src/Finalproj.Api/Dockerfile
+    ports:
+      - "5078:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__FinalprojContext=Server=db;Database=FinalprojContext;User Id=sa;Password=PirofafeDocker123!;TrustServerCertificate=True;MultipleActiveResultSets=true
+      - Jwt__Secret=ChaveSuperSecretaDeDesenvolvimentoPirofafe2026!
+      - Jwt__Issuer=Finalproj
+      - Jwt__Audience=FinalprojUsers
+      - Frontend__BaseUrl=http://localhost:3000
+      - Bootstrap__AllowFirstUserRegistration=true
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - pirofafe_data:/app/PirofafeData
+
+  web:
+    image: pirofafe-web
+    container_name: pirofafe-web
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:5078
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  mssql_data:
+  pirofafe_data:
