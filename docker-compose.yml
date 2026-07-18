@@ -36,8 +36,7 @@ services:
       - Frontend__BaseUrl=http://localhost:3000
       - Bootstrap__AllowFirstUserRegistration=true
     depends_on:
-      db:
-        condition: service_healthy
+     - db
     volumes:
       - pirofafe_data:/app/PirofafeData
 
