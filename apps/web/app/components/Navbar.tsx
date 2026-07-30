@@ -250,17 +250,17 @@ export default function Navbar() {
               transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
               onMouseEnter={handleSidebarEnter}
               onMouseLeave={handleSidebarLeave}
-              className="fixed bottom-0 left-0 z-40 flex w-[200px] flex-col border-r border-[#e7e5e4] bg-white top-content-offset min-h-below-navbar shadow-[2px_0_12px_-4px_rgba(0,0,0,0.06),1px_0_0_0_rgba(0,0,0,0.03)] backdrop-blur-xl dark:border-[#1a1a1a] dark:bg-[#0a0a0a]/95 dark:shadow-[2px_0_24px_-8px_rgba(0,0,0,0.5)]"
+              className="fixed bottom-0 left-0 z-40 flex w-[200px] flex-col border-r border-[#e7e5e4] bg-white top-14 h-[calc(100vh-56px)] shadow-[2px_0_12px_-4px_rgba(0,0,0,0.06),1px_0_0_0_rgba(0,0,0,0.03)] backdrop-blur-xl dark:border-[#1a1a1a] dark:bg-[#0a0a0a]/95 dark:shadow-[2px_0_24px_-8px_rgba(0,0,0,0.5)]"
             >
               <div className="flex flex-1 flex-col p-4">
                 <motion.span
                   variants={navItem}
                   transition={{ duration: 0.3 }}
-                  className="mb-3 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[#78716c] dark:text-[#666]"
+                  className="mb-3 px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#78716c] dark:text-[#666]"
                 >
                   Navegação
                 </motion.span>
-                <nav className="flex flex-col gap-1">
+                <nav className="flex flex-col gap-1.5">
                   {visibleLinks.length === 0 ? (
                     <p className="px-4 py-2 text-sm text-[#78716c] dark:text-gray-500">
                       Sem permissões de navegação. Contacte o administrador.
@@ -272,7 +272,7 @@ export default function Navbar() {
                       <motion.div key={href} variants={navItem} transition={{ duration: 0.35 }}>
                         <Link
                           href={href}
-                          className={`group relative flex min-h-[42px] items-center gap-3 rounded-xl px-3.5 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316] ${
+                          className={`group relative flex min-h-[44px] items-center gap-3 rounded-xl px-3.5 py-2.5 text-[15px] font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f97316] ${
                             isActive
                               ? "bg-orange-50 text-[#ea580c] shadow-[inset_0_1px_0_0_rgba(0,0,0,0.01)] dark:bg-[#1e1510] dark:text-[#f97316] font-semibold"
                               : "text-[#57534e] hover:bg-[#fafaf9] hover:text-[#1c1917] dark:text-[#a3a3a3] dark:hover:bg-[#121212] dark:hover:text-white"
