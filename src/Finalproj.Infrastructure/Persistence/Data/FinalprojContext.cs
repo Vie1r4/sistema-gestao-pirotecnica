@@ -97,6 +97,10 @@ public class FinalprojContext : IdentityDbContext<Microsoft.AspNetCore.Identity.
                 .HasForeignKey(e => e.ProdutoId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            modelBuilder.Entity<EntradaPaiol>()
+                .HasIndex(e => new { e.PaiolId, e.ProdutoId, e.DataFabrico, e.DataEntrada })
+                .HasDatabaseName("IX_EntradasPaiol_PaiolId_ProdutoId_Datas");
+
             modelBuilder.Entity<PaiolAcesso>()
                 .HasOne(a => a.Paiol)
                 .WithMany()

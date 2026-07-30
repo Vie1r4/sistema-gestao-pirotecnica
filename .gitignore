@@ -517,3 +517,8 @@ $RECYCLE.BIN/
 
 # Backups SQL na raiz da API (legado, antes da subpasta)
 **/db-backup_*.bak
+
+# Scripts utilitários de arranque local (Windows)
+/run-*.bat
+/run-*.ps1
+

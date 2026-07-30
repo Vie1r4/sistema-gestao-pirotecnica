@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: pirofafe-db-prod
+    restart: unless-stopped
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
+      - MSSQL_PID=Developer
+    ports:
+      - "127.0.0.1:1433:1433" # SQL Server exposto apenas internamente por razões de segurança
+    volumes:
+      - mssql_data_prod:/var/opt/mssql
+      - backup_staging_prod:/var/opt/mssql/staging
+
+  api:
+    image: pirofafe-api-prod
+    container_name: pirofafe-api-prod
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: src/Finalproj.Api/Dockerfile
+    ports:
+      - "5078:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__FinalprojContext=Server=db;Database=FinalprojContext;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=true
+      - Jwt__Secret=${JWT_SECRET}
+      - Jwt__Issuer=Finalproj
+      - Jwt__Audience=FinalprojUsers
+      - Frontend__BaseUrl=${FRONTEND_BASE_URL:-http://localhost:3000}
+      - Cors__AllowedOrigins=${FRONTEND_BASE_URL:-http://localhost:3000}
+      - Bootstrap__AllowFirstUserRegistration=${ALLOW_BOOTSTRAP:-false}
+      - Email__SmtpHost=${SMTP_HOST}
+      - Email__SmtpPort=${SMTP_PORT:-587}
+      - Email__SmtpUser=${SMTP_USER}
+      - Email__SmtpPassword=${SMTP_PASSWORD}
+      - Email__From=${SMTP_FROM}
+      - CifragemEmRepouso__Ativa=true
+      - CifragemEmRepouso__ChaveBase64=${CIFRAGEM_KEY_BASE64}
+      - CifragemEmRepouso__CifrarBackups=true
+      - Backups__CaminhoStagingSql=/app/BackupStaging
+      - Backups__UsarCompressao=true
+    depends_on:
+      - db
+    volumes:
+      - pirofafe_data_prod:/app/PirofafeData
+      - backup_staging_prod:/app/BackupStaging
+
+  web:
+    image: pirofafe-web-prod
+    container_name: pirofafe-web-prod
+    restart: unless-stopped
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5078}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  mssql_data_prod:
+  pirofafe_data_prod:
+  backup_staging_prod:

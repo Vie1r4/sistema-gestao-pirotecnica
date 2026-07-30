@@ -19,4 +19,12 @@ public sealed class DatabaseBackupOptions
     /// COMPRESSION no BACKUP DATABASE (requer SQL Server Standard+). LocalDB/Express falham — manter false em dev.
     /// </summary>
     public bool UsarCompressao { get; set; }
+
+    /// <summary>
+    /// Caminho partilhado entre o contentor da API e o contentor do SQL Server.
+    /// Quando preenchido, o SQL Server escreve/lê o .bak neste caminho em vez
+    /// de usar a InstanceDefaultBackupPath. Usado em ambientes Docker onde
+    /// os contentores são separados.
+    /// </summary>
+    public string? CaminhoStagingSql { get; set; }
 }

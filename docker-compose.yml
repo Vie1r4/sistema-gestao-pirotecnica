@@ -12,12 +12,7 @@ services:
       - "1433:1433"
     volumes:
       - mssql_data:/var/opt/mssql
-    healthcheck:
-      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "PirofafeDocker123!", "-Q", "SELECT 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
-      start_period: 15s
+      - backup_staging:/var/opt/mssql/staging
 
   api:
     image: pirofafe-api
@@ -35,10 +30,12 @@ services:
       - Jwt__Audience=FinalprojUsers
       - Frontend__BaseUrl=http://localhost:3000
       - Bootstrap__AllowFirstUserRegistration=true
+      - Backups__CaminhoStagingSql=/app/BackupStaging
     depends_on:
      - db
     volumes:
       - pirofafe_data:/app/PirofafeData
+      - backup_staging:/app/BackupStaging
 
   web:
     image: pirofafe-web
@@ -56,3 +53,4 @@ services:
 volumes:
   mssql_data:
   pirofafe_data:
+  backup_staging:

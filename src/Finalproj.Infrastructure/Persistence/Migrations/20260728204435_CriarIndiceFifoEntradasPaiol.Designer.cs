@@ -4,16 +4,19 @@ using Finalproj.Infrastructure.Persistence.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace Finalproj.Migrations
+namespace Finalproj.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(FinalprojContext))]
-    partial class FinalprojContextModelSnapshot : ModelSnapshot
+    [Migration("20260728204435_CriarIndiceFifoEntradasPaiol")]
+    partial class CriarIndiceFifoEntradasPaiol
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

@@ -143,16 +143,32 @@ public sealed class DatabaseBackupHostedService : BackgroundService, IDatabaseBa
                     }
                 }
 
-                // Simetria com o backup: posicionar o .bak na pasta padrão do SQL Server (onde a
-                // instância tem permissões nativas de leitura) antes do RESTORE. Em LocalDB/Express
-                // antigos a propriedade pode ser NULL — nesse caso restaura directamente do .bak.
+                // Simetria com o backup: posicionar o .bak na pasta padrão do SQL Server ou no staging
+                // partilhado antes do RESTORE. Em LocalDB/Express antigos a propriedade pode ser NULL.
+                var usandoDockerStaging = !string.IsNullOrWhiteSpace(_options.CaminhoStagingSql);
                 var pastaSqlPadrao = await ObterPastaBackupPadraoSqlAsync(connection, cancellationToken);
+                var usarStaging = usandoDockerStaging || pastaSqlPadrao != null;
+
                 var restoreSourcePath = plainBak;
                 var stagedNoSql = false;
-                if (pastaSqlPadrao != null)
+                string? tempFileToClean = null;
+
+                if (usandoDockerStaging)
                 {
-                    restoreSourcePath = Path.Combine(pastaSqlPadrao, $"restore-{Guid.NewGuid():N}.bak");
+                    var tempFileName = $"restore-{Guid.NewGuid():N}.bak";
+                    var apiStagingPath = Path.Combine(_options.CaminhoStagingSql!, tempFileName);
+                    restoreSourcePath = Path.Combine("/var/opt/mssql/staging", tempFileName);
+
+                    File.Copy(plainBak, apiStagingPath, overwrite: true);
+                    tempFileToClean = apiStagingPath;
+                    stagedNoSql = true;
+                }
+                else if (pastaSqlPadrao != null)
+                {
+                    var tempFileName = $"restore-{Guid.NewGuid():N}.bak";
+                    restoreSourcePath = Path.Combine(pastaSqlPadrao, tempFileName);
                     File.Copy(plainBak, restoreSourcePath, overwrite: true);
+                    tempFileToClean = restoreSourcePath;
                     stagedNoSql = true;
                 }
 
@@ -182,8 +198,8 @@ public sealed class DatabaseBackupHostedService : BackgroundService, IDatabaseBa
                 }
                 finally
                 {
-                    if (stagedNoSql)
-                        TentarApagarFicheiro(restoreSourcePath);
+                    if (stagedNoSql && tempFileToClean != null)
+                        TentarApagarFicheiro(tempFileToClean);
                 }
 
                 var uploadsZipPath = ObterCaminhoZipDocumentos(backupPath);
@@ -319,15 +335,26 @@ public sealed class DatabaseBackupHostedService : BackgroundService, IDatabaseBa
             await using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync(cancellationToken);
 
-            // Portabilidade local: o SQL Server escreve primeiro na sua pasta de backups padrão
-            // (onde a instância tem sempre permissões nativas) e só depois a API (C#) move o .bak
-            // para PirofafeData/Backups. Em LocalDB/Express antigos a propriedade pode ser NULL —
-            // nesse caso, fallback para escrita directa no destino final.
+            // Portabilidade e suporte a Docker: o SQL Server escreve primeiro na sua pasta de backups padrão
+            // ou na pasta de staging partilhada, e só depois a API (C#) move o .bak para PirofafeData/Backups.
+            var usandoDockerStaging = !string.IsNullOrWhiteSpace(_options.CaminhoStagingSql);
             var pastaSqlPadrao = await ObterPastaBackupPadraoSqlAsync(connection, cancellationToken);
-            var usarStaging = pastaSqlPadrao != null;
-            var sqlBackupPath = usarStaging
-                ? Path.Combine(pastaSqlPadrao!, fileName)
-                : backupPath;
+            var usarStaging = usandoDockerStaging || pastaSqlPadrao != null;
+
+            string sqlBackupPath;
+            string apiStagingPath;
+
+            if (usandoDockerStaging)
+            {
+                sqlBackupPath = Path.Combine("/var/opt/mssql/staging", fileName);
+                apiStagingPath = Path.Combine(_options.CaminhoStagingSql!, fileName);
+            }
+            else
+            {
+                sqlBackupPath = usarStaging ? Path.Combine(pastaSqlPadrao!, fileName) : backupPath;
+                apiStagingPath = sqlBackupPath;
+            }
+
             var escapedPath = sqlBackupPath.Replace("'", "''");
 
             var withOptions = MontarOpcoesBackupSql();
@@ -338,7 +365,7 @@ public sealed class DatabaseBackupHostedService : BackgroundService, IDatabaseBa
                        """;
 
             _logger.LogInformation(
-                "A iniciar backup da BD {Database} para {SqlPath} (staging na pasta do SQL: {Staging}).",
+                "A iniciar backup da BD {Database} para {SqlPath} (staging: {Staging}).",
                 dbName,
                 sqlBackupPath,
                 usarStaging);
@@ -352,17 +379,17 @@ public sealed class DatabaseBackupHostedService : BackgroundService, IDatabaseBa
             {
                 try
                 {
-                    MoverFicheiro(sqlBackupPath, backupPath);
-                    _logger.LogInformation("Backup movido da pasta do SQL para {Destino}.", backupPath);
+                    MoverFicheiro(apiStagingPath, backupPath);
+                    _logger.LogInformation("Backup movido da pasta de staging ({Origem}) para {Destino}.", apiStagingPath, backupPath);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(
                         ex,
-                        "Falha ao mover o .bak da pasta do SQL ({Origem}) para {Destino}. A limpar ficheiro órfão.",
-                        sqlBackupPath,
+                        "Falha ao mover o .bak da pasta de staging ({Origem}) para {Destino}. A limpar ficheiro órfão.",
+                        apiStagingPath,
                         backupPath);
-                    TentarApagarFicheiro(sqlBackupPath);
+                    TentarApagarFicheiro(apiStagingPath);
                     throw;
                 }
             }
