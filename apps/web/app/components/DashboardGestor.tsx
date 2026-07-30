@@ -9,6 +9,8 @@ import dynamic from "next/dynamic";
 import ClienteConsumoList from "@/app/components/gestor-analytics/ClienteConsumoList";
 import TopClientesBlock from "@/app/components/gestor-analytics/TopClientesBlock";
 import { pt } from "date-fns/locale";
+import AlertBanner from "@/app/components/dashboard/AlertBanner";
+import DashboardSkeleton from "@/app/components/dashboard/DashboardSkeleton";
 import {
   gestorDashboardQueryKey,
   getGestorDashboard,
@@ -112,8 +114,7 @@ export default function DashboardGestor({
   const cards: CardStat[] = useMemo(() => {
     if (!data) return [];
     const k = data.kpiContexto;
-    const c = data.conformidadeFuncionarios;
-    const base: CardStat[] = [
+    return [
       {
         title: "Serviços registados",
         value: data.totalServicos,
@@ -137,28 +138,6 @@ export default function DashboardGestor({
         ),
       },
       {
-        title: "Clientes",
-        value: data.totalClientes,
-        trendDelta: kpiTrendDelta(k?.clientes),
-        href: "/clientes",
-        icon: (
-          <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-          </svg>
-        ),
-      },
-      {
-        title: "Funcionários",
-        value: data.totalFuncionarios,
-        trendDelta: kpiTrendDelta(k?.funcionarios),
-        href: "/funcionarios",
-        icon: (
-          <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-          </svg>
-        ),
-      },
-      {
         title: "Produtos",
         value: data.totalProdutos,
         trendDelta: kpiTrendDelta(k?.produtos),
@@ -169,37 +148,18 @@ export default function DashboardGestor({
           </svg>
         ),
       },
+      {
+        title: "Encomendas pendentes",
+        value: data.encomendasPendentes,
+        trendDelta: kpiTrendDelta(k?.encomendasPendentes),
+        href: "/encomendas?estado=Pendente&pagina=1",
+        icon: (
+          <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" />
+          </svg>
+        ),
+      },
     ];
-
-    base.push({
-      title: "Cred. a expirar",
-      value: c?.aExpirar ?? 0,
-      href: "/funcionarios?filtroLicenca=a_expirar",
-      icon: LICENCA_ICON,
-      variant: (c?.aExpirar ?? 0) > 0 ? "warning" : "default",
-    });
-
-    if ((c?.expiradas ?? 0) > 0) {
-      base.push({
-        title: "Cred. expiradas",
-        value: c!.expiradas,
-        href: "/funcionarios?filtroLicenca=expirada",
-        icon: LICENCA_ICON,
-        variant: "danger",
-      });
-    }
-
-    if ((c?.incompletas ?? 0) > 0) {
-      base.push({
-        title: "Cred. incompletas",
-        value: c!.incompletas,
-        href: "/funcionarios?filtroLicenca=incompleta",
-        icon: LICENCA_ICON,
-        variant: "warning",
-      });
-    }
-
-    return base;
   }, [data]);
 
   const ultimosMovimentos: MovimentoRecenteDto[] = useMemo(() => {
@@ -264,119 +224,123 @@ export default function DashboardGestor({
           </p>
         </motion.div>
 
-        {/* Métricas — sempre visíveis acima das tabs */}
-        <motion.div
-          variants={staggerContainer}
-          initial="initial"
-          animate="animate"
-          className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 lg:gap-4"
-        >
-          {isLoading
-            ? Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={i}
-                  className={`${dashboardPanelClass} p-4`}
-                >
-                  <div className="h-10 w-10 animate-pulse rounded-xl bg-[#e7e5e4] dark:bg-[#333]" />
-                  <div className="mt-3 h-8 w-16 animate-pulse rounded bg-[#e7e5e4] dark:bg-[#333]" />
-                  <div className="mt-2 h-4 w-24 animate-pulse rounded bg-[#e7e5e4] dark:bg-[#333]" />
-                </div>
-              ))
-            : cards.map((card, i) => <StatCard key={card.title} card={card} index={i} />)}
-        </motion.div>
+        {isLoading ? (
+          <DashboardSkeleton />
+        ) : (
+          <>
+            {/* Alertas Críticos no topo (condicional) */}
+            {data && (
+              <div className="mt-6">
+                <AlertBanner conformidade={data.conformidadeFuncionarios} />
+              </div>
+            )}
 
-        {/* Barra de tabs */}
-        <div className="mt-6 border-b border-[#e7e5e4] dark:border-[#222]">
-          <div className="flex flex-wrap gap-1" role="tablist" aria-label="Secções do painel">
-            {TABS.map((t) => {
-              const ativo = tab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={ativo}
-                  onClick={() => setTab(t.id)}
-                  className={`relative -mb-px rounded-t-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
-                    ativo
-                      ? "border-b-2 border-[#f97316] text-[#1c1917] dark:text-white"
-                      : "border-b-2 border-transparent text-[#78716c] hover:text-[#1c1917] dark:text-[#888] dark:hover:text-white"
-                  }`}
-                >
-                  {t.label}
-                  {t.id === "armazem" && alertasCount > 0 && (
-                    <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-amber-200 px-1.5 text-[10px] font-bold text-amber-900 dark:bg-amber-800 dark:text-amber-100">
-                      {alertasCount}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+            {/* Grelha de KPIs (4 Cartões Fixos) */}
+            <motion.div
+              variants={staggerContainer}
+              initial="initial"
+              animate="animate"
+              className="mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"
+            >
+              {cards.map((card, i) => (
+                <StatCard key={card.title} card={card} index={i} />
+              ))}
+            </motion.div>
 
-        {/* Conteúdo das tabs */}
-        <motion.div
-          key={tab}
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          className="mt-5"
-        >
-          {tab === "atividade" && (
-            <div className="space-y-5">
-              <YoYChart token={token} />
-              <VolumeChart token={token} />
-            </div>
-          )}
-
-          {tab === "clientes" && (
-            <div className="space-y-5">
-              <TopClientesBlock token={token} layout="wide" />
-              <ClienteConsumoList token={token} />
-            </div>
-          )}
-
-          {tab === "armazem" && (
-            <div className="space-y-5">
-              {temAlertas && (
-                <Link
-                  href="/armazem/gestao"
-                  className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 transition-shadow hover:shadow-md dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200"
-                >
-                  <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold dark:bg-amber-800">
-                    {alertasCount}
-                  </span>
-                  Paióis em manutenção
-                  <span className="text-amber-600 dark:text-amber-400">→</span>
-                </Link>
-              )}
-              <div className={GRID_3_COL}>
-                <div className={COL_SPAN_MAIN}>
-                  <MovimentosArmazemPanel
-                    isLoading={isLoading}
-                    movimentos={ultimosMovimentos}
-                  />
-                </div>
-                <div className={COL_SPAN_SIDE}>
-                  {isLoading ? (
-                    <div className={`${dashboardPanelClass} h-full min-h-[320px] animate-pulse`} />
-                  ) : (
-                    data && (
-                      <PendingEncomendasPanel
-                        total={data.encomendasPendentes}
-                        lista={data.encomendasPendentesLista}
-                        recebidasSemana={
-                          data.kpiContexto?.encomendasPendentes?.recebidasSemana ?? 0
-                        }
-                      />
-                    )
-                  )}
-                </div>
+            {/* Barra de tabs */}
+            <div className="mt-8 border-b border-[#e7e5e4] dark:border-[#222]">
+              <div className="flex flex-wrap gap-1" role="tablist" aria-label="Secções do painel">
+                {TABS.map((t) => {
+                  const ativo = tab === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={ativo}
+                      onClick={() => setTab(t.id)}
+                      className={`relative -mb-px rounded-t-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+                        ativo
+                          ? "border-b-2 border-[#f97316] text-[#1c1917] dark:text-white"
+                          : "border-b-2 border-transparent text-[#78716c] hover:text-[#1c1917] dark:text-[#888] dark:hover:text-white"
+                      }`}
+                    >
+                      {t.label}
+                      {t.id === "armazem" && alertasCount > 0 && (
+                        <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-amber-200 px-1.5 text-[10px] font-bold text-amber-900 dark:bg-amber-800 dark:text-amber-100">
+                          {alertasCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
-          )}
-        </motion.div>
+
+            {/* Conteúdo das tabs */}
+            <motion.div
+              key={tab}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.355 }}
+              className="mt-6"
+            >
+              {tab === "atividade" && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <YoYChart token={token} />
+                  <VolumeChart token={token} />
+                </div>
+              )}
+
+              {tab === "clientes" && (
+                <div className="space-y-5">
+                  <TopClientesBlock token={token} layout="wide" />
+                  <ClienteConsumoList token={token} />
+                </div>
+              )}
+
+              {tab === "armazem" && (
+                <div className="space-y-5">
+                  {temAlertas && (
+                    <Link
+                      href="/armazem/gestao"
+                      className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 transition-shadow hover:shadow-md dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200"
+                    >
+                      <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold dark:bg-amber-800">
+                        {alertasCount}
+                      </span>
+                      Paióis em manutenção
+                      <span className="text-amber-600 dark:text-amber-400">→</span>
+                    </Link>
+                  )}
+                  <div className={GRID_3_COL}>
+                    <div className={COL_SPAN_MAIN}>
+                      <MovimentosArmazemPanel
+                        isLoading={isLoading}
+                        movimentos={ultimosMovimentos}
+                      />
+                    </div>
+                    <div className={COL_SPAN_SIDE}>
+                      {isLoading ? (
+                        <div className={`${dashboardPanelClass} h-full min-h-[320px] animate-pulse`} />
+                      ) : (
+                        data && (
+                          <PendingEncomendasPanel
+                            total={data.encomendasPendentes}
+                            lista={data.encomendasPendentesLista}
+                            recebidasSemana={
+                              data.kpiContexto?.encomendasPendentes?.recebidasSemana ?? 0
+                            }
+                          />
+                        )
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
       </div>
     </section>
   );
