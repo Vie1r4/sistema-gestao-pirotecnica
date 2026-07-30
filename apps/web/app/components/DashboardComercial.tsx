@@ -105,7 +105,7 @@ export default function DashboardComercial({
     return (
       <section
         id="dashboard-comercial"
-        className="border-t border-[#e7e5e4] bg-[#fafaf9] px-6 py-24 dark:border-[#1a1a1a] dark:bg-[#050505] sm:px-8 sm:py-32"
+        className="bg-[#fafaf9] px-6 py-24 dark:bg-[#050505] sm:px-8 sm:py-32"
       >
         <div className="content-container">
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center dark:border-amber-800 dark:bg-amber-900/20">
@@ -129,7 +129,7 @@ export default function DashboardComercial({
   return (
     <section
       id="dashboard-comercial"
-      className="border-t border-[#e7e5e4] bg-[#fafaf9] px-6 py-24 dark:border-[#1a1a1a] dark:bg-[#050505] sm:px-8 sm:py-32"
+      className="bg-[#fafaf9] px-6 py-24 dark:bg-[#050505] sm:px-8 sm:py-32"
     >
       <div className="content-container">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#ea580c] dark:text-[#f97316]">

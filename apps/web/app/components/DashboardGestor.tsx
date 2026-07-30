@@ -179,7 +179,7 @@ export default function DashboardGestor({
     return (
       <section
         id="dashboard-gestor"
-        className="border-t border-[#e7e5e4] bg-[#fafaf9] px-6 py-24 dark:border-[#1a1a1a] dark:bg-[#050505] sm:px-8 sm:py-32"
+        className="bg-[#fafaf9] px-6 py-24 dark:bg-[#050505] sm:px-8 sm:py-32"
       >
         <div className="content-container">
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center dark:border-amber-800 dark:bg-amber-900/20">
@@ -202,7 +202,7 @@ export default function DashboardGestor({
   return (
     <section
       id="dashboard-gestor"
-      className="border-t border-[#e7e5e4] bg-[#fafaf9] px-4 py-12 dark:border-[#1a1a1a] dark:bg-[#050505] sm:px-6 sm:py-16 lg:px-8"
+      className="bg-[#fafaf9] px-4 py-12 dark:bg-[#050505] sm:px-6 sm:py-16 lg:px-8"
     >
       <div className="content-container">
         {/* Cabeçalho */}
